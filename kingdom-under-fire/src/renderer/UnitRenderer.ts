@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
 import { Comp, MoraleState, UnitState } from '../entities/Components';
-import { CORPSE_SECONDS, HIT_FLASH_SECONDS, IMPACT_FRACTION } from '../units/Unit';
+import { CORPSE_SECONDS, HIT_FLASH_SECONDS } from '../units/Unit';
 import { UNIT_MODELS, type UnitModel } from '../units/UnitStats';
-import { ATTACK_STYLE, createUnitGeometry } from './UnitMeshes';
+import { ATTACK_STYLE, BOW_AIM, BOW_STYLE, createUnitGeometry, MOUNTED_MODELS, STRIDE } from './UnitMeshes';
 
 /**
  * GPU-animated instanced soldiers. One InstancedMesh per model (a whole army type = one draw call, plus
@@ -15,8 +15,9 @@ import { ATTACK_STYLE, createUnitGeometry } from './UnitMeshes';
 const ANIMATION_GLSL = /* glsl */ `
 attribute float aBone;
 attribute float aTeam;
+attribute float aMount;
 attribute vec4 iAnim;  // x walk phase (rad), y walk amount 0..1, z attack progress 0..1 (0 = none), w seconds dead (0 = alive)
-attribute vec4 iState; // x hit flash 0..1, y routing, z attack style (0 swing, 1 thrust), w idle phase
+attribute vec4 iState; // x hit flash 0..1, y routing, z attack style (0 swing, 1 thrust, 2 bow) + 10 if mounted, w idle phase
 attribute vec3 iTeam;
 uniform float uTime;
 uniform float uCorpse;
@@ -24,6 +25,12 @@ varying float vFlash;
 
 mat3 kRotX(float a) { float c = cos(a); float s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
 mat3 kRotY(float a) { float c = cos(a); float s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
+mat3 kRotZ(float a) { float c = cos(a); float s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
+
+void kRotate(inout vec3 p, inout vec3 n, mat3 r, vec3 pivot) {
+  p = r * (p - pivot) + pivot;
+  n = r * n;
+}
 
 void kPose(inout vec3 p, inout vec3 n) {
   float phase = iAnim.x;
@@ -31,18 +38,27 @@ void kPose(inout vec3 p, inout vec3 n) {
   float atk = iAnim.z;
   float dead = iAnim.w;
   float routing = iState.y;
-  float style = iState.z;
+  float mountedModel = step(9.5, iState.z);
+  float style = iState.z - 10.0 * mountedModel;
   float breath = sin(uTime * 1.6 + iState.w) * (1.0 - walk);
+  // Riders do not walk: their limbs only follow the gallop a little.
+  float limbWalk = mix(walk, walk * 0.15, aMount);
+  float bow = step(1.5, style);
+  float aim = atk > 0.0 ? bow * smoothstep(0.0, 0.3, atk) * (1.0 - smoothstep(0.75, 1.0, atk)) : 0.0;
 
-  if (aBone > 0.5 && aBone < 2.5) {
+  if (aBone > 5.5 && aBone < 9.5) {
+    // Horse legs: front/back pairs in opposition, right legs slightly behind (gallop).
+    float front = aBone < 7.5 ? 1.0 : -1.0;
+    float right = mod(aBone, 2.0) > 0.5 ? 1.0 : 0.0;
+    float offset = (front > 0.0 ? 0.0 : 3.14159) + right * 0.55;
+    vec3 pivot = vec3(right > 0.5 ? 0.2 : -0.2, 1.05, front * 0.61);
+    kRotate(p, n, kRotX(sin(phase + offset) * 0.75 * walk), pivot);
+  } else if (aBone > 0.5 && aBone < 2.5) {
     float side = aBone < 1.5 ? 1.0 : -1.0;
-    mat3 r = kRotX(sin(phase) * 0.62 * walk * side);
-    vec3 hip = vec3(0.0, 0.92, 0.0);
-    p = r * (p - hip) + hip;
-    n = r * n;
-  } else if ((aBone > 2.5 && aBone < 3.5) || aBone > 4.5) {
+    kRotate(p, n, kRotX(sin(phase) * 0.62 * limbWalk * side), vec3(0.0, 0.92, 0.0));
+  } else if ((aBone > 2.5 && aBone < 3.5) || (aBone > 4.5 && aBone < 5.5)) {
     // Weapon arm: angle a around the shoulder, wrist angle w around the hand, thrust along +z.
-    float a = -sin(phase) * 0.35 * walk + breath * 0.04;
+    float a = -sin(phase) * 0.35 * limbWalk + breath * 0.04;
     float w = 0.0;
     float thrust = 0.0;
     if (atk > 0.0) {
@@ -52,49 +68,52 @@ void kPose(inout vec3 p, inout vec3 n) {
         float back = smoothstep(0.55, 1.0, atk);
         a = mix(mix(a, -2.6, up), -0.9, hit) * (1.0 - back) + a * back;
         w = mix(mix(0.0, 0.51, up), 1.95, hit) * (1.0 - back);
-      } else {
+      } else if (style < 1.5) {
         float draw = smoothstep(0.0, 0.4, atk);
         float hit = smoothstep(0.4, 0.52, atk);
         float back = smoothstep(0.52, 1.0, atk);
         a = mix(mix(0.0, 0.25, draw), -0.35, hit) * (1.0 - back);
         w = -a;
         thrust = mix(mix(0.0, -0.28, draw), 0.55, hit) * (1.0 - back);
+      } else {
+        // Bow: the string hand comes up to the chin, pulls back, releases at the impact fraction.
+        a = mix(a, -1.45, aim);
+        thrust = -0.3 * smoothstep(0.15, 0.45, atk) * (1.0 - smoothstep(0.45, 0.5, atk));
       }
     }
     if (routing > 0.5) { a = -0.35; w = 0.6; }
-    if (aBone > 4.5) {
-      vec3 hand = vec3(0.29, 0.93, 0.05);
-      mat3 rw = kRotX(w);
-      p = rw * (p - hand) + hand;
-      n = rw * n;
-    }
-    vec3 shoulder = vec3(0.27, 1.42, 0.0);
-    mat3 ra = kRotX(a);
-    p = ra * (p - shoulder) + shoulder;
-    n = ra * n;
+    if (aBone > 4.5) kRotate(p, n, kRotX(w), vec3(0.29, 0.93, 0.05));
+    kRotate(p, n, kRotX(a), vec3(0.27, 1.42, 0.0));
     p.z += thrust;
-  } else if (aBone > 3.5) {
-    float a = sin(phase) * 0.3 * walk - breath * 0.03;
-    if (atk > 0.0) a -= 0.45 * sin(atk * 3.14159);
-    vec3 shoulder = vec3(-0.27, 1.42, 0.0);
-    mat3 r = kRotX(a);
-    p = r * (p - shoulder) + shoulder;
-    n = r * n;
+  } else if (aBone > 3.5 && aBone < 4.5) {
+    float a = sin(phase) * 0.3 * limbWalk - breath * 0.03;
+    if (bow > 0.5) a = mix(-0.25, ${BOW_AIM.toFixed(3)}, aim);
+    else if (atk > 0.0) a -= 0.45 * sin(atk * 3.14159);
+    kRotate(p, n, kRotX(a), vec3(-0.27, 1.42, 0.0));
   }
 
-  // Whole body: lean when running, twist into an overhead blow, bob.
-  float twist = (atk > 0.0 && style < 0.5) ? sin(atk * 6.2832) * 0.3 : 0.0;
-  mat3 body = kRotY(twist) * kRotX(0.1 * walk + routing * 0.15);
-  p = body * p;
-  n = body * n;
-  p.y += abs(sin(phase)) * 0.06 * walk + breath * 0.01;
+  if (aBone < 5.5) {
+    // Whole body: lean when running, twist into an overhead blow or side-on to shoot, bob.
+    float twist = (atk > 0.0 && style < 0.5) ? sin(atk * 6.2832) * 0.3 : 0.0;
+    twist -= 0.45 * aim;
+    mat3 body = kRotY(twist) * kRotX(0.1 * limbWalk + routing * 0.15);
+    p = body * p;
+    n = body * n;
+    p.y += abs(sin(phase)) * 0.06 * limbWalk + breath * 0.01;
+  }
+  if (aMount > 0.5 || aBone > 9.5) {
+    // Riders sit on the saddle; horse and rider pitch and bob with the gallop.
+    if (aMount > 0.5) p += vec3(0.0, 0.72, -0.12);
+    kRotate(p, n, kRotX(sin(phase) * 0.05 * walk), vec3(0.0, 1.2, 0.0));
+    p.y += abs(sin(phase)) * 0.1 * walk;
+  }
 
   if (dead > 0.0) {
     float fall = smoothstep(0.0, 0.75, dead);
-    mat3 r = kRotX(-1.52 * fall * fall);
+    mat3 r = mountedModel > 0.5 ? kRotZ(1.45 * fall * fall) : kRotX(-1.52 * fall * fall);
     p = r * p;
     n = r * n;
-    p.y += 0.15 * fall - smoothstep(uCorpse - 4.0, uCorpse, dead) * 0.9;
+    p.y += (mountedModel > 0.5 ? 0.3 : 0.15) * fall - smoothstep(uCorpse - 4.0, uCorpse, dead) * 1.2;
   }
 }
 `;
@@ -149,6 +168,10 @@ export class UnitRenderer {
   private readonly pools: Pool[];
   private readonly modelOfType: number[];
   private readonly scaleOfType: number[];
+  private readonly strideOfType: number[];
+  /** Melee attack style + 10 when the model rides a horse (see the shader). */
+  private readonly styleOfType: number[];
+  private readonly mountedOfType: boolean[];
   private readonly walkPhase: Float32Array;
   private readonly walkAmount: Float32Array;
   private readonly frustum = new THREE.Frustum();
@@ -166,6 +189,9 @@ export class UnitRenderer {
     this.walkAmount = new Float32Array(capacity);
     this.modelOfType = UNIT_DEFS.map((def) => UNIT_MODELS.indexOf(def.model));
     this.scaleOfType = UNIT_DEFS.map((def) => def.scale);
+    this.strideOfType = UNIT_DEFS.map((def) => STRIDE[def.model] / def.scale);
+    this.mountedOfType = UNIT_DEFS.map((def) => MOUNTED_MODELS.has(def.model));
+    this.styleOfType = UNIT_DEFS.map((def) => ATTACK_STYLE[def.model]);
     this.pools = UNIT_MODELS.map((model) => this.createPool(model, INITIAL_CAPACITY));
   }
 
@@ -219,18 +245,19 @@ export class UnitRenderer {
       const x = c.prevX[id] + (c.x[id] - c.prevX[id]) * alpha;
       const z = c.prevZ[id] + (c.z[id] - c.prevZ[id]) * alpha;
       const dying = c.state[id] === UnitState.Dying;
+      const type = c.unitType[id];
       const speed = dying ? 0 : Math.hypot(c.x[id] - c.prevX[id], c.z[id] - c.prevZ[id]) / stepSeconds;
-      const amount = Math.min(1, speed / 2.2);
+      const amount = Math.min(1, speed / (this.mountedOfType[type] ? 5 : 2.2));
       this.walkAmount[id] += (amount - this.walkAmount[id]) * walkBlend;
-      this.walkPhase[id] = (this.walkPhase[id] + speed * frameSeconds * 3.3) % (Math.PI * 2000);
+      this.walkPhase[id] = (this.walkPhase[id] + speed * frameSeconds * this.strideOfType[type]) % (Math.PI * 2000);
 
       const y = this.heightAt(x, z);
-      const scale = this.scaleOfType[c.unitType[id]];
+      const scale = this.scaleOfType[type];
       this.sphere.center.set(x, y + scale, z);
       this.sphere.radius = 1.6 * scale;
       if (!this.frustum.intersectsSphere(this.sphere)) continue;
 
-      const poolIndex = this.modelOfType[c.unitType[id]];
+      const poolIndex = this.modelOfType[type];
       let pool = this.pools[poolIndex];
       if (pool.count >= pool.capacity) pool = this.grow(poolIndex);
       const k = pool.count++;
@@ -251,8 +278,7 @@ export class UnitRenderer {
       m[o + 12] = x; m[o + 13] = y; m[o + 14] = z; m[o + 15] = 1;
 
       const swing = c.swing[id];
-      const swingDuration = c.attackWindup[id] / IMPACT_FRACTION;
-      const attack = swing >= 0 && !dying ? Math.max(0.001, Math.min(1, swing / swingDuration)) : 0;
+      const attack = swing >= 0 && !dying ? Math.max(0.001, Math.min(1, swing / c.swingDuration[id])) : 0;
       const a = pool.anim.array as Float32Array;
       a[k * 4] = this.walkPhase[id];
       a[k * 4 + 1] = this.walkAmount[id];
@@ -262,7 +288,7 @@ export class UnitRenderer {
       const s = pool.state.array as Float32Array;
       s[k * 4] = c.lastHit[id] < HIT_FLASH_SECONDS && !dying ? 1 - c.lastHit[id] / HIT_FLASH_SECONDS : 0;
       s[k * 4 + 1] = c.moraleState[id] === MoraleState.Routing ? 1 : 0;
-      s[k * 4 + 2] = ATTACK_STYLE[pool.model];
+      s[k * 4 + 2] = (c.swingRanged[id] ? BOW_STYLE : this.styleOfType[type]) + (this.mountedOfType[type] ? 10 : 0);
       s[k * 4 + 3] = (id * 1.618) % 6.283;
 
       const color = this.teamColors[c.team[id]] ?? this.teamColors[0];

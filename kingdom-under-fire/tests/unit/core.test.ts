@@ -136,8 +136,20 @@ describe('Simulation', () => {
 
 describe('data', () => {
   it('validates the unit and faction definitions', () => {
-    expect(UNIT_DEFS.map((u) => u.id)).toEqual(['human_footman', 'human_spearman', 'orc_warrior', 'orc_spearman']);
+    expect(UNIT_DEFS).toHaveLength(12);
     expect(FACTIONS.map((f) => f.id)).toEqual(['human_alliance', 'dark_legion']);
+    // Six unit types per faction, each with one hero, archers and cavalry.
+    for (const f of FACTIONS) {
+      const roles = f.units.map((id) => UNIT_DEFS.find((u) => u.id === id)!.role);
+      expect(f.units).toHaveLength(6);
+      expect(roles.filter((r) => r === 'hero')).toHaveLength(1);
+      expect(roles).toContain('archer');
+      expect(roles).toContain('cavalry');
+    }
+    for (const u of UNIT_DEFS) {
+      if (u.role === 'archer') expect(u.ranged).toBeDefined();
+      if (u.role === 'cavalry') expect(u.charge).toBeDefined();
+    }
     expect(FACTIONS.length).toBeGreaterThanOrEqual(2);
   });
 

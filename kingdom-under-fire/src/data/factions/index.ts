@@ -10,7 +10,7 @@ const RAW_FACTIONS = [
       'Hironeiden et Azilla sous le roi Gernot, rejoints par les elfes de la forêt d’Essex et les nains du Hall des Pierres. Infanterie disciplinée, chevaliers et mages.',
     color: '#2f5fa8',
     trim: '#c9ccd4',
-    units: ['human_footman', 'human_spearman'],
+    units: ['human_footman', 'human_spearman', 'human_archer', 'human_knight', 'human_templar', 'hero_curian'],
   },
   {
     id: 'dark_legion',
@@ -19,7 +19,7 @@ const RAW_FACTIONS = [
       'Orcs et ogres de Hexter, vampires de Vellond, elfes noirs et morts-vivants, unis sous l’Empereur noir Rick Blood pour rebâtir l’Autel de Destruction.',
     color: '#8e1f1b',
     trim: '#2a2522',
-    units: ['orc_warrior', 'orc_spearman'],
+    units: ['orc_warrior', 'orc_spearman', 'dark_elf_archer', 'dark_elf_rider', 'ogre', 'hero_likuku'],
   },
 ] as const;
 

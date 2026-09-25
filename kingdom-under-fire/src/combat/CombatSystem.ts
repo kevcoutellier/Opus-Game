@@ -78,6 +78,8 @@ export class CombatSystem implements System {
           c.state[id] = UnitState.Attacking;
           if (c.swing[id] < 0 && c.attackTimer[id] <= 0) {
             c.swing[id] = 0;
+            c.swingDuration[id] = c.attackWindup[id] / IMPACT_FRACTION;
+            c.swingRanged[id] = 0;
             const slow = morale === MoraleState.Shaken ? 1.12 : morale === MoraleState.Panicked ? 1.35 : 1;
             c.attackTimer[id] = c.attackPeriod[id] * slow;
           }

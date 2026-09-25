@@ -21,6 +21,7 @@ import { UnitRenderer } from '../renderer/UnitRenderer';
 import { BattleOutcome } from '../scenes/BattleOutcome';
 import { PLAYER_TEAM, setupPrototypeBattle } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
+import { setupShowcase } from '../scenes/ShowcaseScene';
 import { SelectionInput } from '../selection/SelectionInput';
 import { SelectionManager } from '../selection/SelectionManager';
 import { PROTOTYPE_BATTLE } from '../data/story/battles';
@@ -70,6 +71,8 @@ export class Game {
   private fps = 60;
   private time = 0;
   frames = 0;
+  /** Units of the `#showcase` scene (for inspection from the console). */
+  showcase: number[] = [];
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -175,6 +178,13 @@ export class Game {
     const perf = /#perf=(\d+)/.exec(location.hash);
     if (perf) {
       this.startPerfTest(Number(perf[1]));
+      return;
+    }
+    // `#showcase`: every unit type side by side (models and animations).
+    if (location.hash === '#showcase') {
+      this.ai.enabled = false;
+      this.showcase = setupShowcase(this.world, MAP_SIZE / 2, MAP_SIZE / 2);
+      this.rtsCamera.focus(MAP_SIZE / 2, MAP_SIZE / 2 - 7, 34, true);
       return;
     }
     // The battle waits for the player to read the briefing (the scene keeps rendering behind it).

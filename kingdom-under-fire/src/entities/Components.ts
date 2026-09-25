@@ -78,6 +78,10 @@ export class Components {
   readonly attackTimer: Float32Array;
   /** Seconds since the current swing started, -1 when not swinging. */
   readonly swing: Float32Array;
+  /** Total duration of the current swing or shot (animation). */
+  readonly swingDuration: Float32Array;
+  /** 1 while the current swing is a missile shot (bow animation). */
+  readonly swingRanged: Uint8Array;
   readonly target: Int32Array;
   readonly damageType: Uint8Array;
   readonly armorType: Uint8Array;
@@ -131,6 +135,8 @@ export class Components {
     this.attackWindup = f32();
     this.attackTimer = f32();
     this.swing = f32();
+    this.swingDuration = new Float32Array(capacity).fill(1);
+    this.swingRanged = new Uint8Array(capacity);
     this.target = new Int32Array(capacity).fill(NO_ENTITY);
     this.damageType = new Uint8Array(capacity);
     this.armorType = new Uint8Array(capacity);

@@ -10,8 +10,53 @@ export const UNIT_ROLES = ['infantry', 'spear', 'archer', 'cavalry', 'siege', 'h
 export type UnitRole = (typeof UNIT_ROLES)[number];
 
 /** Procedural 3D models available to the renderer. */
-export const UNIT_MODELS = ['human_footman', 'human_spearman', 'orc_warrior', 'orc_spearman'] as const;
+export const UNIT_MODELS = [
+  'human_footman',
+  'human_spearman',
+  'human_archer',
+  'human_knight',
+  'human_templar',
+  'hero_curian',
+  'orc_warrior',
+  'orc_spearman',
+  'dark_elf_archer',
+  'dark_elf_rider',
+  'ogre',
+  'hero_likuku',
+] as const;
 export type UnitModel = (typeof UNIT_MODELS)[number];
+
+export const PROJECTILE_TYPES = ['arrow', 'bolt', 'fireball', 'rock', 'magic'] as const;
+export type ProjectileType = (typeof PROJECTILE_TYPES)[number];
+
+/** Missile attack of archers (their `attack` stays their melee blow). */
+export const RangedSchema = z.object({
+  /** Maximum shooting distance (m). */
+  range: z.number().positive(),
+  damage: z.number().positive(),
+  damageType: z.enum(DAMAGE_TYPES),
+  projectile: z.enum(PROJECTILE_TYPES),
+  /** Horizontal speed of the missile (m/s). */
+  speed: z.number().positive(),
+  /** Hit chance at point-blank range against a still target (0..1); drops with distance and target speed. */
+  accuracy: z.number().min(0).max(1),
+  /** Seconds between two shots. */
+  period: z.number().positive(),
+  /** Seconds to draw and aim before the release. */
+  windup: z.number().nonnegative(),
+});
+export type RangedDef = z.infer<typeof RangedSchema>;
+
+/** Cavalry charge. */
+export const ChargeSchema = z.object({
+  /** Speed multiplier at full gallop. */
+  speed: z.number().min(1),
+  /** Damage dealt by the impact at full speed, on top of the normal attack. */
+  damage: z.number().positive(),
+  /** Seconds before the horses can charge again. */
+  cooldown: z.number().positive(),
+});
+export type ChargeDef = z.infer<typeof ChargeSchema>;
 
 export const CostSchema = z
   .object({
@@ -57,6 +102,10 @@ export const UnitDefSchema = z.object({
   morale: z.number().min(1).max(100),
   /** 0..1: resistance to morale losses. */
   discipline: z.number().min(0).max(1),
+  /** Extra enemies hit by each blow (sweeping clubs of the ogres). */
+  cleave: z.number().int().nonnegative().default(0),
+  ranged: RangedSchema.optional(),
+  charge: ChargeSchema.optional(),
   cost: CostSchema,
   trainTime: z.number().positive(),
 });
