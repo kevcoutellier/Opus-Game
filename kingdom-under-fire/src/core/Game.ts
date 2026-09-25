@@ -4,8 +4,8 @@ import { faction } from '../data/factions';
 import { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { InputManager } from '../input/InputManager';
 import { OrderInput } from '../input/OrderInput';
-import { SpatialSystem } from '../navigation/SpatialSystem';
 import { Terrain } from '../maps/Terrain';
+import { EffectsRenderer } from '../renderer/EffectsRenderer';
 import { OverlayRenderer } from '../renderer/OverlayRenderer';
 import { Renderer } from '../renderer/Renderer';
 import { SceneManager } from '../renderer/SceneManager';
@@ -13,16 +13,17 @@ import { ScreenProjector } from '../renderer/ScreenProjector';
 import { TerrainPicker } from '../renderer/TerrainPicker';
 import { TerrainRenderer } from '../renderer/TerrainRenderer';
 import { UnitRenderer } from '../renderer/UnitRenderer';
+import { BattleOutcome } from '../scenes/BattleOutcome';
 import { PLAYER_TEAM, setupPrototypeBattle } from '../scenes/BattleScene';
 import { SelectionInput } from '../selection/SelectionInput';
 import { SelectionManager } from '../selection/SelectionManager';
 import { HUD } from '../ui/HUD';
 import { UnitManager } from '../units/UnitManager';
-import { MovementSystem } from '../units/MovementSystem';
-import { FormationManager } from '../formations/FormationManager';
+import type { FormationManager } from '../formations/FormationManager';
 import { FORMATION_LABELS, FORMATION_TYPES } from '../formations/FormationType';
 import { GameLoop } from './GameLoop';
-import { Simulation } from './Simulation';
+import type { Simulation } from './Simulation';
+import { createBattleSimulation } from './SimulationFactory';
 import { World } from './World';
 
 const MAP_SIZE = 256;
@@ -51,6 +52,8 @@ export class Game {
   readonly loop: GameLoop;
   private readonly unitRenderer: UnitRenderer;
   private readonly overlay: OverlayRenderer;
+  private readonly effects: EffectsRenderer;
+  readonly outcome = new BattleOutcome(PLAYER_TEAM);
   private time = 0;
   frames = 0;
 
@@ -60,15 +63,17 @@ export class Game {
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
 
     this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
-    this.formations = new FormationManager(this.world);
-    this.simulation = new Simulation(this.world, [new SpatialSystem(), this.formations, new MovementSystem()], this.perf);
+    const battle = createBattleSimulation(this.world, [], this.perf);
+    this.simulation = battle.simulation;
+    this.formations = battle.formations;
     this.units = new UnitManager(this.world);
     setupPrototypeBattle(this.world, MAP_SIZE);
 
     const teamColors = TEAM_FACTIONS.map((id) => new THREE.Color(faction(id).color));
     this.unitRenderer = new UnitRenderer(this.world.entities.capacity, teamColors, heightAt);
     this.overlay = new OverlayRenderer(heightAt);
-    this.scenes.scene.add(new TerrainRenderer(this.terrain).group, this.unitRenderer.group, this.overlay.group);
+    this.effects = new EffectsRenderer(this.world, heightAt);
+    this.scenes.scene.add(new TerrainRenderer(this.terrain).group, this.unitRenderer.group, this.overlay.group, this.effects.group);
 
     this.rtsCamera = new RTSCamera(heightAt, {
       minX: CAMERA_MARGIN,
@@ -176,7 +181,8 @@ export class Game {
     this.scenes.update(this.rtsCamera.camera);
     this.unitRenderer.update(this.world, alpha, dt, this.rtsCamera.camera, this.time);
     this.overlay.update(this.world, alpha, dt, this.selection.ids, PLAYER_TEAM);
-    this.hud.update();
+    this.effects.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
+    this.hud.update(this.outcome.update(this.world));
     this.renderer.render(this.scenes.scene, this.rtsCamera.camera);
     this.input.endFrame();
     this.perf.record('frame', performance.now() - start);

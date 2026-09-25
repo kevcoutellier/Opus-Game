@@ -25,6 +25,8 @@ export class Formation {
   order: OrderId;
   /** Flow-field key (destination cell) followed by the anchor and by lost members. */
   flow = -1;
+  /** Enemy unit hunted by an Attack order (-1 = none). */
+  targetUnit = -1;
   /** Members at creation, for casualty-driven morale. */
   initialSize = 0;
   /** Members were lost or left: the ranks close up at the next re-deal (throttled). */

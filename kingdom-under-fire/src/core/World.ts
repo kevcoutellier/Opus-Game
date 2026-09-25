@@ -1,3 +1,4 @@
+import type { Attack } from '../combat/DamageSystem';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { Comp, Components } from '../entities/Components';
 import { EntityManager } from '../entities/EntityManager';
@@ -13,7 +14,10 @@ import { SimTime } from './Time';
 
 export interface SimEvents extends EventMap {
   unitSpawned: { id: number };
+  unitHit: { attack: Attack; damage: number; critical: boolean; killed: boolean };
   unitDied: { id: number; team: number; x: number; z: number; killer: number };
+  unitRouted: { id: number };
+  unitRallied: { id: number };
 }
 
 export interface WorldOptions {

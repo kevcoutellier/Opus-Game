@@ -22,10 +22,25 @@ export class MovementSystem implements System {
   readonly name = 'movement';
   private readonly neighbours = new Int32Array(64);
   private readonly dir = { x: 0, z: 0 };
+  // Two-phase update: every unit steers from the positions of the start of the tick, then all move
+  // together. In-place updates would let the units processed later "see the future" and out-push the
+  // others (a measurable bias of the battle outcome towards the higher entity ids).
+  private nx = new Float32Array(0);
+  private nz = new Float32Array(0);
+  private nvx = new Float32Array(0);
+  private nvz = new Float32Array(0);
+  private moved = new Uint8Array(0);
 
   update(world: World, dt: number): void {
     const { entities, c, nav, spatial, paths } = world;
     const blend = Math.min(1, ACCELERATION * dt);
+    if (this.nx.length !== entities.capacity) {
+      this.nx = new Float32Array(entities.capacity);
+      this.nz = new Float32Array(entities.capacity);
+      this.nvx = new Float32Array(entities.capacity);
+      this.nvz = new Float32Array(entities.capacity);
+      this.moved = new Uint8Array(entities.capacity);
+    }
     for (let i = 0; i < entities.count; i++) {
       const id = entities.dense[i];
       if ((entities.mask[id] & (Comp.Movement | Comp.Unit)) !== (Comp.Movement | Comp.Unit)) continue;
@@ -158,10 +173,11 @@ export class MovementSystem implements System {
           vx = vz = 0;
         }
       }
-      c.x[id] = nx;
-      c.z[id] = nz;
-      c.vx[id] = vx;
-      c.vz[id] = vz;
+      this.nx[id] = nx;
+      this.nz[id] = nz;
+      this.nvx[id] = vx;
+      this.nvz[id] = vz;
+      this.moved[id] = 1;
 
       // 5. Facing: the enemy in reach, else the direction of travel, else the formation front.
       const moving = Math.hypot(vx, vz) > 0.35;
@@ -172,6 +188,15 @@ export class MovementSystem implements System {
       c.rot[id] = turnTowards(c.rot[id], facing, TURN_RATE * dt);
 
       if (!engaging && !routing) c.state[id] = moving ? UnitState.Moving : UnitState.Idle;
+    }
+    for (let i = 0; i < entities.count; i++) {
+      const id = entities.dense[i];
+      if (!this.moved[id]) continue;
+      this.moved[id] = 0;
+      c.x[id] = this.nx[id];
+      c.z[id] = this.nz[id];
+      c.vx[id] = this.nvx[id];
+      c.vz[id] = this.nvz[id];
     }
   }
 }

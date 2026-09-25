@@ -1,9 +1,15 @@
 import * as THREE from 'three';
 import type { World } from '../core/World';
+import { Comp, UnitState } from '../entities/Components';
 
 const MAX_RINGS = 2048;
 const MAX_MARKERS = 12;
 const MAX_PREVIEW = 1024;
+const MAX_BARS = 2048;
+/** Seconds a health bar stays visible after a hit. */
+const BAR_SECONDS = 4;
+const BAR_OWN = new THREE.Color(0x7fc85a);
+const BAR_ENEMY = new THREE.Color(0xe0483c);
 const MARKER_SECONDS = 0.9;
 const MOVE = new THREE.Color(0x9be36a);
 const OWN = new THREE.Color(0x9be36a);
@@ -33,6 +39,10 @@ export class OverlayRenderer {
   private readonly markerMesh: THREE.InstancedMesh;
   private readonly markers: Marker[] = [];
   private readonly previewMesh: THREE.InstancedMesh;
+  private readonly bars: THREE.InstancedMesh;
+  private readonly barFill: THREE.InstancedBufferAttribute;
+  private readonly barColor: THREE.InstancedBufferAttribute;
+  private readonly selectedSet = new Set<number>();
   private readonly tint = new THREE.Color();
   private readonly pos = { x: 0, z: 0 };
   private readonly matrix = new THREE.Matrix4();
@@ -65,6 +75,79 @@ export class OverlayRenderer {
     this.previewMesh.renderOrder = 3;
     this.previewMesh.count = 0;
     this.group.add(this.previewMesh);
+
+    // Health bars: camera-facing quads computed in the vertex shader, one draw call.
+    const barGeometry = new THREE.PlaneGeometry(0.95, 0.12);
+    this.barFill = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS), 1);
+    this.barColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS * 3), 3);
+    this.barFill.setUsage(THREE.DynamicDrawUsage);
+    this.barColor.setUsage(THREE.DynamicDrawUsage);
+    barGeometry.setAttribute('iFill', this.barFill);
+    barGeometry.setAttribute('iColor', this.barColor);
+    const barMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      vertexShader: /* glsl */ `
+        attribute float iFill;
+        attribute vec3 iColor;
+        varying float vFill;
+        varying vec3 vColor;
+        varying vec2 vUv;
+        void main() {
+          vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+          mv.xy += position.xy;
+          gl_Position = projectionMatrix * mv;
+          vFill = iFill;
+          vColor = iColor;
+          vUv = uv;
+        }`,
+      fragmentShader: /* glsl */ `
+        varying float vFill;
+        varying vec3 vColor;
+        varying vec2 vUv;
+        void main() {
+          bool edge = vUv.x < 0.025 || vUv.x > 0.975 || vUv.y < 0.14 || vUv.y > 0.86;
+          vec3 col = edge ? vec3(0.02) : (vUv.x < vFill ? vColor : vec3(0.1, 0.09, 0.08));
+          gl_FragColor = vec4(col, 0.92);
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.bars = new THREE.InstancedMesh(barGeometry, barMaterial, MAX_BARS);
+    this.bars.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.bars.frustumCulled = false;
+    this.bars.renderOrder = 4;
+    this.bars.count = 0;
+    this.group.add(this.bars);
+  }
+
+  /** Bars over selected units and over units hit in the last seconds. */
+  private updateBars(world: World, alpha: number, selected: readonly number[], ownTeam: number): void {
+    const { entities, c } = world;
+    this.selectedSet.clear();
+    for (const id of selected) this.selectedSet.add(id);
+    const fill = this.barFill.array as Float32Array;
+    const color = this.barColor.array as Float32Array;
+    let n = 0;
+    for (let i = 0; i < entities.count && n < MAX_BARS; i++) {
+      const id = entities.dense[i];
+      if ((entities.mask[id] & Comp.Unit) === 0 || c.state[id] === UnitState.Dying) continue;
+      if (c.lastHit[id] > BAR_SECONDS && !this.selectedSet.has(id)) continue;
+      renderPosition(world, id, alpha, this.pos);
+      this.matrix.makeTranslation(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + 2.25, this.pos.z);
+      this.bars.setMatrixAt(n, this.matrix);
+      const ratio = Math.max(0, c.hp[id] / c.maxHp[id]);
+      fill[n] = ratio;
+      const base = c.team[id] === ownTeam ? BAR_OWN : BAR_ENEMY;
+      const dim = 0.55 + ratio * 0.45;
+      color[n * 3] = base.r * dim;
+      color[n * 3 + 1] = base.g * dim;
+      color[n * 3 + 2] = base.b * dim;
+      n++;
+    }
+    this.bars.count = n;
+    this.bars.instanceMatrix.needsUpdate = true;
+    this.barFill.needsUpdate = true;
+    this.barColor.needsUpdate = true;
   }
 
   /** Ghost slots of the formation being drawn with a right-drag (null hides them). */
@@ -105,6 +188,7 @@ export class OverlayRenderer {
 
   update(world: World, alpha: number, dt: number, selected: readonly number[], ownTeam: number): void {
     this.updateMarkers(dt);
+    this.updateBars(world, alpha, selected, ownTeam);
     let n = 0;
     for (const id of selected) {
       if (n >= MAX_RINGS || !world.entities.isAlive(id)) continue;

@@ -1,4 +1,5 @@
 import type { World } from '../core/World';
+import type { Outcome } from '../scenes/BattleOutcome';
 import type { SelectionManager } from '../selection/SelectionManager';
 import type { UnitManager } from '../units/UnitManager';
 import { SelectionBox } from './SelectionBox';
@@ -21,6 +22,7 @@ export class HUD {
   readonly box: SelectionBox;
   readonly panel: SelectionPanel;
   private readonly counts: HTMLDivElement;
+  private readonly banner: HTMLDivElement;
   private lastCounts = '';
 
   constructor(
@@ -46,10 +48,20 @@ export class HUD {
     help.innerHTML = `<summary>Commandes</summary><dl>${HELP.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
 
     this.panel = new SelectionPanel(root, world, selection, teamFactions);
-    root.append(top, help);
+    this.banner = document.createElement('div');
+    this.banner.className = 'outcome panel interactive';
+    this.banner.hidden = true;
+    root.append(top, help, this.banner);
   }
 
-  update(): void {
+  update(outcome: Outcome = null): void {
+    if (outcome && this.banner.hidden) {
+      this.banner.hidden = false;
+      this.banner.innerHTML = `<div class="title">${outcome === 'victory' ? 'Victoire' : 'Défaite'}</div><p>${
+        outcome === 'victory' ? 'L’armée ennemie est brisée.' : 'Votre armée est brisée.'
+      }</p><button type="button">Rejouer la bataille</button>`;
+      this.banner.querySelector('button')!.onclick = () => location.reload();
+    }
     const own = this.units.countActive(0);
     const enemy = this.units.countActive(1);
     const text = `<span class="ally">⚑ ${own}</span><span class="sep">contre</span><span class="enemy">${enemy} ⚑</span>`;

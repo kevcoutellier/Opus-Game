@@ -30,6 +30,7 @@ export class FormationManager implements System {
       if (!f) return;
       if (cmd.formation) f.type = cmd.formation;
       if (cmd.width !== null) f.columns = columnsForWidth(cmd.width, f.spacing, f.size);
+      f.targetUnit = -1;
       this.moveTo(f, cmd.x, cmd.z, cmd.facing, cmd.attackMove ? Order.AttackMove : Order.Move);
     });
     q.on('attack', (cmd) => {
@@ -37,6 +38,7 @@ export class FormationManager implements System {
       const f = this.gather(cmd.team, cmd.units, null);
       if (!f) return;
       for (const id of f.members) world.c.target[id] = cmd.target;
+      f.targetUnit = cmd.target;
       this.moveTo(f, world.c.x[cmd.target], world.c.z[cmd.target], null, Order.Attack);
     });
     q.on('hold', (cmd) => {
@@ -146,7 +148,7 @@ export class FormationManager implements System {
     f.dirty = true;
   }
 
-  private moveTo(f: Formation, x: number, z: number, facing: number | null, order: OrderId): void {
+  private moveTo(f: Formation, x: number, z: number, facing: number | null, order: OrderId, redeal = true): void {
     const { nav, paths } = this.world;
     const margin = 3;
     let dx = Math.min(nav.width - margin, Math.max(margin, x));
@@ -163,7 +165,7 @@ export class FormationManager implements System {
     f.moving = distance > 0.3;
     f.flow = nav.cellAt(dx, dz);
     paths.fieldForCell(f.flow);
-    f.forceSolve = true;
+    if (redeal) f.forceSolve = true;
     this.setOrder(f, order);
   }
 
@@ -213,6 +215,7 @@ export class FormationManager implements System {
       f.resolveCooldown -= dt;
       const incomplete = !f.layout || f.slotOf.length !== f.members.length;
       if (incomplete || f.forceSolve || (f.dirty && f.resolveCooldown <= 0)) this.solve(f);
+      if (f.order === Order.Attack) this.chase(f);
 
       if (f.moving) this.advance(f, dt, nav, paths);
 
@@ -232,9 +235,28 @@ export class FormationManager implements System {
     }
   }
 
+  /** An Attack order follows its target; once the target is dead the formation attack-moves to its last spot. */
+  private chase(f: Formation): void {
+    const { c } = this.world;
+    const t = f.targetUnit;
+    if (t < 0 || !this.isActiveUnit(t)) {
+      f.targetUnit = -1;
+      this.setOrder(f, Order.AttackMove);
+      return;
+    }
+    // Re-route only when the target has moved a few metres (one flow field per new cell at most).
+    if (Math.hypot(c.x[t] - f.destX, c.z[t] - f.destZ) > 4) this.moveTo(f, c.x[t], c.z[t], null, Order.Attack, false);
+  }
+
   /** Moves the anchor along the flow field, slowing down while members lag behind their slots. */
   private advance(f: Formation, dt: number, nav: World['nav'], paths: World['paths']): void {
     const { c } = this.world;
+    if (f.order !== Order.Move) {
+      // An attacking formation stops where its soldiers are fighting instead of marching through.
+      let engaged = 0;
+      for (const id of f.members) if (c.state[id] === UnitState.Engaging || c.state[id] === UnitState.Attacking) engaged++;
+      if (engaged > f.members.length * 0.25) return;
+    }
     const toX = f.destX - f.anchorX;
     const toZ = f.destZ - f.anchorZ;
     const distance = Math.hypot(toX, toZ);

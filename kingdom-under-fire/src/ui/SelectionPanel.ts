@@ -1,7 +1,10 @@
 import type { World } from '../core/World';
+import { MORALE_STATE_NAMES } from '../entities/Components';
 import { FACTIONS } from '../data/factions';
 import { UNIT_DEFS } from '../data/units';
 import type { SelectionManager } from '../selection/SelectionManager';
+
+const MORALE_LABELS = ['serein', 'ébranlé', 'paniqué', 'en déroute', 'se ralliant'];
 
 export interface PanelAction {
   label: string;
@@ -66,12 +69,17 @@ export class SelectionPanel {
     if (!selection.size) return;
     let hp = 0;
     let maxHp = 0;
+    let morale = 0;
+    const states = new Array<number>(MORALE_STATE_NAMES.length).fill(0);
     for (const id of selection.ids) {
       hp += world.c.hp[id];
       maxHp += world.c.maxHp[id];
+      morale += world.c.morale[id];
+      states[world.c.moraleState[id]]++;
     }
     const pct = maxHp ? Math.round((hp / maxHp) * 100) : 0;
-    const text = `Santé ${pct} %`;
+    const dominant = states.indexOf(Math.max(...states));
+    const text = `Santé ${pct} % · Moral ${Math.round(morale / selection.size)} (${MORALE_LABELS[dominant]})`;
     if (this.stats.textContent !== text) this.stats.textContent = text;
   }
 
