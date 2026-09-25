@@ -43,3 +43,4 @@ suffit).
 | 1. Architecture | boucle à pas fixe, ECS, bus d'événements, commandes, RNG, données Zod, tests | ✅ |
 | 2. Rendu | renderer WebGL (ACES, ombres PCF, budget de pixels 4K), ciel dégradé, brouillard, terrain heightmap 256 m à couleurs de sommets + grain tuilé, forêts et rochers en `InstancedMesh` (3 draw calls) | ✅ |
 | 3. Caméra | `RTSCamera` : WASD/flèches (touches physiques, donc ZQSD en AZERTY), bords d'écran, molette, rotation Q/E ou clic molette, inclinaison PgUp/PgDn, inclinaison automatique selon le zoom, limites de carte, sol jamais traversé, `focus()`, caméra libre (C), mouvements amortis | ✅ |
+| 4. Sélection | `SelectionManager` en logique pure (clic, rectangle, Maj = ajouter, Ctrl = retirer, double-clic = même type visible, filtres, groupes Ctrl+1–9, double appui = focus caméra), rectangle en calque HTML, projection écran | ✅ |

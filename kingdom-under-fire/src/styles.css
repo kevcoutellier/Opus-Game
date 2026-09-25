@@ -52,3 +52,13 @@ html, body {
   color: var(--gold);
   letter-spacing: 0.06em;
 }
+
+.selection-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid rgba(214, 236, 170, 0.95);
+  background: rgba(170, 214, 120, 0.12);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
