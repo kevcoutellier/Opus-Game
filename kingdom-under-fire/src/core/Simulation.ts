@@ -24,6 +24,9 @@ export class Simulation {
     }
     world.entities.flush();
     world.time.advance();
-    if (perf) perf.record('sim', performance.now() - start);
+    if (perf) {
+      perf.commit('pathfinding');
+      perf.record('sim', performance.now() - start);
+    }
   }
 }

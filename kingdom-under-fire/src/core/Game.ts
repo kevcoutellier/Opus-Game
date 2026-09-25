@@ -3,11 +3,14 @@ import { RTSCamera } from '../camera/RTSCamera';
 import { faction } from '../data/factions';
 import { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { InputManager } from '../input/InputManager';
+import { OrderInput } from '../input/OrderInput';
+import { SpatialSystem } from '../navigation/SpatialSystem';
 import { Terrain } from '../maps/Terrain';
 import { OverlayRenderer } from '../renderer/OverlayRenderer';
 import { Renderer } from '../renderer/Renderer';
 import { SceneManager } from '../renderer/SceneManager';
 import { ScreenProjector } from '../renderer/ScreenProjector';
+import { TerrainPicker } from '../renderer/TerrainPicker';
 import { TerrainRenderer } from '../renderer/TerrainRenderer';
 import { UnitRenderer } from '../renderer/UnitRenderer';
 import { PLAYER_TEAM, setupPrototypeBattle } from '../scenes/BattleScene';
@@ -15,6 +18,8 @@ import { SelectionInput } from '../selection/SelectionInput';
 import { SelectionManager } from '../selection/SelectionManager';
 import { HUD } from '../ui/HUD';
 import { UnitManager } from '../units/UnitManager';
+import { MovementSystem } from '../units/MovementSystem';
+import { registerMoveOrders } from '../units/MoveOrders';
 import { GameLoop } from './GameLoop';
 import { Simulation } from './Simulation';
 import { World } from './World';
@@ -38,6 +43,8 @@ export class Game {
   readonly projector: ScreenProjector;
   readonly selection: SelectionManager;
   readonly selectionInput: SelectionInput;
+  readonly orderInput: OrderInput;
+  readonly picker: TerrainPicker;
   readonly hud: HUD;
   readonly loop: GameLoop;
   private readonly unitRenderer: UnitRenderer;
@@ -50,8 +57,9 @@ export class Game {
     this.terrain = Terrain.generate({ size: MAP_SIZE, seed: 20260925 });
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
 
-    this.world = new World({ seed: 1337, hz: SIM_HZ });
-    this.simulation = new Simulation(this.world, [], this.perf);
+    this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
+    registerMoveOrders(this.world);
+    this.simulation = new Simulation(this.world, [new SpatialSystem(), new MovementSystem()], this.perf);
     this.units = new UnitManager(this.world);
     setupPrototypeBattle(this.world, MAP_SIZE);
 
@@ -68,6 +76,7 @@ export class Game {
     });
     this.rtsCamera.focus(MAP_SIZE / 2, MAP_SIZE / 2 + 70, 70, true);
     this.projector = new ScreenProjector(this.rtsCamera.camera);
+    this.picker = new TerrainPicker(this.terrain, this.rtsCamera.camera);
     this.input = new InputManager(canvas);
 
     const world = this.world;
@@ -83,6 +92,21 @@ export class Game {
       const centre = this.units.centroid(ids);
       if (centre) this.rtsCamera.focus(centre.x, centre.z);
     });
+
+    this.orderInput = new OrderInput({
+      world,
+      selection: this.selection,
+      mouse: this.input.mouse,
+      keys: this.input.keys,
+      team: PLAYER_TEAM,
+      pickGround: (x, y) => this.picker.pick(x, y, this.projector.width, this.projector.height),
+      pickEnemy: (x, y) => {
+        const id = this.selection.pick(x, y);
+        return id >= 0 && world.c.team[id] !== PLAYER_TEAM ? id : -1;
+      },
+      marker: (x, z, attack) => this.overlay.marker(x, z, attack),
+    });
+    this.selectionInput.blocked = () => this.orderInput.attackMoveArmed;
 
     this.loop = new GameLoop(
       SIM_HZ,
@@ -125,12 +149,13 @@ export class Game {
     this.rtsCamera.camera.updateMatrixWorld();
     this.selection.prune();
     this.selectionInput.update(performance.now());
+    this.orderInput.update();
 
     const t = this.rtsCamera.target;
     this.scenes.lighting.follow(t.x, t.y, t.z);
     this.scenes.update(this.rtsCamera.camera);
     this.unitRenderer.update(this.world, alpha, dt, this.rtsCamera.camera, this.time);
-    this.overlay.update(this.world, alpha, this.selection.ids, PLAYER_TEAM);
+    this.overlay.update(this.world, alpha, dt, this.selection.ids, PLAYER_TEAM);
     this.hud.update();
     this.renderer.render(this.scenes.scene, this.rtsCamera.camera);
     this.input.endFrame();

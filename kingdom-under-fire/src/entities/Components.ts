@@ -97,6 +97,8 @@ export class Components {
   readonly slotX: Float32Array;
   readonly slotZ: Float32Array;
   readonly slotRot: Float32Array;
+  /** Key (goal cell) of the flow field the unit follows when its slot is out of sight, -1 = none. */
+  readonly flow: Int32Array;
 
   // Faction
   readonly team: Uint8Array;
@@ -143,6 +145,7 @@ export class Components {
     this.slotX = f32();
     this.slotZ = f32();
     this.slotRot = f32();
+    this.flow = new Int32Array(capacity).fill(NO_ENTITY);
     this.team = new Uint8Array(capacity);
     this.unitType = new Uint16Array(capacity);
     this.state = new Uint8Array(capacity);

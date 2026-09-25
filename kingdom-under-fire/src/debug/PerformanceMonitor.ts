@@ -6,6 +6,7 @@ export class PerformanceMonitor {
   private readonly averages = new Map<string, number>();
   private readonly lasts = new Map<string, number>();
   private readonly starts = new Map<string, number>();
+  private readonly pending = new Map<string, number>();
 
   constructor(private readonly smoothing = 0.1) {}
 
@@ -34,9 +35,15 @@ export class PerformanceMonitor {
     this.lasts.set(name, ms);
   }
 
-  /** Accumulates into the current value of a section measured in several pieces during one tick. */
+  /** Accumulates time of a section measured in several pieces during one tick (see `commit`). */
   add(name: string, ms: number): void {
-    this.lasts.set(name, (this.lasts.get(name) ?? 0) + ms);
+    this.pending.set(name, (this.pending.get(name) ?? 0) + ms);
+  }
+
+  /** Records the time accumulated by `add` since the last commit as one sample (0 when nothing ran). */
+  commit(name: string): void {
+    this.record(name, this.pending.get(name) ?? 0);
+    this.pending.set(name, 0);
   }
 
   average(name: string): number {

@@ -85,6 +85,11 @@ export class Terrain {
     return this.forest[iz * this.size + ix];
   }
 
+  /** Flat, empty map (tests, benchmarks). */
+  static flat(size: number): Terrain {
+    return new Terrain(size, new Float32Array((size + 1) * (size + 1)), [], []);
+  }
+
   /**
    * Battlefield: an open plain in the middle (where the armies meet), rolling hills around it, forests and
    * rock outcrops on the sides, a mountain rim along the borders.

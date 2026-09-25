@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import type { World } from '../core/World';
 
 const MAX_RINGS = 2048;
+const MAX_MARKERS = 12;
+const MARKER_SECONDS = 0.9;
+const MOVE = new THREE.Color(0x9be36a);
 const OWN = new THREE.Color(0x9be36a);
 const ENEMY = new THREE.Color(0xff5a4a);
 
@@ -12,10 +15,23 @@ export function renderPosition(world: World, id: number, alpha: number, out: { x
   out.z = c.prevZ[id] + (c.z[id] - c.prevZ[id]) * alpha;
 }
 
-/** Ground decals: selection rings (one InstancedMesh, one draw call for any selection size). */
+interface Marker {
+  x: number;
+  z: number;
+  age: number;
+  color: THREE.Color;
+}
+
+/**
+ * Ground decals: selection rings (one InstancedMesh, one draw call for any selection size) and order
+ * markers (expanding, fading rings where an order was given).
+ */
 export class OverlayRenderer {
   readonly group = new THREE.Group();
   private readonly rings: THREE.InstancedMesh;
+  private readonly markerMesh: THREE.InstancedMesh;
+  private readonly markers: Marker[] = [];
+  private readonly tint = new THREE.Color();
   private readonly pos = { x: 0, z: 0 };
   private readonly matrix = new THREE.Matrix4();
 
@@ -28,9 +44,45 @@ export class OverlayRenderer {
     this.rings.renderOrder = 2;
     this.rings.count = 0;
     this.group.add(this.rings);
+
+    const markerMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    });
+    this.markerMesh = new THREE.InstancedMesh(new THREE.RingGeometry(0.8, 1.05, 32).rotateX(-Math.PI / 2), markerMaterial, MAX_MARKERS);
+    this.markerMesh.frustumCulled = false;
+    this.markerMesh.renderOrder = 3;
+    this.markerMesh.count = 0;
+    this.group.add(this.markerMesh);
   }
 
-  update(world: World, alpha: number, selected: readonly number[], ownTeam: number): void {
+  marker(x: number, z: number, attack: boolean): void {
+    if (this.markers.length >= MAX_MARKERS) this.markers.shift();
+    this.markers.push({ x, z, age: 0, color: attack ? ENEMY : MOVE });
+  }
+
+  private updateMarkers(dt: number): void {
+    let n = 0;
+    for (const m of this.markers) {
+      m.age += dt;
+      const t = m.age / MARKER_SECONDS;
+      if (t >= 1) continue;
+      const scale = 0.6 + t * 1.6;
+      this.matrix.makeScale(scale, 1, scale).setPosition(m.x, this.heightAt(m.x, m.z) + 0.08, m.z);
+      this.markerMesh.setMatrixAt(n, this.matrix);
+      this.markerMesh.setColorAt(n, this.tint.copy(m.color).multiplyScalar(1.4 * (1 - t)));
+      n++;
+    }
+    while (this.markers.length && this.markers[0].age >= MARKER_SECONDS) this.markers.shift();
+    this.markerMesh.count = n;
+    this.markerMesh.instanceMatrix.needsUpdate = true;
+    if (this.markerMesh.instanceColor) this.markerMesh.instanceColor.needsUpdate = true;
+  }
+
+  update(world: World, alpha: number, dt: number, selected: readonly number[], ownTeam: number): void {
+    this.updateMarkers(dt);
     let n = 0;
     for (const id of selected) {
       if (n >= MAX_RINGS || !world.entities.isAlive(id)) continue;

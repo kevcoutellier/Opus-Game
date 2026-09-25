@@ -122,3 +122,5 @@ button.type-chip, .selection-actions button {
 }
 button.type-chip:hover, .selection-actions button:hover { background: rgba(110, 88, 50, 0.9); }
 .selection-actions button.active { background: rgba(160, 120, 50, 0.95); color: #1b160f; font-weight: 700; }
+
+body.cursor-attack #scene { cursor: crosshair; }
