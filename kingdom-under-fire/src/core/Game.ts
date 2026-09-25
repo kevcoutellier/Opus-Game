@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AIController } from '../ai/AIController';
 import { RTSCamera } from '../camera/RTSCamera';
 import { faction } from '../data/factions';
 import { PerformanceMonitor } from '../debug/PerformanceMonitor';
@@ -40,6 +41,7 @@ export class Game {
   readonly world: World;
   readonly simulation: Simulation;
   readonly formations: FormationManager;
+  readonly ai: AIController;
   readonly units: UnitManager;
   readonly rtsCamera: RTSCamera;
   readonly input: InputManager;
@@ -63,11 +65,12 @@ export class Game {
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
 
     this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
-    const battle = createBattleSimulation(this.world, [], this.perf);
+    const setup = setupPrototypeBattle(this.world, MAP_SIZE);
+    this.ai = new AIController(this.world, setup.ai);
+    const battle = createBattleSimulation(this.world, [this.ai], this.perf);
     this.simulation = battle.simulation;
     this.formations = battle.formations;
     this.units = new UnitManager(this.world);
-    setupPrototypeBattle(this.world, MAP_SIZE);
 
     const teamColors = TEAM_FACTIONS.map((id) => new THREE.Color(faction(id).color));
     this.unitRenderer = new UnitRenderer(this.world.entities.capacity, teamColors, heightAt);
