@@ -1,7 +1,7 @@
-# Architecture — Bannières de Cendre
+# Architecture — Kingdom Under Fire : La Guerre des Héros
 
-RTS médiéval-fantastique 3D original, TypeScript strict + Three.js + Vite. Ce document décrit l'architecture
-réellement en place et le journal des phases.
+Remake web de Kingdom Under Fire: A War of Heroes, TypeScript strict + Three.js + Vite. Ce document décrit
+l'architecture réellement en place et le journal des phases.
 
 ## Principes
 
@@ -26,7 +26,7 @@ réellement en place et le journal des phases.
 | Paquet | Pourquoi |
 | --- | --- |
 | `three` | rendu WebGL (instancing, ombres, shaders) |
-| `zod` | validation des données d'unités et de factions |
+| `zod` | validation des données d'unités, de factions et d'histoire |
 | `typescript`, `vite` | typage strict, serveur de dev, build |
 | `vitest` | tests unitaires et benchmarks de la simulation |
 | `@playwright/test` (1.56, aligné sur le Chromium préinstallé) | tests navigateur |
@@ -50,6 +50,8 @@ suffit).
 | 8. Combat | `CombatSystem` (acquisition par grille spatiale, attaquants répartis le long de la ligne, cycle armement → impact → récupération, tenue de position), `DamageSystem` (attaque = attacker/target/damage/damageType/timestamp/position/ability/criticalChance ; 8 types de dégâts × 5 armures, défense à rendement décroissant, critiques, recul), impacts simultanés en fin de tick, mort (chute, cadavre 22 s puis entité libérée), `MoraleSystem` (NORMAL/SHAKEN/PANICKED/ROUTING/RECOVERING avec hystérésis ; rapport de force local, blessures, morts voisines, victoires, pertes de la formation, contagion de la déroute, discipline ; fuite puis ralliement), formations qui s'arrêtent pour combattre et poursuivent une cible, barres de vie en billboards instanciés, particules en pool, bannière victoire/défaite | ✅ |
 | 9. IA | `AIKnowledge` (grille de visibilité grossière rastérisée depuis la vue de ses soldats, dernière position connue, oubli après 45 s ou quand l'endroit est revu vide : l'IA ne lit jamais les positions ennemies), `TacticalAI` (engager le groupe ennemi connu le plus proche, sinon reconnaissance vers la zone de déploiement adverse, sinon tenir), `AIController` (réflexion 1×/s, mêmes commandes que le joueur). Couches stratégique et opérationnelle prévues au-dessus | ✅ |
 | Mesure | `DebugManager` (F1 : FPS, frame, GPU via `EXT_disjoint_timer_query_webgl2`, draw calls, triangles, entités, unités visibles, animations, temps par système, pathfinding, IA, formations, mémoire), `PerformanceTestScene` (F2 : 100 → 1000 unités, moyenne sur 8 s après 2 s de chauffe), benchmark CPU `npm run bench`, tests Playwright du parcours joueur | ✅ |
+| Univers KUF | factions Alliance Humaine / Légion Noire, 4 unités (orcs modélisés à part, échelle par type), équilibre réglé par balayage de paramètres (17/40), lore et 12 personnages validés par Zod, bataille « Les plaines de Hironeiden » avec écran de briefing | ✅ |
+| Assets officiels | `scripts/fetch-assets.mjs` (Kingdom Under Fire Wiki via API MediaWiki, page Steam, musique et sons de l'utilisateur classés par nom ; `public/assets/` jamais versionné), `AssetManager` (manifeste, repli à null), `AudioManager` (playlist, sons de combat atténués par la distance), testés contre un faux serveur | ✅ |
 
 ### Équité de la simulation
 
@@ -63,9 +65,9 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
 
 ## Mesures et goulets
 
-- **Simulation** (`npm run bench`) : 1000 unités en mêlée = 2,96 ms/tick en moyenne (p95 3,6 ms), dont
-  mouvement 1,0 ms, combat 0,5 ms et moral 0,5 ms. Le coût croît un peu plus vite que linéairement (densité
-  des voisins dans une mêlée compacte), mais reste à ~9 % du budget à 30 Hz. **Les Web Workers ne sont pas
+- **Simulation** (`npm run bench`) : 1000 unités en mêlée (humains contre orcs) = 3,1 ms/tick en moyenne
+  (p95 4,1 ms), dont mouvement 1,05 ms, combat 1,1 ms et moral 0,5 ms. Le coût croît un peu plus vite que linéairement (densité
+  des voisins dans une mêlée compacte), mais reste à ~10 % du budget à 30 Hz. **Les Web Workers ne sont pas
   justifiés à ce stade** : ils le deviendront avec le pathfinding de nombreuses formations et l'IA
   stratégique. Les flow fields coûtent ~1–3 ms chacun, calculés une fois par ordre et mis en cache.
 - **Rendu** : 12 draw calls pour toute la scène, quel que soit le nombre de soldats. Un soldat compte 350 à
