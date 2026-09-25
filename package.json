@@ -1,0 +1,22 @@
+{
+  "name": "opus-stadium",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remake web de Pokémon Stadium (N64) en Three.js — combats Gen 1 en 3D",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "data": "node scripts/build-data.mjs",
+    "assets": "node scripts/fetch-assets.mjs",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "pokemon-showdown": "^0.11.11",
+    "vite": "^8.3.1"
+  }
+}
