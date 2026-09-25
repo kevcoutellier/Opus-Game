@@ -62,3 +62,63 @@ html, body {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
+
+.top-bar {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  right: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.game-title { padding: 0.35rem 0.9rem; font-size: 1.15rem; }
+.army-counts { padding: 0.35rem 0.9rem; font-size: 1.1rem; font-weight: 700; display: flex; gap: 0.6rem; }
+.army-counts .ally { color: var(--ally); }
+.army-counts .enemy { color: var(--enemy); }
+.army-counts .sep { color: var(--ink-dim); font-weight: 400; }
+
+.help {
+  position: absolute;
+  top: 3.6rem;
+  left: 0.8rem;
+  max-width: 34rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+}
+.help summary { cursor: pointer; color: var(--gold); font-family: 'Cinzel', serif; }
+.help dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.8rem; margin: 0.5rem 0 0.2rem; }
+.help dt { color: var(--gold); font-weight: 700; }
+.help dd { margin: 0; color: var(--ink); }
+
+.selection-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 0.8rem;
+  transform: translateX(-50%);
+  min-width: 32rem;
+  max-width: 60rem;
+  padding: 0.6rem 0.9rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.selection-panel.empty { opacity: 0.8; }
+.selection-panel .hint { color: var(--ink-dim); font-style: italic; }
+.selection-title { font-size: 1rem; }
+.selection-types { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.selection-stats { color: var(--ink-dim); font-size: 0.85rem; }
+.selection-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.selection-actions[hidden] { display: none; }
+
+button.type-chip, .selection-actions button {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(60, 50, 36, 0.8);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+}
+button.type-chip:hover, .selection-actions button:hover { background: rgba(110, 88, 50, 0.9); }
+.selection-actions button.active { background: rgba(160, 120, 50, 0.95); color: #1b160f; font-weight: 700; }
