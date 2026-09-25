@@ -24,6 +24,11 @@ export interface SimEvents extends EventMap {
   projectileLanded: { index: number; x: number; z: number; hit: boolean };
   chargeStarted: { id: number };
   chargeImpact: { id: number; x: number; z: number; braced: boolean };
+  abilityStarted: { hero: number; ability: string; x: number; z: number };
+  abilityCast: { hero: number; ability: string; x: number; z: number; color: number };
+  heroLevelUp: { id: number; level: number };
+  heroControl: { id: number; direct: boolean };
+  heroDodged: { id: number };
 }
 
 export interface WorldOptions {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { World } from '../core/World';
+import { ability } from '../data/abilities';
 
 const MAX_PARTICLES = 3000;
 const GRAVITY = -9;
@@ -59,6 +60,37 @@ export class EffectsRenderer {
       }
     });
     world.events.on('unitDied', ({ x, z }) => this.dust(x, z, 12, 1));
+    // Spells: light gathering around the caster, then a ring of light where the ability strikes.
+    world.events.on('abilityStarted', ({ hero, ability: id }) => {
+      const x = world.c.x[hero];
+      const z = world.c.z[hero];
+      const y = this.heightAt(x, z);
+      const color = ability(id).color;
+      for (let i = 0; i < 18; i++) {
+        const a = this.r(0, Math.PI * 2);
+        this.spawn(x + Math.cos(a) * 1.2, y + this.r(0.2, 1.8), z + Math.sin(a) * 1.2, -Math.cos(a) * 1.2, this.r(0.8, 2), -Math.sin(a) * 1.2, this.r(0.4, 0.8), this.r(0.06, 0.12), color, 1.5);
+      }
+    });
+    world.events.on('abilityCast', ({ ability: id, x, z, color }) => {
+      const def = ability(id);
+      let radius = 2;
+      for (const e of def.effects) if ('radius' in e && e.kind !== 'missile') radius = Math.max(radius, e.radius);
+      this.ring(x, z, radius, color);
+    });
+    world.events.on('projectileLanded', ({ index, x, z }) => {
+      const source = world.projectiles.ability[index];
+      if (source) this.ring(x, z, world.projectiles.splash[index], ability(source).color);
+    });
+    world.events.on('heroLevelUp', ({ id }) => {
+      const x = world.c.x[id];
+      const z = world.c.z[id];
+      const y = this.heightAt(x, z);
+      for (let i = 0; i < 40; i++) {
+        const a = this.r(0, Math.PI * 2);
+        this.spawn(x + Math.cos(a) * 0.8, y + this.r(0, 0.5), z + Math.sin(a) * 0.8, Math.cos(a) * 0.3, this.r(2, 4.5), Math.sin(a) * 0.3, this.r(0.9, 1.5), this.r(0.07, 0.13), 0xffd66b, 0.5);
+      }
+    });
+    world.events.on('heroDodged', ({ id }) => this.dust(world.c.x[id], world.c.z[id], 10, 0.8));
     // A charge hits in a cloud of dust and splinters.
     world.events.on('chargeImpact', ({ x, z, braced }) => {
       this.dust(x, z, 26, 1.8);
@@ -68,6 +100,23 @@ export class EffectsRenderer {
         this.spawn(x, y, z, this.r(-3, 3), this.r(1, 4), this.r(-3, 3), this.r(0.5, 0.9), this.r(0.05, 0.09), 0x9b7b4f, 0.8);
       }
     });
+  }
+
+  /** A ring of light racing outwards over `radius` metres, with sparks rising from it. */
+  private ring(x: number, z: number, radius: number, color: number): void {
+    const y = this.heightAt(x, z) + 0.3;
+    const count = Math.min(90, 24 + Math.round(radius * 10));
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + this.r(-0.05, 0.05);
+      // Drag 4: the particle travels v / 4 before stopping, i.e. about `radius`.
+      const v = radius * this.r(3.6, 4.4);
+      this.spawn(x, y, z, Math.cos(a) * v, this.r(0.2, 1), Math.sin(a) * v, this.r(0.35, 0.5), this.r(0.1, 0.18), color, 4);
+    }
+    for (let i = 0; i < count / 2; i++) {
+      const a = this.r(0, Math.PI * 2);
+      const d = this.r(0, radius);
+      this.spawn(x + Math.cos(a) * d, y, z + Math.sin(a) * d, 0, this.r(2, 5), 0, this.r(0.5, 1), this.r(0.06, 0.12), color, 1);
+    }
   }
 
   private dust(x: number, z: number, count: number, spread: number): void {

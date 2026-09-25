@@ -36,6 +36,7 @@ const TRAMPLE_DAMAGE = 0.6;
 /** Braced spears absorb most of the shock. */
 const BRACED_DAMAGE = 0.35;
 const FEAR_RADIUS = 6;
+const KNOCKDOWN_SECONDS = 0.6;
 
 /**
  * Cavalry charges. A rider engaging an enemy far enough away gathers (PREPARE), gallops (ACCELERATE,
@@ -60,7 +61,8 @@ export class ChargeSystem implements System {
       c.chargeTime[id] += dt;
       const state = c.chargeState[id];
       const morale = c.moraleState[id];
-      if (c.state[id] === UnitState.Dying || morale === MoraleState.Routing || morale === MoraleState.Recovering || morale === MoraleState.Panicked) {
+      const broken = morale === MoraleState.Routing || morale === MoraleState.Recovering || morale === MoraleState.Panicked;
+      if (c.state[id] === UnitState.Dying || broken || c.stun[id] > 0 || c.order[id] === Order.Direct) {
         if (state !== ChargeState.Ready && state !== ChargeState.Recover) this.recover(world, id, 0.5);
         c.speedBoost[id] = 1;
         continue;
@@ -187,7 +189,11 @@ export class ChargeSystem implements System {
       const push = bracing ? 0.4 : Math.min(4, (3 * c.mass[id]) / c.mass[e]) * momentum;
       c.vx[e] += fx * push;
       c.vz[e] += fz * push;
-      if (!bracing) this.shake(world, e, 16 * momentum * (flank === Flank.Front ? 1 : flank === Flank.Side ? 1.5 : 2));
+      if (!bracing) {
+        this.shake(world, e, 16 * momentum * (flank === Flank.Front ? 1 : flank === Flank.Side ? 1.5 : 2));
+        // Knocked down by the horse (light soldiers only: an ogre does not fall).
+        if (c.mass[e] < c.mass[id] * 0.5) c.stun[e] = Math.max(c.stun[e], KNOCKDOWN_SECONDS * momentum);
+      }
     }
 
     const braced = bracer !== NO_ENTITY;

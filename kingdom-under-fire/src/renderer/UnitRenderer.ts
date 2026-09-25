@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
-import { Comp, MoraleState, UnitState } from '../entities/Components';
+import { Comp, MoraleState, SwingKind, UnitState } from '../entities/Components';
 import { CORPSE_SECONDS, HIT_FLASH_SECONDS } from '../units/Unit';
 import { UNIT_MODELS, type UnitModel } from '../units/UnitStats';
 import { ATTACK_STYLE, BOW_AIM, BOW_STYLE, createUnitGeometry, MOUNTED_MODELS, STRIDE } from './UnitMeshes';
@@ -17,7 +17,7 @@ attribute float aBone;
 attribute float aTeam;
 attribute float aMount;
 attribute vec4 iAnim;  // x walk phase (rad), y walk amount 0..1, z attack progress 0..1 (0 = none), w seconds dead (0 = alive)
-attribute vec4 iState; // x hit flash 0..1, y routing, z attack style (0 swing, 1 thrust, 2 bow) + 10 if mounted, w idle phase
+attribute vec4 iState; // x hit flash 0..1 (negative: frozen), y routing, z attack style (0 swing, 1 thrust, 2 bow) + 10 if mounted, w idle phase
 attribute vec3 iTeam;
 uniform float uTime;
 uniform float uCorpse;
@@ -133,7 +133,10 @@ function createMaterials(uniforms: Record<string, THREE.IUniform>) {
       .replace('#include <color_vertex>', '#include <color_vertex>\nvColor.rgb = mix(vColor.rgb, iTeam, aTeam);\nvFlash = iState.x;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vFlash;')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(0.9, 0.12, 0.05) * vFlash;');
+      .replace(
+        '#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(0.9, 0.12, 0.05) * max(vFlash, 0.0) + vec3(0.3, 0.55, 0.85) * max(-vFlash, 0.0);',
+      );
   };
   material.customProgramCacheKey = () => 'unit-anim';
 
@@ -286,9 +289,10 @@ export class UnitRenderer {
       a[k * 4 + 3] = dying ? c.stateTime[id] + 0.001 : 0;
 
       const s = pool.state.array as Float32Array;
-      s[k * 4] = c.lastHit[id] < HIT_FLASH_SECONDS && !dying ? 1 - c.lastHit[id] / HIT_FLASH_SECONDS : 0;
+      const flash = c.lastHit[id] < HIT_FLASH_SECONDS && !dying ? 1 - c.lastHit[id] / HIT_FLASH_SECONDS : 0;
+      s[k * 4] = c.frozen[id] > 0 && !dying ? -Math.min(1, c.frozen[id] * 2) : flash;
       s[k * 4 + 1] = c.moraleState[id] === MoraleState.Routing ? 1 : 0;
-      s[k * 4 + 2] = (c.swingRanged[id] ? BOW_STYLE : this.styleOfType[type]) + (this.mountedOfType[type] ? 10 : 0);
+      s[k * 4 + 2] = (c.swingKind[id] === SwingKind.Shot ? BOW_STYLE : this.styleOfType[type]) + (this.mountedOfType[type] ? 10 : 0);
       s[k * 4 + 3] = (id * 1.618) % 6.283;
 
       const color = this.teamColors[c.team[id]] ?? this.teamColors[0];

@@ -86,9 +86,12 @@ export class DamageSystem {
   apply(world: World, attack: Attack): DamageResult {
     const { c } = world;
     const t = attack.target;
+    // Mid-dodge: the blow finds nothing.
+    if (c.invulnerable[t] > 0) return { damage: 0, critical: false, killed: false, flank: Flank.Front };
     const flank = flankOf(c.rot[t], c.x[t], c.z[t], attack.x, attack.z);
-    const shield = attack.missile && flank === Flank.Front ? 1 - c.shield[t] : 1;
-    const hit = computeDamage(attack, c.defense[t], ARMOR_TYPES[c.armorType[t]], world.rng);
+    // Shields stop arrows, not the burst of a spell.
+    const shield = attack.missile && attack.ability === null && flank === Flank.Front ? 1 - c.shield[t] : 1;
+    const hit = computeDamage(attack, c.defense[t] + c.defenseBonus[t], ARMOR_TYPES[c.armorType[t]], world.rng);
     const damage = Math.max(1, hit.damage * FLANK_DAMAGE[flank] * shield);
     const critical = hit.critical;
     c.hp[t] -= damage;

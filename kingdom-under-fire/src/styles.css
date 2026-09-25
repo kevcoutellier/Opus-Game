@@ -243,3 +243,68 @@ body.cursor-attack #scene { cursor: crosshair; }
 .army-counts .emblem { height: 1.3em; width: auto; vertical-align: middle; }
 .briefing-credits { margin-top: 0.8rem; text-align: center; color: var(--ink-dim); font-size: 0.75rem; }
 .briefing-credits code { color: var(--gold); }
+
+/* Hero bar (bottom left) */
+.hero-bar {
+  position: absolute;
+  left: 0.8rem;
+  bottom: 0.8rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'portrait info' 'abilities abilities' 'direct direct';
+  gap: 0.45rem 0.7rem;
+  padding: 0.6rem 0.7rem;
+  width: 19rem;
+}
+.hero-bar[hidden] { display: none; }
+.hero-bar.fallen { filter: grayscale(1) brightness(0.6); }
+.hero-portrait { grid-area: portrait; width: 3.6rem; height: 3.6rem; border: 1px solid var(--panel-edge); border-radius: 0.3rem; overflow: hidden; cursor: help; }
+.hero-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.hero-portrait .crest { width: 100%; height: 100%; display: grid; place-items: center; font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); background: radial-gradient(circle, #3a2f1d, #16120c); }
+.hero-info { grid-area: info; display: grid; gap: 0.22rem; align-content: center; }
+.hero-name { font-family: 'Cinzel', serif; color: var(--gold); font-size: 1rem; }
+.hero-level { color: var(--ink-dim); font-family: 'Alegreya Sans', sans-serif; font-size: 0.8rem; margin-left: 0.3rem; }
+.gauge { height: 0.5rem; background: rgba(10, 9, 7, 0.9); border: 1px solid rgba(201, 164, 92, 0.25); border-radius: 0.2rem; overflow: hidden; }
+.gauge i { display: block; height: 100%; width: 0; transition: width 0.15s linear; }
+.gauge.hp i { background: linear-gradient(#8fd06a, #4f9a36); }
+.gauge.mana i { background: linear-gradient(#7fb2ff, #3a64c8); }
+.gauge.xp { height: 0.3rem; }
+.gauge.xp i { background: linear-gradient(#f0d27a, #b88a2c); }
+.hero-abilities { grid-area: abilities; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; }
+.ability {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.3rem;
+  background: radial-gradient(circle at 50% 35%, rgba(92, 74, 44, 0.95), rgba(28, 23, 16, 0.95));
+  color: var(--ink);
+  cursor: pointer;
+  overflow: hidden;
+  font: inherit;
+}
+.ability:hover { border-color: var(--gold); }
+.ability .icon { font-size: 1.5rem; line-height: 1; }
+.ability .key { position: absolute; left: 0.2rem; top: 0.1rem; font-size: 0.7rem; color: var(--gold); font-weight: 700; }
+.ability .cost { position: absolute; right: 0.2rem; bottom: 0.1rem; font-size: 0.65rem; color: #9cc0ff; }
+/* Cooldown sweep: --cd goes from 1 (just cast) to 0 (ready). */
+.ability .cd { position: absolute; inset: 0; pointer-events: none; background: conic-gradient(rgba(0, 0, 0, 0.72) calc(var(--cd, 0) * 360deg), transparent 0); }
+.ability.unavailable .icon { opacity: 0.45; }
+.ability.aiming { border-color: #bfe3ff; box-shadow: 0 0 0.6rem rgba(191, 227, 255, 0.7) inset; }
+.hero-direct { grid-area: direct; border: 1px solid var(--panel-edge); border-radius: 0.3rem; background: rgba(60, 48, 30, 0.9); color: var(--ink); padding: 0.25rem; cursor: pointer; font: inherit; font-size: 0.85rem; }
+.hero-direct .key { color: var(--gold); font-weight: 700; margin-left: 0.3rem; }
+.hero-direct.active { background: rgba(160, 120, 50, 0.95); color: #1b160f; }
+body.cursor-target #scene { cursor: crosshair; }
+
+/* Direct control: crosshair, reminder of the keys, the RTS panels step aside. */
+.crosshair { position: absolute; left: 50%; top: 50%; width: 1.4rem; height: 1.4rem; transform: translate(-50%, -50%); }
+.crosshair::before, .crosshair::after { content: ''; position: absolute; background: rgba(255, 244, 214, 0.85); box-shadow: 0 0 2px #000; }
+.crosshair::before { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+.crosshair::after { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+.crosshair[hidden], .direct-hint[hidden] { display: none; }
+.direct-hint { position: absolute; left: 50%; top: 3.6rem; transform: translateX(-50%); padding: 0.3rem 0.8rem; font-size: 0.8rem; color: var(--ink-dim); max-width: 60rem; text-align: center; }
+.direct-hint b { color: var(--gold); margin-right: 0.4rem; }
+body.hero-direct-mode .selection-panel, body.hero-direct-mode .help { display: none; }
+
+@media (max-width: 1100px) {
+  .hero-bar { bottom: auto; top: 3.6rem; left: auto; right: 0.8rem; width: 16rem; }
+}

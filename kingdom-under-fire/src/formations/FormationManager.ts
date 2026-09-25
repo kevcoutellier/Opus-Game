@@ -123,7 +123,8 @@ export class FormationManager implements System {
     return f;
   }
 
-  private detach(id: number): void {
+  /** Takes a unit out of its formation (the others close the gap); it stays alone, without slot. */
+  detach(id: number): void {
     const old = this.formations.get(this.world.c.formation[id]);
     if (!old) return;
     this.keepMembers(old, (m) => m !== id);

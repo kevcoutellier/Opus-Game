@@ -1,8 +1,10 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
 import type { FormationType } from '../formations/FormationType';
+import type { HeroSystem } from '../heroes/HeroSystem';
 import { UnitManager } from '../units/UnitManager';
 import { AIKnowledge } from './AIKnowledge';
+import { chooseCast } from './HeroAI';
 import { planTactics, type TacticalOptions, type TacticalPlan } from './TacticalAI';
 
 export interface AIOptions extends TacticalOptions {
@@ -17,8 +19,8 @@ const REORDER_DISTANCE = 6;
 
 /**
  * Commander of an AI army (prototype: one army, one formation). Every `thinkInterval` it refreshes its
- * knowledge, plans, and issues the same commands a player would. Strategic (economy) and operational
- * layers will sit above it; unit-level behaviour stays in the CombatSystem.
+ * knowledge, casts its heroes' abilities, plans, and issues the same commands a player would. Strategic
+ * (economy) and operational layers will sit above it; unit-level behaviour stays in the CombatSystem.
  */
 export class AIController implements System {
   readonly name = 'ai';
@@ -28,6 +30,8 @@ export class AIController implements System {
   private lastPlan: TacticalPlan | null = null;
   /** Disabled by the performance test, which drives both armies itself. */
   enabled = true;
+  /** Heroes of the battle (set once the simulation exists): the AI casts its heroes' abilities. */
+  heroes: HeroSystem | null = null;
 
   constructor(
     world: World,
@@ -45,6 +49,13 @@ export class AIController implements System {
     if (!this.enabled || world.time.elapsed < this.next) return;
     this.next = world.time.elapsed + (this.options.thinkInterval ?? 1);
     this.knowledge.update();
+    if (this.heroes) {
+      for (const h of this.heroes.list(this.options.team)) {
+        if (h.direct || h.casting) continue;
+        const cast = chooseCast(world, this.heroes, h);
+        if (cast) world.commands.push({ kind: 'cast', team: this.options.team, hero: h.id, slot: cast.slot, x: cast.x, z: cast.z });
+      }
+    }
 
     const army: number[] = [];
     this.units.forEachActive((id) => army.push(id), this.options.team);

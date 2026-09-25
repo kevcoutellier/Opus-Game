@@ -2,7 +2,7 @@ import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
 import { Comp, UnitState } from '../entities/Components';
-import { DAMAGE_TYPES, PROJECTILE_TYPES } from '../units/UnitStats';
+import { DAMAGE_TYPES, PROJECTILE_TYPES, type DamageType, type ProjectileType } from '../units/UnitStats';
 import type { Attack, DamageSystem } from './DamageSystem';
 
 /** Height (m above the ground) where a missile leaves the bow and where it strikes a body. */
@@ -33,6 +33,10 @@ export class ProjectilePool {
   readonly ez: Float32Array;
   readonly arc: Float32Array;
   readonly duration: Float32Array;
+  /** Burst radius (m) of a spell missile, 0 for an arrow striking one body. */
+  readonly splash: Float32Array;
+  /** Ability that loosed the missile, null for an arrow. */
+  readonly ability: (string | null)[];
   /** Seconds in flight now and at the previous tick (render interpolation). */
   readonly t: Float32Array;
   readonly prevT: Float32Array;
@@ -60,6 +64,8 @@ export class ProjectilePool {
     this.ez = f32();
     this.arc = f32();
     this.duration = f32();
+    this.splash = f32();
+    this.ability = new Array<string | null>(capacity).fill(null);
     this.t = f32();
     this.prevT = f32();
     this.free = new Int32Array(capacity);
@@ -128,6 +134,46 @@ export function launchProjectile(world: World, shooter: number, target: number, 
   pool.ez[i] = tz;
   pool.arc[i] = 0.4 + distance * 0.13;
   pool.duration[i] = Math.max(0.2, Math.hypot(tx - sx, tz - sz) / ranged.speed);
+  pool.splash[i] = 0;
+  pool.ability[i] = null;
+  pool.t[i] = pool.prevT[i] = 0;
+  world.events.emit('projectileLaunched', { x: sx, z: sz, type: pool.type[i] });
+  return true;
+}
+
+export interface SpellMissile {
+  projectile: ProjectileType;
+  damage: number;
+  damageType: DamageType;
+  radius: number;
+  speed: number;
+}
+
+/** Looses a spell missile of `caster` at the point (x, z): no scatter, it bursts over `radius`. */
+export function launchSpell(world: World, caster: number, x: number, z: number, spell: SpellMissile, ability: string): boolean {
+  const { c, projectiles: pool, terrain } = world;
+  const i = pool.acquire();
+  if (i < 0) return false;
+  const sx = c.x[caster];
+  const sz = c.z[caster];
+  const distance = Math.hypot(x - sx, z - sz);
+  pool.type[i] = PROJECTILE_TYPES.indexOf(spell.projectile);
+  pool.team[i] = c.team[caster];
+  pool.attacker[i] = caster;
+  pool.target[i] = -1;
+  pool.damage[i] = spell.damage;
+  pool.damageType[i] = DAMAGE_TYPES.indexOf(spell.damageType);
+  pool.critChance[i] = 0;
+  pool.sx[i] = sx;
+  pool.sy[i] = terrain.heightAt(sx, sz) + LAUNCH_HEIGHT + 0.4;
+  pool.sz[i] = sz;
+  pool.ex[i] = x;
+  pool.ey[i] = terrain.heightAt(x, z) + 0.3;
+  pool.ez[i] = z;
+  pool.arc[i] = 1 + distance * 0.12;
+  pool.duration[i] = Math.max(0.2, distance / spell.speed);
+  pool.splash[i] = spell.radius;
+  pool.ability[i] = ability;
   pool.t[i] = pool.prevT[i] = 0;
   world.events.emit('projectileLaunched', { x: sx, z: sz, type: pool.type[i] });
   return true;
@@ -155,6 +201,12 @@ export class ProjectileSystem implements System {
       const x = pool.ex[i];
       const z = pool.ez[i];
       const team = pool.team[i];
+      if (pool.splash[i] > 0) {
+        const hit = this.burst(world, i);
+        world.events.emit('projectileLanded', { index: i, x, z, hit });
+        pool.release(i);
+        continue;
+      }
       let struck = -1;
       let best = Infinity;
       const n = spatial.query(x, z, 1.5, c.x, c.z, this.neighbours);
@@ -193,5 +245,35 @@ export class ProjectileSystem implements System {
     }
     for (const hit of this.hits) if (c.state[hit.target] !== UnitState.Dying) this.damage.apply(world, hit);
     this.hits.length = 0;
+  }
+
+  /** A spell missile bursts: every enemy within its radius is hit, pushed away from the centre. */
+  private burst(world: World, i: number): boolean {
+    const { c, entities, projectiles: pool, spatial } = world;
+    const x = pool.ex[i];
+    const z = pool.ez[i];
+    const radius = pool.splash[i];
+    const attacker = pool.attacker[i];
+    let hit = false;
+    const n = spatial.query(x, z, radius + 1, c.x, c.z, this.neighbours);
+    for (let k = 0; k < n; k++) {
+      const e = this.neighbours[k];
+      if (!(entities.mask[e] & Comp.Unit) || c.team[e] === pool.team[i] || c.state[e] === UnitState.Dying) continue;
+      if (Math.hypot(c.x[e] - x, c.z[e] - z) - c.radius[e] > radius) continue;
+      hit = true;
+      this.hits.push({
+        attacker: entities.isAlive(attacker) ? attacker : -1,
+        target: e,
+        damage: pool.damage[i],
+        damageType: DAMAGE_TYPES[pool.damageType[i]],
+        timestamp: world.time.elapsed,
+        x,
+        z,
+        ability: pool.ability[i],
+        missile: true,
+        criticalChance: 0,
+      });
+    }
+    return hit;
   }
 }

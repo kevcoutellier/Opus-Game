@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FACTIONS } from '../../src/data/factions';
 import { PROTOTYPE_BATTLE } from '../../src/data/story/battles';
 import { CHARACTERS, character, LORE } from '../../src/data/story/lore';
+import { UNIT_DEFS } from '../../src/data/units';
 
 describe('story data', () => {
   it('tells the two Wars of Heroes and names the heroes of both sides', () => {
@@ -18,5 +19,11 @@ describe('story data', () => {
     for (const id of PROTOTYPE_BATTLE.allies) expect(character(id).faction).toBe(PROTOTYPE_BATTLE.playerFaction);
     for (const id of PROTOTYPE_BATTLE.enemies) expect(character(id).faction).toBe(PROTOTYPE_BATTLE.enemyFaction);
     expect(() => character('nobody')).toThrow();
+  });
+});
+
+describe('heroes and the lore', () => {
+  it('ties every hero to a character of the chronicles', () => {
+    for (const def of UNIT_DEFS.filter((d) => d.hero)) expect(() => character(def.hero!.character)).not.toThrow();
   });
 });

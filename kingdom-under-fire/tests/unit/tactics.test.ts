@@ -126,15 +126,19 @@ describe('cavalry charge', () => {
       world.commands.push({ kind: 'hold', team: 1, units: line });
       world.commands.push({ kind: 'attack', team: 0, units: knights, target: line[3] });
       let dealt = 0;
+      let hits = 0;
       let taken = 0;
       let impacts = 0;
       world.events.on('chargeImpact', () => impacts++);
       world.events.on('unitHit', ({ attack, damage }) => {
-        if (attack.ability === 'charge') dealt += damage;
+        if (attack.ability === 'charge') {
+          dealt += damage;
+          hits++;
+        }
         if (attack.ability === 'brace') taken += damage;
       });
       run(12);
-      return { dealt, taken, impacts };
+      return { perHit: dealt / Math.max(1, hits), taken, impacts };
     };
     // Spearmen facing the knights (−x) brace; footmen facing away (+x) are hit in the back.
     const spears = charge(SPEARMAN, -Math.PI / 2);
@@ -143,7 +147,8 @@ describe('cavalry charge', () => {
     expect(backs.impacts).toBeGreaterThan(0);
     expect(spears.taken).toBeGreaterThan(0);
     expect(backs.taken).toBe(0);
-    expect(backs.dealt).toBeGreaterThan(spears.dealt * 2);
+    // Each soldier struck by the lance: braced spears absorb most of it, backs take it in full and more.
+    expect(backs.perHit).toBeGreaterThan(spears.perHit * 2);
   });
 });
 

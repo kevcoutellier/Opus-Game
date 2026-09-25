@@ -24,16 +24,16 @@ export const PROTOTYPE_BATTLE: BattleStory = BattleSchema.parse({
   era: 'Seconde Guerre des Héros',
   briefing: [
     'Les orcs de Likuku ont franchi la frontière. Leurs raids ont réduit en cendres les villages du sud, et Haven, le village de Curian, n’est plus que ruines.',
-    'Leur avant-garde marche à présent sur Hironeiden. Le roi Gernot vous confie une compagnie de fantassins et de lanciers : arrêtez-la dans la plaine, avant qu’elle n’atteigne les murailles.',
-    'Méfiez-vous : l’orc frappe fort et encaisse bien, mais il tient mal le rang. Gardez vos lignes serrées, faites plier sa première vague, et la horde se débandera.',
+    'Likuku marche en personne sur Hironeiden à la tête de sa horde : guerriers et lanciers orcs, ogres, archers et cavaliers elfes noirs. Le roi Gernot confie à Curian l’armée de la plaine : fantassins, templiers, lanciers, archers et chevaliers. Arrêtez-la avant les murailles.',
+    'L’orc frappe fort mais tient mal le rang. Gardez vos lances face aux cavaliers, prenez les ogres de flanc, chargez les archers. Curian peut combattre au milieu de ses hommes (Tab) : ses sorts et son courage peuvent renverser la bataille. Si Likuku tombe, la horde vacillera.',
   ],
-  objective: 'Briser l’avant-garde orque : tuer ou mettre en déroute tous ses guerriers.',
+  objective: 'Briser l’armée de Likuku : tuer ou mettre en déroute tous ses soldats.',
   playerFaction: 'human_alliance',
   enemyFaction: 'dark_legion',
   allies: ['gernot', 'curian'],
   enemies: ['likuku', 'lauriana'],
-  victory: 'L’avant-garde de Likuku est brisée. Hironeiden tiendra encore.',
-  defeat: 'Votre compagnie est brisée : la horde de Likuku marche sur Hironeiden.',
+  victory: 'La horde de Likuku est brisée. Hironeiden tiendra encore.',
+  defeat: 'L’armée de Curian est brisée : la horde de Likuku marche sur Hironeiden.',
 });
 
 for (const id of [...PROTOTYPE_BATTLE.allies, ...PROTOTYPE_BATTLE.enemies]) {

@@ -52,9 +52,10 @@ export class MouseInput {
     });
     window.addEventListener('pointermove', (e) => {
       this.inside = true;
-      this.dx += e.clientX - this.x;
-      this.dy += e.clientY - this.y;
-      this.move(e.clientX, e.clientY);
+      // movementX keeps counting while the pointer is locked (third-person mouse look).
+      this.dx += e.movementX;
+      this.dy += e.movementY;
+      if (!this.locked) this.move(e.clientX, e.clientY);
     });
     document.documentElement.addEventListener('pointerleave', () => (this.inside = false));
     window.addEventListener('blur', () => {
@@ -69,6 +70,19 @@ export class MouseInput {
       },
       { passive: false },
     );
+  }
+
+  /** True while the pointer is captured for mouse look (direct control of a hero). */
+  get locked(): boolean {
+    return document.pointerLockElement === this.element;
+  }
+
+  lock(): void {
+    if (!this.locked) void Promise.resolve(this.element.requestPointerLock()).catch(() => {});
+  }
+
+  unlock(): void {
+    if (this.locked) document.exitPointerLock();
   }
 
   listen(listener: MouseListener): void {

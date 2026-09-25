@@ -15,7 +15,9 @@ const HELP = [
   ['F', 'changer de formation · H : tenir la position'],
   ['Ctrl + 1–9 / 1–9', 'créer / rappeler un groupe (double appui : caméra)'],
   ['WASD (ZQSD) / bords', 'déplacer la caméra · Q/E (A/E) : rotation · molette : zoom'],
-  ['PgUp / PgDn', 'inclinaison · C : caméra libre · Origine : recentrer'],
+  ['PgUp / PgDn', 'inclinaison · L : caméra libre · Origine : recentrer'],
+  ['Z X C V (W X C V)', 'capacités du héros (clic : viser, clic droit : annuler)'],
+  ['Tab', 'contrôle direct du héros : WASD, souris, clics : frapper, Espace : esquive, 1–4 : capacités'],
   ['P / M', 'pause · couper le son'],
   ['F1 / F2', 'panneau développeur · test de performance'],
 ];

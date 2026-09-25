@@ -1,6 +1,6 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
-import { Comp, MoraleState, NO_ENTITY, Order, UnitState } from '../entities/Components';
+import { Comp, MoraleState, NO_ENTITY, Order, SwingKind, UnitState, type SwingKindId } from '../entities/Components';
 import type { FormationManager } from '../formations/FormationManager';
 import { IMPACT_FRACTION } from '../units/Unit';
 import { DAMAGE_TYPES } from '../units/UnitStats';
@@ -66,6 +66,19 @@ export class CombatSystem implements System {
         continue;
       }
 
+      if (c.stun[id] > 0) {
+        // Frozen or stunned: the swing is lost and nothing else happens.
+        c.swing[id] = -1;
+        continue;
+      }
+      if (c.order[id] === Order.Direct) {
+        // Steered by the player: no automatic target, only the blows he orders (freeStrike).
+        this.dropTarget(world, id);
+        if (c.state[id] === UnitState.Engaging || c.state[id] === UnitState.Attacking) c.state[id] = UnitState.Idle;
+        this.advanceSwing(world, id, dt);
+        continue;
+      }
+
       // Validate the current target.
       let target = c.target[id];
       if (target >= 0 && (!this.isEnemy(world, id, target))) target = NO_ENTITY;
@@ -91,12 +104,12 @@ export class CombatSystem implements System {
         if (dist - contact <= c.reach[id] + 0.05) {
           c.state[id] = UnitState.Attacking;
           c.engageDist[id] = contact + c.reach[id] * 0.85;
-          if (c.swing[id] < 0 && c.attackTimer[id] <= 0) this.startSwing(world, id, c.attackWindup[id], c.attackPeriod[id], false);
+          if (c.swing[id] < 0 && c.attackTimer[id] <= 0) this.startSwing(world, id, c.attackWindup[id], c.attackPeriod[id], SwingKind.Blow);
         } else if (range > 0 && dist <= range) {
           // In range: stand and shoot.
           c.state[id] = UnitState.Attacking;
           c.engageDist[id] = range * 0.95;
-          if (c.swing[id] < 0 && c.attackTimer[id] <= 0) this.startSwing(world, id, c.rangedWindup[id], c.rangedPeriod[id], true);
+          if (c.swing[id] < 0 && c.attackTimer[id] <= 0) this.startSwing(world, id, c.rangedWindup[id], c.rangedPeriod[id], SwingKind.Shot);
         } else if (order === Order.Hold) {
           // Holding troops strike what comes to them, they do not chase.
           c.target[id] = NO_ENTITY;
@@ -127,14 +140,29 @@ export class CombatSystem implements System {
     c.target[id] = NO_ENTITY;
   }
 
-  private startSwing(world: World, id: number, windup: number, period: number, ranged: boolean): void {
+  /** Starts a swing; shaken troops strike slower, hasted ones (Blood Rage) faster. */
+  private startSwing(world: World, id: number, windup: number, period: number, kind: SwingKindId): void {
     const { c } = world;
+    const haste = c.hasteMul[id];
     c.swing[id] = 0;
-    c.swingDuration[id] = windup / IMPACT_FRACTION;
-    c.swingRanged[id] = ranged ? 1 : 0;
+    c.swingDuration[id] = windup / IMPACT_FRACTION / haste;
+    c.swingKind[id] = kind;
+    c.swingPower[id] = 1;
     const morale = c.moraleState[id];
     const slow = morale === MoraleState.Shaken ? 1.12 : morale === MoraleState.Panicked ? 1.35 : 1;
-    c.attackTimer[id] = period * slow;
+    c.attackTimer[id] = (period * slow) / haste;
+  }
+
+  /**
+   * A blow ordered by the player to a hero under direct control: it hits every enemy in an arc in front.
+   * A heavy blow is slower and hits almost twice as hard. False when the hero is not ready.
+   */
+  freeStrike(world: World, id: number, heavy: boolean): boolean {
+    const { c } = world;
+    if (c.swing[id] >= 0 || c.attackTimer[id] > 0 || c.stun[id] > 0 || c.state[id] === UnitState.Dying) return false;
+    this.startSwing(world, id, c.attackWindup[id] * (heavy ? 1.5 : 1), c.attackPeriod[id] * (heavy ? 1.6 : 0.8), SwingKind.Arc);
+    c.swingPower[id] = heavy ? 1.9 : 1;
+    return true;
   }
 
   private acquire(world: World, id: number, current: number, order: number, panicked: boolean): number {
@@ -203,16 +231,18 @@ export class CombatSystem implements System {
     if (swing < 0) return;
     const next = swing + dt;
     const windup = c.swingDuration[id] * IMPACT_FRACTION;
-    if (swing < windup && next >= windup) {
+    const kind = c.swingKind[id];
+    if (swing < windup && next >= windup && kind === SwingKind.Arc) {
+      this.arcStrike(world, id, c.attack[id] * c.damageMul[id] * c.swingPower[id]);
+    } else if (swing < windup && next >= windup && kind !== SwingKind.Cast) {
       const t = c.target[id];
       if (t >= 0 && this.isEnemy(world, id, t)) {
         const dist = Math.hypot(c.x[t] - c.x[id], c.z[t] - c.z[id]);
-        if (c.swingRanged[id]) {
-          if (dist <= c.range[id] * 1.15) {
-            launchProjectile(world, id, t, c.rangedAttack[id] * (c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1));
-          }
+        const shaken = c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1;
+        if (kind === SwingKind.Shot) {
+          if (dist <= c.range[id] * 1.15) launchProjectile(world, id, t, c.rangedAttack[id] * c.damageMul[id] * shaken);
         } else if (dist - c.radius[id] - c.radius[t] <= c.reach[id] + 0.6) {
-          const damage = c.attack[id] * (c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1);
+          const damage = c.attack[id] * c.damageMul[id] * shaken;
           this.strike(world, id, t, damage);
           if (c.cleave[id] > 0) this.cleave(world, id, t, damage * CLEAVE_DAMAGE);
         }
@@ -235,6 +265,26 @@ export class CombatSystem implements System {
       missile: false,
       criticalChance: c.critChance[id],
     });
+  }
+
+  /** Free blow of a hero: every enemy within reach in a ±65° arc in front, the nearest first. */
+  private arcStrike(world: World, id: number, damage: number): void {
+    const { c, spatial } = world;
+    const n = spatial.query(c.x[id], c.z[id], c.radius[id] + c.reach[id] + 1.6, c.x, c.z, this.neighbours);
+    const fx = Math.sin(c.rot[id]);
+    const fz = Math.cos(c.rot[id]);
+    const max = 3 + c.cleave[id];
+    let hits = 0;
+    for (let k = 0; k < n && hits < max; k++) {
+      const e = this.neighbours[k];
+      if (!this.isEnemy(world, id, e)) continue;
+      const dx = c.x[e] - c.x[id];
+      const dz = c.z[e] - c.z[id];
+      const dist = Math.hypot(dx, dz);
+      if (dist - c.radius[id] - c.radius[e] > c.reach[id] + 0.5 || (dx * fx + dz * fz) / (dist || 1) < 0.42) continue;
+      this.strike(world, id, e, damage);
+      hits++;
+    }
   }
 
   /** A sweeping blow also hits up to `cleave` other enemies within reach in front of the attacker. */

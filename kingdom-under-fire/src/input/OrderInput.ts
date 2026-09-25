@@ -38,15 +38,23 @@ const MIN_FRONT = 2;
 export class OrderInput {
   /** Armed by T: the next click is an attack-move. */
   attackMoveArmed = false;
+  /** When it returns true (the hero controls own the mouse), no order is given. */
+  blocked: () => boolean = () => false;
   private frontStart: THREE.Vector3 | null = null;
   private front: { x: number; z: number; facing: number; width: number } | null = null;
 
   constructor(private readonly d: OrderInputDeps) {
     d.mouse.listen({
       down: (button, x, y) => {
-        if (button === MouseButton.Right && d.selection.commandable) this.frontStart = d.pickGround(x, y);
+        if (button === MouseButton.Right && d.selection.commandable && !this.blocked()) this.frontStart = d.pickGround(x, y);
       },
       up: (button, x, y) => {
+        if (this.blocked()) {
+          this.frontStart = null;
+          this.front = null;
+          d.preview(null);
+          return;
+        }
         if (button === MouseButton.Right) {
           const front = this.front;
           this.frontStart = null;
@@ -65,7 +73,7 @@ export class OrderInput {
   update(): void {
     const { keys, selection, mouse } = this.d;
     for (const code of keys.justPressed) {
-      if (!selection.commandable) continue;
+      if (!selection.commandable || this.blocked()) continue;
       if (code === 'KeyT') this.attackMoveArmed = true;
       else if (code === 'Escape') this.attackMoveArmed = false;
       else if (code === 'KeyF') this.cycleFormation(keys.shift ? -1 : 1);

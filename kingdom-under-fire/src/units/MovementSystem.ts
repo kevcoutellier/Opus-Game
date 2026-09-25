@@ -1,10 +1,13 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
-import { Comp, MoraleState, UnitState } from '../entities/Components';
+import { Comp, MoraleState, Order, SwingKind, UnitState } from '../entities/Components';
+import { IMPACT_FRACTION } from './Unit';
 
 const NEIGHBOUR_RADIUS = 1.8;
 /** Steering responsiveness (1/s): lower = heavier, more inertia. */
 const ACCELERATION = 6.5;
+/** Friction (1/s) of a stunned or knocked-down body sliding to a halt. */
+const SLIDE_FRICTION = 4;
 const TURN_RATE = 5.5;
 const SEPARATION = 5.5;
 const ALIGNMENT = 0.2;
@@ -34,6 +37,7 @@ export class MovementSystem implements System {
   update(world: World, dt: number): void {
     const { entities, c, nav, spatial, paths } = world;
     const blend = Math.min(1, ACCELERATION * dt);
+    const slide = Math.exp(-SLIDE_FRICTION * dt);
     if (this.nx.length !== entities.capacity) {
       this.nx = new Float32Array(entities.capacity);
       this.nz = new Float32Array(entities.capacity);
@@ -48,6 +52,10 @@ export class MovementSystem implements System {
       const x = c.x[id];
       const z = c.z[id];
       const routing = c.moraleState[id] === MoraleState.Routing;
+
+      // Frozen, stunned or casting a spell: rooted to the spot (still pushed around by the crowd).
+      const rooted = c.stun[id] > 0 || (c.swingKind[id] === SwingKind.Cast && c.swing[id] >= 0 && c.swing[id] < c.swingDuration[id] * IMPACT_FRACTION);
+      const direct = c.order[id] === Order.Direct;
 
       // 1. Goal: the enemy being engaged, the formation slot, or (routing) the flight point in slot*.
       const target = c.target[id];
@@ -71,7 +79,13 @@ export class MovementSystem implements System {
       let wantX = 0;
       let wantZ = 0;
       let wantSpeed = 0;
-      if (dist > stop) {
+      if (direct && !rooted) {
+        // Steered by the player (HeroSystem): straight where the stick points.
+        const top = c.maxSpeed[id] * c.speedBoost[id] * nav.speedAt(x, z);
+        wantX = c.steerX[id] * top;
+        wantZ = c.steerZ[id] * top;
+        wantSpeed = Math.hypot(wantX, wantZ);
+      } else if (!direct && !rooted && dist > stop) {
         let ux = dx / dist;
         let uz = dz / dist;
         const flow = c.flow[id];
@@ -150,9 +164,22 @@ export class MovementSystem implements System {
       }
 
       // 4. Integrate with inertia, slide along obstacles.
-      let vx = c.vx[id] + (tx - c.vx[id]) * blend;
-      let vz = c.vz[id] + (tz - c.vz[id]) * blend;
-      const maxV = c.maxSpeed[id] * c.speedBoost[id] * 1.4;
+      // A dodge roll keeps its momentum, a stunned body thrown back slides to a halt; otherwise inertia
+      // towards the wanted velocity.
+      const dodging = c.invulnerable[id] > 0;
+      let vx: number;
+      let vz: number;
+      if (dodging) {
+        vx = c.vx[id];
+        vz = c.vz[id];
+      } else if (rooted) {
+        vx = c.vx[id] * slide + tx * blend;
+        vz = c.vz[id] * slide + tz * blend;
+      } else {
+        vx = c.vx[id] + (tx - c.vx[id]) * blend;
+        vz = c.vz[id] + (tz - c.vz[id]) * blend;
+      }
+      const maxV = dodging || rooted ? Infinity : c.maxSpeed[id] * c.speedBoost[id] * 1.4;
       const v = Math.hypot(vx, vz);
       if (v > maxV) {
         vx *= maxV / v;
@@ -182,10 +209,11 @@ export class MovementSystem implements System {
       // 5. Facing: the enemy in reach, else the direction of travel, else the formation front.
       const moving = Math.hypot(vx, vz) > 0.35;
       let facing = c.rot[id];
-      if (engaging && dist < stop + 1.5) facing = Math.atan2(dx, dz);
+      if (direct) facing = moving && !dodging ? Math.atan2(vx, vz) : c.rot[id];
+      else if (engaging && dist < stop + 1.5) facing = Math.atan2(dx, dz);
       else if (moving) facing = Math.atan2(vx, vz);
       else if (!engaging && !routing) facing = c.slotRot[id];
-      c.rot[id] = turnTowards(c.rot[id], facing, TURN_RATE * dt);
+      if (!rooted) c.rot[id] = turnTowards(c.rot[id], facing, TURN_RATE * dt);
 
       if (!engaging && !routing) c.state[id] = moving ? UnitState.Moving : UnitState.Idle;
     }

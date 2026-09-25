@@ -43,8 +43,23 @@ export const Order = {
   Attack: 2,
   Hold: 3,
   Defend: 4,
+  /** A hero steered by the player in third person (HeroSystem): no slot, no automatic fighting. */
+  Direct: 5,
 } as const;
 export type OrderId = (typeof Order)[keyof typeof Order];
+
+/** What the current swing does when it lands. */
+export const SwingKind = {
+  /** A blow at the target. */
+  Blow: 0,
+  /** A missile loosed at the target (bow animation). */
+  Shot: 1,
+  /** A free blow hitting every enemy in an arc in front (hero under direct control). */
+  Arc: 2,
+  /** A spell being cast: no blow, the HeroSystem releases the ability. */
+  Cast: 3,
+} as const;
+export type SwingKindId = (typeof SwingKind)[keyof typeof SwingKind];
 
 export const NO_ENTITY = -1;
 
@@ -80,8 +95,8 @@ export class Components {
   readonly swing: Float32Array;
   /** Total duration of the current swing or shot (animation). */
   readonly swingDuration: Float32Array;
-  /** 1 while the current swing is a missile shot (bow animation). */
-  readonly swingRanged: Uint8Array;
+  /** SwingKind of the current swing. */
+  readonly swingKind: Uint8Array;
   readonly target: Int32Array;
   readonly damageType: Uint8Array;
   readonly armorType: Uint8Array;
@@ -113,6 +128,26 @@ export class Components {
   readonly chargeCooldown: Float32Array;
   /** Multiplier of the maximum speed (gallop of a charge). */
   readonly speedBoost: Float32Array;
+
+  // Abilities and heroes
+  /** Seconds left frozen or stunned: no movement, no blow. */
+  readonly stun: Float32Array;
+  /** Seconds left encased in ice (a stun that shows). */
+  readonly frozen: Float32Array;
+  /** Seconds left untouchable (dodge roll). */
+  readonly invulnerable: Float32Array;
+  /** Buffs: damage multiplier, attack-rate multiplier, flat defence bonus. */
+  readonly damageMul: Float32Array;
+  readonly hasteMul: Float32Array;
+  readonly defenseBonus: Float32Array;
+  /** Morale aura of a hero: radius (m, 0 = none) and morale points per second given to allies. */
+  readonly auraRadius: Float32Array;
+  readonly auraMorale: Float32Array;
+  /** Desired velocity direction of a directly controlled hero (unit vector or zero). */
+  readonly steerX: Float32Array;
+  readonly steerZ: Float32Array;
+  /** Damage multiplier of the current swing (heavy blow). */
+  readonly swingPower: Float32Array;
 
   // Morale
   readonly morale: Float32Array;
@@ -160,7 +195,7 @@ export class Components {
     this.attackTimer = f32();
     this.swing = f32();
     this.swingDuration = new Float32Array(capacity).fill(1);
-    this.swingRanged = new Uint8Array(capacity);
+    this.swingKind = new Uint8Array(capacity);
     this.target = new Int32Array(capacity).fill(NO_ENTITY);
     this.damageType = new Uint8Array(capacity);
     this.armorType = new Uint8Array(capacity);
@@ -180,6 +215,17 @@ export class Components {
     this.chargeTime = f32();
     this.chargeCooldown = f32();
     this.speedBoost = new Float32Array(capacity).fill(1);
+    this.stun = f32();
+    this.invulnerable = f32();
+    this.frozen = f32();
+    this.damageMul = new Float32Array(capacity).fill(1);
+    this.hasteMul = new Float32Array(capacity).fill(1);
+    this.defenseBonus = f32();
+    this.auraRadius = f32();
+    this.auraMorale = f32();
+    this.steerX = f32();
+    this.steerZ = f32();
+    this.swingPower = new Float32Array(capacity).fill(1);
     this.morale = f32();
     this.moraleState = new Uint8Array(capacity);
     this.discipline = f32();

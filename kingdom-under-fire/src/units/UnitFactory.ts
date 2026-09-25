@@ -46,6 +46,17 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.chargeTime[id] = 0;
   c.chargeCooldown[id] = 0;
   c.speedBoost[id] = 1;
+  c.stun[id] = 0;
+  c.invulnerable[id] = 0;
+  c.frozen[id] = 0;
+  c.damageMul[id] = 1;
+  c.hasteMul[id] = 1;
+  c.defenseBonus[id] = 0;
+  c.auraRadius[id] = def.hero?.aura.radius ?? 0;
+  c.auraMorale[id] = def.hero?.aura.morale ?? 0;
+  c.steerX[id] = c.steerZ[id] = 0;
+  c.swingKind[id] = 0;
+  c.swingPower[id] = 1;
   c.morale[id] = def.morale;
   c.moraleState[id] = MoraleState.Normal;
   c.discipline[id] = def.discipline;

@@ -36,7 +36,8 @@ test('the battle scene boots behind the briefing, renders and logs no error', as
   const stats = (await game(page, 'g.renderer.stats()')) as { calls: number; triangles: number };
   expect(stats.calls).toBeGreaterThan(0);
   expect(stats.triangles).toBeGreaterThan(1000);
-  expect(await game(page, 'g.units.countActive(0) + g.units.countActive(1)')).toBe(40);
+  expect(await game(page, 'g.units.countActive(0) + g.units.countActive(1)')).toBe(await game(page, 'g.armies.player.units.length + g.armies.enemy.units.length'));
+  expect(await game(page, 'g.heroes.list().length')).toBe(2);
   expect(errors).toEqual([]);
 });
 
@@ -45,18 +46,18 @@ test('the player selects the army with a drag, draws a front and the formation m
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
-  await game(page, 'g.rtsCamera.focus(128, 172, 50, true)');
+  await game(page, 'g.rtsCamera.focus(134, 176, 75, true)');
   await waitFrames(page, 2);
-  // Screen bounding box of the 20 player units.
+  // Screen bounding box of the player's army.
   const box = (await game(
     page,
-    `(() => { const xs = [], ys = []; for (let id = 0; id < 20; id++) { const p = g.projector.project(g.world.c.x[id], 1, g.world.c.z[id]); xs.push(p.x); ys.push(p.y); } return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; })()`,
+    `(() => { const xs = [], ys = []; for (const id of g.armies.player.units) { const p = g.projector.project(g.world.c.x[id], 1, g.world.c.z[id]); xs.push(p.x); ys.push(p.y); } return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; })()`,
   )) as number[];
   await page.mouse.move(box[0] - 25, box[1] - 25);
   await page.mouse.down();
   await page.mouse.move(box[2] + 25, box[3] + 25, { steps: 6 });
   await page.mouse.up();
-  await expect.poll(() => game(page, 'g.selection.size')).toBe(20);
+  await expect.poll(() => game(page, 'g.selection.size')).toBe(await game(page, 'g.armies.player.units.length'));
 
   // Right-drag a front ahead of the army.
   const view = page.viewportSize()!;
@@ -64,9 +65,36 @@ test('the player selects the army with a drag, draws a front and the formation m
   await page.mouse.down({ button: 'right' });
   await page.mouse.move(view.width * 0.6, view.height * 0.3, { steps: 6 });
   await page.mouse.up({ button: 'right' });
-  await expect.poll(() => game(page, 'g.formations.count')).toBe(1);
+  // The whole army forms one formation.
+  await expect
+    .poll(() => game(page, `new Set(g.armies.player.units.map((id) => g.world.c.formation[id])).size === 1 && g.world.c.formation[g.armies.player.units[0]] >= 0`))
+    .toBe(true);
   const startZ = (await game(page, 'g.world.c.z[0]')) as number;
   await expect.poll(() => game(page, 'g.world.c.z[0]'), { timeout: 60_000 }).toBeLessThan(startZ - 3);
+  expect(errors).toEqual([]);
+});
+
+test('the hero: an ability is aimed then cancelled, direct control is taken and given back', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.hero-bar')).toBeVisible();
+  await expect(page.locator('.hero-bar .hero-name')).toContainText('Curian');
+  // X aims Gel, Escape cancels.
+  await page.keyboard.press('KeyX');
+  await expect.poll(() => game(page, 'g.heroInput.targeting?.slot ?? -1')).toBe(1);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => game(page, 'g.heroInput.targeting')).toBeNull();
+  // Tab: third-person control of Curian, then back to the army.
+  const hero = (await game(page, 'g.heroes.list(0)[0].id')) as number;
+  await page.keyboard.press('Tab');
+  await expect.poll(() => game(page, 'g.heroInput.direct')).toBe(hero);
+  await expect.poll(() => game(page, `g.world.c.order[${hero}]`), { timeout: 60_000 }).toBe(5);
+  await expect(page.locator('.crosshair')).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect.poll(() => game(page, 'g.heroInput.direct')).toBe(-1);
+  await expect.poll(() => game(page, `g.world.c.order[${hero}]`), { timeout: 60_000 }).not.toBe(5);
   expect(errors).toEqual([]);
 });
 

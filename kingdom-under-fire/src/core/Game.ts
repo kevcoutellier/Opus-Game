@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import { AIController } from '../ai/AIController';
 import type { AssetManager } from '../assets/AssetManager';
 import { AudioManager } from '../audio/AudioManager';
+import { HeroCamera } from '../camera/HeroCamera';
 import { RTSCamera } from '../camera/RTSCamera';
 import { faction } from '../data/factions';
 import { DebugManager } from '../debug/DebugManager';
 import { GpuTimer } from '../debug/GpuTimer';
 import { PerformanceMonitor } from '../debug/PerformanceMonitor';
+import type { HeroSystem } from '../heroes/HeroSystem';
+import { HeroInput } from '../input/HeroInput';
 import { InputManager } from '../input/InputManager';
 import { OrderInput } from '../input/OrderInput';
 import { Terrain } from '../maps/Terrain';
@@ -20,13 +23,14 @@ import { TerrainPicker } from '../renderer/TerrainPicker';
 import { TerrainRenderer } from '../renderer/TerrainRenderer';
 import { UnitRenderer } from '../renderer/UnitRenderer';
 import { BattleOutcome } from '../scenes/BattleOutcome';
-import { PLAYER_TEAM, setupPrototypeBattle } from '../scenes/BattleScene';
+import { PLAYER_TEAM, setupFieldBattle, type Army } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
 import { setupShowcase } from '../scenes/ShowcaseScene';
 import { SelectionInput } from '../selection/SelectionInput';
 import { SelectionManager } from '../selection/SelectionManager';
 import { PROTOTYPE_BATTLE } from '../data/story/battles';
 import { BriefingScreen } from '../ui/BriefingScreen';
+import { HeroBar } from '../ui/HeroBar';
 import { HUD } from '../ui/HUD';
 import { UnitManager } from '../units/UnitManager';
 import type { FormationManager } from '../formations/FormationManager';
@@ -50,9 +54,15 @@ export class Game {
   readonly world: World;
   readonly simulation: Simulation;
   readonly formations: FormationManager;
+  readonly heroes: HeroSystem;
   readonly ai: AIController;
+  /** Units deployed at the start of the battle. */
+  readonly armies: { player: Army; enemy: Army };
   readonly units: UnitManager;
   readonly rtsCamera: RTSCamera;
+  readonly heroCamera: HeroCamera;
+  readonly heroInput: HeroInput;
+  private readonly heroBar: HeroBar;
   readonly input: InputManager;
   readonly projector: ScreenProjector;
   readonly selection: SelectionManager;
@@ -86,11 +96,14 @@ export class Game {
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
 
     this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
-    const setup = setupPrototypeBattle(this.world, MAP_SIZE);
+    const setup = setupFieldBattle(this.world, MAP_SIZE);
+    this.armies = { player: setup.player, enemy: setup.enemy };
     this.ai = new AIController(this.world, setup.ai);
     const battle = createBattleSimulation(this.world, [this.ai], this.perf);
     this.simulation = battle.simulation;
     this.formations = battle.formations;
+    this.heroes = battle.heroes;
+    this.ai.heroes = battle.heroes;
     this.units = new UnitManager(this.world);
 
     const teamColors = TEAM_FACTIONS.map((id) => new THREE.Color(faction(id).color));
@@ -151,7 +164,23 @@ export class Game {
       },
       preview: (points) => this.overlay.preview(points),
     });
-    this.selectionInput.blocked = () => this.orderInput.attackMoveArmed;
+    this.heroCamera = new HeroCamera(heightAt);
+    this.heroInput = new HeroInput({
+      world,
+      heroes: this.heroes,
+      selection: this.selection,
+      mouse: this.input.mouse,
+      keys: this.input.keys,
+      camera: this.heroCamera,
+      team: PLAYER_TEAM,
+      pickGround: (x, y) => this.picker.pick(x, y, this.projector.width, this.projector.height),
+      viewport: () => ({ width: this.projector.width, height: this.projector.height }),
+      preview: (target) => this.overlay.target(target),
+      onDirect: (hero) => this.directControl(hero),
+    });
+    this.heroBar = new HeroBar(ui, world, this.heroes, this.heroInput, (id) => this.assets.portrait(id));
+    this.selectionInput.blocked = () => this.orderInput.attackMoveArmed || this.heroInput.busy;
+    this.orderInput.blocked = () => this.heroInput.busy;
     const orders = this.orderInput;
     this.hud.panel.setActions([
       ...FORMATION_TYPES.map((type) => ({
@@ -242,17 +271,30 @@ export class Game {
     this.time += dt;
     for (const code of keys.justPressed) {
       if (code === 'Home') this.rtsCamera.reset();
-      if (code === 'KeyC') this.rtsCamera.freeCamera = !this.rtsCamera.freeCamera;
+      if (code === 'KeyL') this.rtsCamera.freeCamera = !this.rtsCamera.freeCamera;
       if (code === 'F1') this.debug.toggle();
       if (code === 'F2') this.startPerfTest();
       if (code === 'KeyP' || code === 'Pause') this.loop.paused = !this.loop.paused;
       if (code === 'KeyM') this.audio.toggleMute();
     }
-    this.rtsCamera.update(dt, keys, mouse, this.renderer, !mouse.isDown(0));
-    this.rtsCamera.camera.updateMatrixWorld();
+    this.heroInput.update();
+    const direct = this.heroInput.direct;
+    const camera = this.rtsCamera.camera;
+    if (direct >= 0) {
+      const c = this.world.c;
+      const x = c.prevX[direct] + (c.x[direct] - c.prevX[direct]) * alpha;
+      const z = c.prevZ[direct] + (c.z[direct] - c.prevZ[direct]) * alpha;
+      this.heroCamera.update(camera, dt, x, this.terrain.heightAt(x, z), z);
+    } else {
+      this.rtsCamera.update(dt, keys, mouse, this.renderer, !mouse.isDown(0));
+      this.heroCamera.release(camera, dt);
+    }
+    camera.updateMatrixWorld();
     this.selection.prune();
-    this.selectionInput.update(performance.now());
-    this.orderInput.update();
+    if (direct < 0) {
+      this.selectionInput.update(performance.now());
+      this.orderInput.update();
+    }
 
     const t = this.rtsCamera.target;
     this.scenes.lighting.follow(t.x, t.y, t.z);
@@ -262,6 +304,7 @@ export class Game {
     this.effects.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.missiles.update(this.world, alpha, this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.hud.update(this.perfTest.current === null ? this.outcome.update(this.world) : null);
+    this.heroBar.update();
     const cpuMs = performance.now() - start;
     this.gpu.begin();
     this.renderer.render(this.scenes.scene, this.rtsCamera.camera);
@@ -304,6 +347,20 @@ export class Game {
       formations: this.formations.count,
       flowFields: this.world.paths.computed,
     });
+  }
+
+  /** Direct control taken (hero id) or given back (-1): glide between the RTS and the hero cameras. */
+  private directControl(hero: number): void {
+    const c = this.world.c;
+    const camera = this.rtsCamera.camera;
+    if (hero >= 0) {
+      this.heroCamera.enter(camera, c.x[hero], this.terrain.heightAt(c.x[hero], c.z[hero]), c.z[hero], c.rot[hero]);
+      return;
+    }
+    this.heroCamera.exit(camera);
+    // The RTS view comes back above the hero, looking the way the player last looked.
+    const last = this.heroInput.hero();
+    if (last) this.rtsCamera.focus(c.x[last.id], c.z[last.id], undefined, true);
   }
 
   get visibleUnits(): number {

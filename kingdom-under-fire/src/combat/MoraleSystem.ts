@@ -11,6 +11,9 @@ const FLEE_DISTANCE = 26;
 const RECOVERY_SECONDS = 4;
 /** 0 = every enemy on one side, 1 = evenly all around; beyond this a soldier feels surrounded. */
 const ENCIRCLED = 0.55;
+/** The fall of a hero is felt this far (m): despair on his side, elation on the other. */
+const HERO_DEATH_RADIUS = 32;
+const HERO_DEATH_SHOCK = 25;
 
 /** Thresholds with hysteresis: a unit does not flicker between two states. */
 export const MORALE = {
@@ -26,7 +29,8 @@ export const MORALE = {
  * Morale of every soldier (0-100) and its state machine NORMAL → SHAKEN → PANICKED → ROUTING →
  * RECOVERING. Factors: local odds (enemies vs allies around), encirclement, wounds and blows in the flank
  * or the back (DamageSystem), charges (ChargeSystem), deaths of nearby comrades, kills, the losses of the
- * formation and panic spreading from routing neighbours; discipline absorbs part of every loss. Routing soldiers flee away from the enemy; once safe they rally and return
+ * formation, panic spreading from routing neighbours, the aura of a hero nearby and the fall of a hero;
+ * discipline absorbs part of every loss. Routing soldiers flee away from the enemy; once safe they rally and return
  * to their formation.
  */
 export class MoraleSystem implements System {
@@ -35,13 +39,17 @@ export class MoraleSystem implements System {
   private fleeX = new Float32Array(0);
   private fleeZ = new Float32Array(0);
   private safeTime = new Float32Array(0);
-  private readonly deaths: { x: number; z: number; team: number; killer: number }[] = [];
+  private readonly deaths: { x: number; z: number; team: number; killer: number; hero: boolean }[] = [];
+  /** Living heroes of this tick (their morale aura). */
+  private readonly auras: number[] = [];
 
   constructor(
     world: World,
     private readonly formations: FormationManager,
   ) {
-    world.events.on('unitDied', (e) => this.deaths.push({ x: e.x, z: e.z, team: e.team, killer: e.killer }));
+    world.events.on('unitDied', (e) =>
+      this.deaths.push({ x: e.x, z: e.z, team: e.team, killer: e.killer, hero: world.c.auraRadius[e.id] > 0 }),
+    );
   }
 
   update(world: World, dt: number): void {
@@ -61,8 +69,14 @@ export class MoraleSystem implements System {
         this.change(world, id, -6);
       }
       if (death.killer >= 0 && entities.isAlive(death.killer)) this.change(world, death.killer, 3);
+      if (death.hero) this.heroFell(world, death.x, death.z, death.team);
     }
     this.deaths.length = 0;
+    this.auras.length = 0;
+    for (let i = 0; i < entities.count; i++) {
+      const id = entities.dense[i];
+      if (c.auraRadius[id] > 0 && c.state[id] !== UnitState.Dying) this.auras.push(id);
+    }
 
     const interval = dt * STAGGER;
     for (let i = 0; i < entities.count; i++) {
@@ -76,6 +90,16 @@ export class MoraleSystem implements System {
         c.slotX[id] = this.fleeX[id];
         c.slotZ[id] = this.fleeZ[id];
       }
+    }
+  }
+
+  private heroFell(world: World, x: number, z: number, team: number): void {
+    const { c, spatial } = world;
+    const n = spatial.query(x, z, HERO_DEATH_RADIUS, c.x, c.z, this.neighbours);
+    for (let k = 0; k < n; k++) {
+      const id = this.neighbours[k];
+      if (c.state[id] === UnitState.Dying) continue;
+      this.change(world, id, c.team[id] === team ? -HERO_DEATH_SHOCK : HERO_DEATH_SHOCK * 0.4);
     }
   }
 
@@ -122,6 +146,13 @@ export class MoraleSystem implements System {
     if (enemies >= 3) {
       const surround = 1 - Math.hypot(awayX, awayZ) / enemies;
       if (surround > ENCIRCLED) delta -= ((surround - ENCIRCLED) / (1 - ENCIRCLED)) * 8 * Math.min(1, enemies / 6);
+    }
+    // A hero of their own side fighting nearby steadies them.
+    for (const hero of this.auras) {
+      if (hero !== id && c.team[hero] === c.team[id] && Math.hypot(c.x[hero] - x, c.z[hero] - z) <= c.auraRadius[hero]) {
+        delta += c.auraMorale[hero];
+        break;
+      }
     }
     const formation = this.formations.get(c.formation[id]);
     if (formation && formation.losses > 0.35) delta -= (formation.losses - 0.35) * 12;

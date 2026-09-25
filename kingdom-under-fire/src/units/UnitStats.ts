@@ -58,6 +58,20 @@ export const ChargeSchema = z.object({
 });
 export type ChargeDef = z.infer<typeof ChargeSchema>;
 
+/** What makes a hero more than a strong soldier. */
+export const HeroSchema = z.object({
+  /** Character of the lore (portrait, biography). */
+  character: z.string(),
+  mana: z.number().positive(),
+  /** Mana per second. */
+  manaRegen: z.number().nonnegative(),
+  /** Ability ids, in the order of the keys 1–4. */
+  abilities: z.array(z.string()).min(1).max(4),
+  /** Allies within `radius` (m) gain `morale` points per second and hold better. */
+  aura: z.object({ radius: z.number().positive(), morale: z.number().nonnegative() }),
+});
+export type HeroDef = z.infer<typeof HeroSchema>;
+
 export const CostSchema = z
   .object({
     gold: z.number().int().nonnegative(),
@@ -113,6 +127,7 @@ export const UnitDefSchema = z.object({
   brace: z.number().nonnegative().default(0),
   ranged: RangedSchema.optional(),
   charge: ChargeSchema.optional(),
+  hero: HeroSchema.optional(),
   cost: CostSchema,
   trainTime: z.number().positive(),
 });

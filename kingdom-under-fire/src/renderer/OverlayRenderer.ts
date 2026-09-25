@@ -40,6 +40,10 @@ export class OverlayRenderer {
   private readonly markerMesh: THREE.InstancedMesh;
   private readonly markers: Marker[] = [];
   private readonly previewMesh: THREE.InstancedMesh;
+  /** Aiming an ability: its area under the cursor and the reach of the hero. */
+  private readonly area: THREE.Mesh;
+  private readonly areaFill: THREE.Mesh;
+  private readonly reach: THREE.Mesh;
   private readonly bars: THREE.InstancedMesh;
   private readonly barFill: THREE.InstancedBufferAttribute;
   private readonly barColor: THREE.InstancedBufferAttribute;
@@ -76,6 +80,20 @@ export class OverlayRenderer {
     this.previewMesh.renderOrder = 3;
     this.previewMesh.count = 0;
     this.group.add(this.previewMesh);
+
+    const aim = (inner: number, segments: number, opacity: number) => {
+      const mesh = new THREE.Mesh(
+        new THREE.RingGeometry(inner, 1, segments).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0xbfe3ff, transparent: true, opacity, depthWrite: false, depthTest: false, fog: false }),
+      );
+      mesh.renderOrder = 5;
+      mesh.visible = false;
+      this.group.add(mesh);
+      return mesh;
+    };
+    this.area = aim(0.9, 48, 0.85);
+    this.areaFill = aim(0, 48, 0.16);
+    this.reach = aim(0.985, 96, 0.35);
 
     // Health bars: camera-facing quads computed in the vertex shader, one draw call.
     const barGeometry = new THREE.PlaneGeometry(0.95, 0.12);
@@ -163,6 +181,20 @@ export class OverlayRenderer {
     }
     this.previewMesh.count = n;
     this.previewMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Shows the area of an ability being aimed and the reach of its hero, or hides them (null). */
+  target(t: { x: number; z: number; radius: number; heroX: number; heroZ: number; range: number } | null): void {
+    this.area.visible = this.areaFill.visible = this.reach.visible = t !== null;
+    if (!t) return;
+    const y = this.heightAt(t.x, t.z) + 0.15;
+    for (const m of [this.area, this.areaFill]) {
+      m.position.set(t.x, y, t.z);
+      m.scale.set(t.radius, 1, t.radius);
+    }
+    this.reach.position.set(t.heroX, this.heightAt(t.heroX, t.heroZ) + 0.15, t.heroZ);
+    this.reach.scale.set(t.range, 1, t.range);
+    this.reach.visible = t.range > 0;
   }
 
   marker(x: number, z: number, attack: boolean): void {
