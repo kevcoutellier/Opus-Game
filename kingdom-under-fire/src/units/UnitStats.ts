@@ -1,0 +1,79 @@
+import { z } from 'zod';
+
+export const DAMAGE_TYPES = ['PHYSICAL', 'MAGICAL', 'PIERCING', 'SLASH', 'BLUNT', 'FIRE', 'ICE', 'LIGHTNING'] as const;
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+export const ARMOR_TYPES = ['LIGHT', 'MEDIUM', 'HEAVY', 'MOUNTED', 'STRUCTURE'] as const;
+export type ArmorType = (typeof ARMOR_TYPES)[number];
+
+export const UNIT_ROLES = ['infantry', 'spear', 'archer', 'cavalry', 'siege', 'hero', 'worker'] as const;
+export type UnitRole = (typeof UNIT_ROLES)[number];
+
+/** Procedural 3D models available to the renderer. */
+export const UNIT_MODELS = ['swordsman', 'spearman'] as const;
+export type UnitModel = (typeof UNIT_MODELS)[number];
+
+export const CostSchema = z
+  .object({
+    gold: z.number().int().nonnegative(),
+    wood: z.number().int().nonnegative(),
+    food: z.number().int().nonnegative(),
+    stone: z.number().int().nonnegative(),
+    mana: z.number().int().nonnegative(),
+  })
+  .partial();
+export type Cost = z.infer<typeof CostSchema>;
+
+export const UnitDefSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9_]*$/),
+  name: z.string().min(1),
+  description: z.string(),
+  role: z.enum(UNIT_ROLES),
+  model: z.enum(UNIT_MODELS),
+  health: z.number().positive(),
+  attack: z.number().nonnegative(),
+  defense: z.number().nonnegative(),
+  /** Metres per second on open ground. */
+  speed: z.number().positive(),
+  /** Collision radius (m). */
+  radius: z.number().positive(),
+  mass: z.number().positive(),
+  /** Weapon reach beyond both collision radii (m). */
+  reach: z.number().positive(),
+  /** Seconds between two swings. */
+  attackPeriod: z.number().positive(),
+  /** Seconds from the start of a swing to the impact. */
+  attackWindup: z.number().nonnegative(),
+  damageType: z.enum(DAMAGE_TYPES),
+  armorType: z.enum(ARMOR_TYPES),
+  criticalChance: z.number().min(0).max(1),
+  /** Radius (m) in which an idle unit engages enemies on its own. */
+  aggroRange: z.number().positive(),
+  /** Vision radius (m). */
+  sight: z.number().positive(),
+  /** Starting morale (0-100). */
+  morale: z.number().min(1).max(100),
+  /** 0..1: resistance to morale losses. */
+  discipline: z.number().min(0).max(1),
+  cost: CostSchema,
+  trainTime: z.number().positive(),
+});
+export type UnitDef = z.infer<typeof UnitDefSchema>;
+
+/** Validates raw unit definitions (throws with a readable message on the first invalid entry). */
+export function parseUnitDefs(raw: readonly unknown[]): UnitDef[] {
+  const defs = raw.map((entry, i) => {
+    const result = UnitDefSchema.safeParse(entry);
+    if (!result.success) {
+      const id = (entry as { id?: string })?.id ?? `#${i}`;
+      throw new Error(`Invalid unit definition ${id}: ${z.prettifyError(result.error)}`);
+    }
+    return result.data;
+  });
+  const ids = new Set<string>();
+  for (const def of defs) {
+    if (ids.has(def.id)) throw new Error(`Duplicate unit id ${def.id}`);
+    ids.add(def.id);
+  }
+  return defs;
+}

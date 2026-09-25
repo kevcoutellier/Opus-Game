@@ -1,0 +1,43 @@
+# Architecture — Bannières de Cendre
+
+RTS médiéval-fantastique 3D original, TypeScript strict + Three.js + Vite. Ce document décrit l'architecture
+réellement en place et le journal des phases.
+
+## Principes
+
+1. **Simulation et rendu séparés.** `src/core/World.ts` contient tout l'état de jeu et aucun objet Three.js.
+   La simulation tourne à l'identique dans le navigateur, dans Node (tests, benchmarks) et, plus tard, dans
+   un worker ou sur un serveur.
+2. **ECS-like en structure de tableaux.** Une entité est un entier. Chaque champ de composant est un tableau
+   typé indexé par l'entité (`src/entities/Components.ts`) ; `EntityManager.mask` indique quels composants
+   une entité possède. Les systèmes (`System.update(world, dt)`) parcourent une liste dense d'entités
+   vivantes ; aucune unité ne porte sa propre logique.
+3. **Pas fixe.** `GameLoop` exécute la simulation à 30 Hz quel que soit le FPS ; le rendu
+   (`requestAnimationFrame`) interpole entre les deux derniers états (`prevX/prevZ/prevRot`).
+4. **Commandes sérialisables.** Joueur et IA n'écrivent jamais dans l'état : ils poussent des commandes
+   (`core/GameCommands.ts`) appliquées au début d'un tick. Avec le RNG déterministe (`core/Random.ts`), une
+   partie se rejoue à l'identique : c'est la base d'un futur multijoueur lockstep ou de replays.
+5. **Données validées.** Unités et factions sont des définitions de données (`src/data/`) validées par Zod
+   au chargement (`units/UnitStats.ts`, `factions/Faction.ts`).
+6. **Mesurer avant d'optimiser.** `debug/PerformanceMonitor.ts` chronomètre chaque système.
+
+## Dépendances
+
+| Paquet | Pourquoi |
+| --- | --- |
+| `three` | rendu WebGL (instancing, ombres, shaders) |
+| `zod` | validation des données d'unités et de factions |
+| `typescript`, `vite` | typage strict, serveur de dev, build |
+| `vitest` | tests unitaires et benchmarks de la simulation |
+| `@playwright/test` (1.56, aligné sur le Chromium préinstallé) | tests navigateur |
+| `@types/three`, `@types/node` | types |
+
+Non ajoutés pour l'instant : `pathfinding` (A* seul, alors que le mouvement de masse repose sur des flow
+fields maison), `howler` (l'audio arrive en phase 14), `stats.js` et `lil-gui` (le panneau F1 maison
+suffit).
+
+## Journal des phases
+
+| Phase | Contenu | État |
+| --- | --- | --- |
+| 1. Architecture | boucle à pas fixe, ECS, bus d'événements, commandes, RNG, données Zod, tests | ✅ |
