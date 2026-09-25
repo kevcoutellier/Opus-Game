@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.log
+# Official artwork downloaded by `npm run assets` (property of Lucasfilm / Disney)
+public/assets/
