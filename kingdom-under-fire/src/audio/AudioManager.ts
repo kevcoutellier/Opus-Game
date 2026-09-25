@@ -2,7 +2,9 @@ import type { AssetManager, SoundCategory } from '../assets/AssetManager';
 import type { World } from '../core/World';
 
 /** Minimum milliseconds between two sounds of the same category (a melee of 500 is not 500 clangs). */
-const THROTTLE: Partial<Record<SoundCategory, number>> = { clash: 70, death: 140, march: 400, ack: 250, horn: 2000 };
+const THROTTLE: Partial<Record<SoundCategory, number>> = { bow: 90, clash: 70, death: 140, march: 400, ack: 250, horn: 2000 };
+/** Every category but the music. */
+const EFFECTS = ['bow', 'clash', 'death', 'horn', 'march', 'ack'] as const;
 /** Beyond this distance (m) from what the camera looks at, battle sounds fade to a murmur. */
 const HEARING = 90;
 
@@ -39,7 +41,7 @@ export class AudioManager {
 
   /** True when at least one sound or track is installed. */
   get available(): boolean {
-    return this.playlist.length > 0 || (['clash', 'death', 'horn', 'march', 'ack'] as const).some((c) => this.assets.sounds(c).length > 0);
+    return this.playlist.length > 0 || EFFECTS.some((c) => this.assets.sounds(c).length > 0);
   }
 
   private async unlock(): Promise<void> {
@@ -49,7 +51,7 @@ export class AudioManager {
     this.master.gain.value = this.muted ? 0 : 0.8;
     this.master.connect(this.ctx.destination);
     this.nextTrack();
-    for (const category of ['clash', 'death', 'horn', 'march', 'ack'] as const) void this.decode(category);
+    for (const category of EFFECTS) void this.decode(category);
   }
 
   private async decode(category: SoundCategory): Promise<void> {
@@ -104,7 +106,10 @@ export class AudioManager {
       const l = listener();
       return Math.max(0, 1 - Math.hypot(x - l.x, z - l.z) / HEARING);
     };
-    world.events.on('unitHit', ({ attack }) => this.play('clash', 0.35 + 0.65 * near(attack.x, attack.z)));
+    world.events.on('unitHit', ({ attack }) => {
+      if (!attack.missile) this.play('clash', 0.35 + 0.65 * near(attack.x, attack.z));
+    });
+    world.events.on('projectileLaunched', ({ x, z }) => this.play('bow', 0.25 + 0.75 * near(x, z)));
     world.events.on('unitDied', ({ x, z }) => this.play('death', 0.3 + 0.7 * near(x, z)));
     world.events.on('unitRouted', ({ id }) => this.play('horn', 0.4 * near(world.c.x[id], world.c.z[id])));
   }

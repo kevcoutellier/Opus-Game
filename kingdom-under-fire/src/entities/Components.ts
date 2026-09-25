@@ -89,6 +89,13 @@ export class Components {
   readonly aggroRange: Float32Array;
   /** Seconds since the unit was last hit (drives the hit flash and the health bar). */
   readonly lastHit: Float32Array;
+  /** Missile range (m), 0 for melee-only units; the other missile stats follow. */
+  readonly range: Float32Array;
+  readonly rangedAttack: Float32Array;
+  readonly rangedPeriod: Float32Array;
+  readonly rangedWindup: Float32Array;
+  /** Distance to its target at which an engaging unit stops closing in (set by the combat system). */
+  readonly engageDist: Float32Array;
 
   // Morale
   readonly morale: Float32Array;
@@ -143,6 +150,11 @@ export class Components {
     this.critChance = f32();
     this.aggroRange = f32();
     this.lastHit = f32();
+    this.range = f32();
+    this.rangedAttack = f32();
+    this.rangedPeriod = f32();
+    this.rangedWindup = f32();
+    this.engageDist = f32();
     this.morale = f32();
     this.moraleState = new Uint8Array(capacity);
     this.discipline = f32();

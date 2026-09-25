@@ -38,7 +38,7 @@ export const RangedSchema = z.object({
   projectile: z.enum(PROJECTILE_TYPES),
   /** Horizontal speed of the missile (m/s). */
   speed: z.number().positive(),
-  /** Hit chance at point-blank range against a still target (0..1); drops with distance and target speed. */
+  /** Aim (0..1): a shot lands within (1 − accuracy) × (0.5 m + 6 % of the distance) of its aim point, roughly. */
   accuracy: z.number().min(0).max(1),
   /** Seconds between two shots. */
   period: z.number().positive(),

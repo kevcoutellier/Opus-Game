@@ -52,7 +52,8 @@ export class EffectsRenderer {
       for (let i = 0; i < blood; i++) {
         this.spawn(x, y, z, (dx / len) * 2.2 + this.r(-1.5, 1.5), this.r(1, 3.5), (dz / len) * 2.2 + this.r(-1.5, 1.5), this.r(0.35, 0.7), this.r(0.05, 0.1), 0x7a0f0c, 0.6);
       }
-      // Steel on steel.
+      // Steel on steel (not for arrows).
+      if (attack.missile) return;
       for (let i = 0; i < (critical ? 6 : 3); i++) {
         this.spawn(x - (dx / len) * 0.4, y + 0.1, z - (dz / len) * 0.4, this.r(-3, 3), this.r(1.5, 4), this.r(-3, 3), this.r(0.12, 0.25), this.r(0.03, 0.05), 0xffd27a, 1);
       }

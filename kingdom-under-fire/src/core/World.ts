@@ -1,4 +1,5 @@
 import type { Attack } from '../combat/DamageSystem';
+import { ProjectilePool } from '../combat/Projectiles';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { Comp, Components } from '../entities/Components';
 import { EntityManager } from '../entities/EntityManager';
@@ -18,6 +19,9 @@ export interface SimEvents extends EventMap {
   unitDied: { id: number; team: number; x: number; z: number; killer: number };
   unitRouted: { id: number };
   unitRallied: { id: number };
+  projectileLaunched: { x: number; z: number; type: number };
+  /** `index` is the pool slot, still readable during the event. */
+  projectileLanded: { index: number; x: number; z: number; hit: boolean };
 }
 
 export interface WorldOptions {
@@ -47,6 +51,7 @@ export class World {
   readonly nav: NavGrid;
   readonly paths: Pathfinding;
   readonly spatial: SpatialHashGrid;
+  readonly projectiles = new ProjectilePool();
   readonly perf?: PerformanceMonitor;
 
   constructor(options: WorldOptions) {

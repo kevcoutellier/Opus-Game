@@ -34,6 +34,10 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.critChance[id] = def.criticalChance;
   c.aggroRange[id] = def.aggroRange;
   c.lastHit[id] = 99;
+  c.range[id] = def.ranged?.range ?? 0;
+  c.rangedAttack[id] = def.ranged?.damage ?? 0;
+  c.rangedPeriod[id] = def.ranged?.period ?? 0;
+  c.rangedWindup[id] = def.ranged?.windup ?? 0;
   c.morale[id] = def.morale;
   c.moraleState[id] = MoraleState.Normal;
   c.discipline[id] = def.discipline;

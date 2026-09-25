@@ -94,4 +94,43 @@ export class SpatialHashGrid {
     }
     return n;
   }
+
+  /**
+   * Nearest item within `radius` for which `accept` is true, or -1. Cells are visited in square rings
+   * around the query point and the search stops as soon as a ring cannot hold anything closer: cheap even
+   * for a bow range of 45 m in a crowd, where `query` would fill any buffer with allies.
+   */
+  nearest(x: number, z: number, radius: number, xs: Float32Array, zs: Float32Array, accept: (id: number) => boolean): number {
+    const { cellSize, cols, rows, cellStart, items } = this;
+    const cx0 = Math.floor(x / cellSize);
+    const cz0 = Math.floor(z / cellSize);
+    const rings = Math.ceil(radius / cellSize);
+    let best = -1;
+    let bestD2 = radius * radius;
+    for (let ring = 0; ring <= rings; ring++) {
+      // Every point of this ring is at least (ring - 1) cells away.
+      const inner = (ring - 1) * cellSize;
+      if (inner > 0 && inner * inner > bestD2) break;
+      for (let cz = cz0 - ring; cz <= cz0 + ring; cz++) {
+        if (cz < 0 || cz >= rows) continue;
+        // Top and bottom rows of the ring are full, the rows between only have their two ends.
+        const step = cz === cz0 - ring || cz === cz0 + ring ? 1 : 2 * ring;
+        for (let cx = cx0 - ring; cx <= cx0 + ring; cx += step) {
+          if (cx < 0 || cx >= cols) continue;
+          const cell = cz * cols + cx;
+          for (let k = cellStart[cell], end = cellStart[cell + 1]; k < end; k++) {
+            const id = items[k];
+            const dx = xs[id] - x;
+            const dz = zs[id] - z;
+            const d2 = dx * dx + dz * dz;
+            if (d2 < bestD2 && accept(id)) {
+              best = id;
+              bestD2 = d2;
+            }
+          }
+        }
+      }
+    }
+    return best;
+  }
 }

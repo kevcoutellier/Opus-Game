@@ -12,6 +12,8 @@ export interface DebugStats {
   visibleUnits: number;
   animatedUnits: number;
   particles: number;
+  /** Missiles in flight. */
+  projectiles: number;
   formations: number;
   flowFields: number;
 }
@@ -70,7 +72,7 @@ export class DebugManager {
       ['Triangles', stats.triangles.toLocaleString('fr-FR')],
       ['Entités', String(stats.entities)],
       ['Unités (visibles)', `${stats.units} (${stats.visibleUnits})`],
-      ['Animations actives', `${stats.animatedUnits} unités (GPU) · ${stats.particles} particules`],
+      ['Animations actives', `${stats.animatedUnits} unités (GPU) · ${stats.particles} particules · ${stats.projectiles} projectiles`],
       ['Formations / flow fields', `${stats.formations} / ${stats.flowFields}`],
       ...SIM_SECTIONS.map(([key, label]): [string, string] => [label, ms(this.perf.average(key))]),
       ['Mémoire JS', memory ? `${(memory.usedJSHeapSize / 1048576).toFixed(0)} Mo` : 'n/d'],

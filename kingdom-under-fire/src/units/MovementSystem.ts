@@ -58,7 +58,7 @@ export class MovementSystem implements System {
       if (engaging) {
         gx = c.x[target];
         gz = c.z[target];
-        stop = c.radius[id] + c.radius[target] + c.reach[id] * 0.85;
+        stop = c.engageDist[id];
       } else {
         gx = c.slotX[id];
         gz = c.slotZ[id];

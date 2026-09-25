@@ -16,6 +16,8 @@ export interface Attack {
   z: number;
   /** Ability id, null for a basic attack. */
   ability: string | null;
+  /** True for an arrow or another missile (no clash of steel). */
+  missile: boolean;
   criticalChance: number;
 }
 

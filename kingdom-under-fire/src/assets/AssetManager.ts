@@ -4,7 +4,7 @@ export interface AssetManifest {
   version: number;
   /** Asset key (e.g. `portraits/curian`) → path relative to the assets folder. */
   files: Record<string, string>;
-  /** Sound category (music, clash, death, horn, march, ack) → paths. */
+  /** Sound category (music, bow, clash, death, horn, march, ack) → paths. */
   sounds: Record<string, string[]>;
   /** Asset key → where it comes from. */
   credits: Record<string, string>;

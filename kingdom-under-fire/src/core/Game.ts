@@ -11,6 +11,7 @@ import { InputManager } from '../input/InputManager';
 import { OrderInput } from '../input/OrderInput';
 import { Terrain } from '../maps/Terrain';
 import { EffectsRenderer } from '../renderer/EffectsRenderer';
+import { ProjectileRenderer } from '../renderer/ProjectileRenderer';
 import { OverlayRenderer } from '../renderer/OverlayRenderer';
 import { Renderer } from '../renderer/Renderer';
 import { SceneManager } from '../renderer/SceneManager';
@@ -63,6 +64,7 @@ export class Game {
   private readonly unitRenderer: UnitRenderer;
   private readonly overlay: OverlayRenderer;
   private readonly effects: EffectsRenderer;
+  private readonly missiles: ProjectileRenderer;
   readonly outcome = new BattleOutcome(PLAYER_TEAM);
   readonly debug: DebugManager;
   readonly perfTest = new PerformanceTestScene();
@@ -95,7 +97,14 @@ export class Game {
     this.unitRenderer = new UnitRenderer(this.world.entities.capacity, teamColors, heightAt);
     this.overlay = new OverlayRenderer(heightAt);
     this.effects = new EffectsRenderer(this.world, heightAt);
-    this.scenes.scene.add(new TerrainRenderer(this.terrain).group, this.unitRenderer.group, this.overlay.group, this.effects.group);
+    this.missiles = new ProjectileRenderer(this.world);
+    this.scenes.scene.add(
+      new TerrainRenderer(this.terrain).group,
+      this.unitRenderer.group,
+      this.overlay.group,
+      this.effects.group,
+      this.missiles.group,
+    );
 
     this.rtsCamera = new RTSCamera(heightAt, {
       minX: CAMERA_MARGIN,
@@ -251,6 +260,7 @@ export class Game {
     this.unitRenderer.update(this.world, alpha, dt, this.rtsCamera.camera, this.time);
     this.overlay.update(this.world, alpha, dt, this.selection.ids, PLAYER_TEAM);
     this.effects.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
+    this.missiles.update(this.world, alpha, this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.hud.update(this.perfTest.current === null ? this.outcome.update(this.world) : null);
     const cpuMs = performance.now() - start;
     this.gpu.begin();
@@ -290,6 +300,7 @@ export class Game {
       visibleUnits: this.unitRenderer.visible,
       animatedUnits: this.unitRenderer.visible,
       particles: this.effects.active,
+      projectiles: this.world.projectiles.count,
       formations: this.formations.count,
       flowFields: this.world.paths.computed,
     });

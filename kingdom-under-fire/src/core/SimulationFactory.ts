@@ -1,5 +1,6 @@
 import { CombatSystem } from '../combat/CombatSystem';
 import { MoraleSystem } from '../combat/MoraleSystem';
+import { ProjectileSystem } from '../combat/Projectiles';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { FormationManager } from '../formations/FormationManager';
 import { SpatialSystem } from '../navigation/SpatialSystem';
@@ -15,16 +16,25 @@ export interface BattleSimulation {
 }
 
 /**
- * The battle pipeline, in order: neighbour grid → formations (anchors, slots) → combat (targets, blows)
- * → morale (states, flight points) → movement (steering) → lifecycle (corpses). `extra` systems (AI)
- * run first, so their commands are applied at the next tick like a player's.
+ * The battle pipeline, in order: neighbour grid → formations (anchors, slots) → combat (targets, blows,
+ * shots) → missiles in flight → morale (states, flight points) → movement (steering) → lifecycle
+ * (corpses). `extra` systems (AI) run first, so their commands are applied at the next tick like a player's.
  */
 export function createBattleSimulation(world: World, extra: System[] = [], perf?: PerformanceMonitor): BattleSimulation {
   const formations = new FormationManager(world);
   const combat = new CombatSystem(formations);
   const simulation = new Simulation(
     world,
-    [...extra, new SpatialSystem(), formations, combat, new MoraleSystem(world, formations), new MovementSystem(), new LifecycleSystem()],
+    [
+      ...extra,
+      new SpatialSystem(),
+      formations,
+      combat,
+      new ProjectileSystem(combat.damage),
+      new MoraleSystem(world, formations),
+      new MovementSystem(),
+      new LifecycleSystem(),
+    ],
     perf,
   );
   return { simulation, formations, combat };

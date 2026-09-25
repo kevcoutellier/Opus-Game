@@ -48,7 +48,7 @@ describe('damage formula', () => {
     const deaths: number[] = [];
     world.events.on('unitDied', (e) => deaths.push(e.id));
     const damage = new DamageSystem();
-    const attack = { attacker: a, target: b, damage: 20, damageType: 'SLASH' as const, timestamp: 0, x: 10, z: 10, ability: null, criticalChance: 0 };
+    const attack = { attacker: a, target: b, damage: 20, damageType: 'SLASH' as const, timestamp: 0, x: 10, z: 10, ability: null, missile: false, criticalChance: 0 };
     const morale = world.c.morale[b];
     const result = damage.apply(world, attack);
     expect(world.c.hp[b]).toBeCloseTo(120 - result.damage, 3);

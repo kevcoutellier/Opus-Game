@@ -32,6 +32,14 @@ export class Random {
     return this.next() < p;
   }
 
+  /**
+   * Roughly normal, mean 0 and standard deviation 1, bounded to ±3: sum of three uniforms (no log or cos,
+   * so identical in every browser).
+   */
+  gaussian(): number {
+    return (this.next() + this.next() + this.next() - 1.5) * 2;
+  }
+
   get seed(): number {
     return this.state;
   }

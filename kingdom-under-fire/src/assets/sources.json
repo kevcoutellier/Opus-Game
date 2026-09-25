@@ -33,6 +33,7 @@
   },
   "soundCategories": {
     "music": "bgm|music|theme|track|song|intro",
+    "bow": "bow|arrow|shoot|archer|volley",
     "clash": "sword|clash|hit|metal|blade|slash|axe|swing|attack|impact|weapon",
     "death": "die|death|dead|dying|scream|pain|groan",
     "horn": "horn|trumpet|charge|warcry|war_cry|rally",

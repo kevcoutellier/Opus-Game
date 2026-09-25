@@ -53,6 +53,37 @@ describe('SpatialHashGrid', () => {
       expect(found).toEqual(expected);
     }
   });
+
+  it('finds the nearest accepted entity like a brute-force scan', () => {
+    const em = new EntityManager(600);
+    const xs = new Float32Array(600);
+    const zs = new Float32Array(600);
+    const rng = new Random(9);
+    for (let i = 0; i < 500; i++) {
+      const id = em.create(Comp.Unit);
+      xs[id] = rng.range(0, 100);
+      zs[id] = rng.range(0, 100);
+    }
+    const grid = new SpatialHashGrid(100, 100, 2, 600);
+    grid.rebuild(em, Comp.Unit, xs, zs);
+    // Only one entity in seven is an "enemy".
+    const accept = (id: number) => id % 7 === 3;
+    for (let q = 0; q < 200; q++) {
+      const x = rng.range(-5, 105);
+      const z = rng.range(-5, 105);
+      const r = rng.range(1, 50);
+      let expected = -1;
+      let bestD = r;
+      for (let id = 0; id < 500; id++) {
+        const d = Math.hypot(xs[id] - x, zs[id] - z);
+        if (accept(id) && d < bestD) {
+          bestD = d;
+          expected = id;
+        }
+      }
+      expect(grid.nearest(x, z, r, xs, zs, accept)).toBe(expected);
+    }
+  });
 });
 
 describe('FlowField', () => {
