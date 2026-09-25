@@ -49,6 +49,7 @@ suffit).
 | 7. Formations | `FormationSolver` : 6 types (LINE, COLUMN, SQUARE aux rangs extérieurs tournés vers l'extérieur, WEDGE pointe en avant, CIRCLE tourné vers l'extérieur, SCATTERED), affectation sans croisement (balayage rang par rang, mêlée devant) ; `FormationManager` : un flow field et une résolution de slots par ordre, ancre qui avance au pas des plus lents et attend les retardataires, rangs qui se referment 1,5 s après les premières pertes ; clic droit glissé = largeur + orientation du front avec aperçu fantôme, F / boutons = type, H = tenir | ✅ |
 | 8. Combat | `CombatSystem` (acquisition par grille spatiale, attaquants répartis le long de la ligne, cycle armement → impact → récupération, tenue de position), `DamageSystem` (attaque = attacker/target/damage/damageType/timestamp/position/ability/criticalChance ; 8 types de dégâts × 5 armures, défense à rendement décroissant, critiques, recul), impacts simultanés en fin de tick, mort (chute, cadavre 22 s puis entité libérée), `MoraleSystem` (NORMAL/SHAKEN/PANICKED/ROUTING/RECOVERING avec hystérésis ; rapport de force local, blessures, morts voisines, victoires, pertes de la formation, contagion de la déroute, discipline ; fuite puis ralliement), formations qui s'arrêtent pour combattre et poursuivent une cible, barres de vie en billboards instanciés, particules en pool, bannière victoire/défaite | ✅ |
 | 9. IA | `AIKnowledge` (grille de visibilité grossière rastérisée depuis la vue de ses soldats, dernière position connue, oubli après 45 s ou quand l'endroit est revu vide : l'IA ne lit jamais les positions ennemies), `TacticalAI` (engager le groupe ennemi connu le plus proche, sinon reconnaissance vers la zone de déploiement adverse, sinon tenir), `AIController` (réflexion 1×/s, mêmes commandes que le joueur). Couches stratégique et opérationnelle prévues au-dessus | ✅ |
+| Mesure | `DebugManager` (F1 : FPS, frame, GPU via `EXT_disjoint_timer_query_webgl2`, draw calls, triangles, entités, unités visibles, animations, temps par système, pathfinding, IA, formations, mémoire), `PerformanceTestScene` (F2 : 100 → 1000 unités, moyenne sur 8 s après 2 s de chauffe), benchmark CPU `npm run bench`, tests Playwright du parcours joueur | ✅ |
 
 ### Équité de la simulation
 
@@ -59,3 +60,28 @@ désormais en deux temps : calcul depuis l'état du début du tick, puis applica
 sont collectés puis appliqués ensemble. Résultat mesuré : 32 victoires sur 64 batailles miroir, sur 16 graines,
 avec ordre de création et côté de la carte inversés. Un test de non-régression le vérifie
 (`tests/unit/combat.test.ts`).
+
+## Mesures et goulets
+
+- **Simulation** (`npm run bench`) : 1000 unités en mêlée = 2,96 ms/tick en moyenne (p95 3,6 ms), dont
+  mouvement 1,0 ms, combat 0,5 ms et moral 0,5 ms. Le coût croît un peu plus vite que linéairement (densité
+  des voisins dans une mêlée compacte), mais reste à ~9 % du budget à 30 Hz. **Les Web Workers ne sont pas
+  justifiés à ce stade** : ils le deviendront avec le pathfinding de nombreuses formations et l'IA
+  stratégique. Les flow fields coûtent ~1–3 ms chacun, calculés une fois par ordre et mis en cache.
+- **Rendu** : 12 draw calls pour toute la scène, quel que soit le nombre de soldats. Un soldat compte 350 à
+  420 triangles, dessinés deux fois avec la passe d'ombre : à 1000 unités, F2 mesure 0,85 à 1 million de
+  triangles par frame.
+  **Prochain goulet attendu : le débit de sommets**, d'où les LOD (maillage simplifié au-delà de ~60 m,
+  imposteurs au-delà de ~150 m, ombres coupées au loin).
+- **GPU** : non mesurable dans le conteneur de développement (pas de GPU, rendu logiciel SwiftShader). À
+  mesurer sur machine réelle avec F1/F2 avant d'optimiser le rendu.
+
+## Architecture cible (non encore implémentée)
+
+- Couches d'IA : `StrategicAI` (économie, production, expansion) → `OperationalAI` (attaque, défense,
+  renforts) → `TacticalAI` (existante : engagement ; à venir : flancs, contre-unités, retraite) → UnitAI
+  (acquisition de cibles, dans `CombatSystem`).
+- Workers (`pathfinding.worker.ts`, `ai.worker.ts`, `formation.worker.ts`) avec objets transférables, dès
+  qu'une mesure le justifie. La simulation n'accède à aucune API du DOM, elle peut donc déjà y être déplacée.
+- Multijoueur : lockstep sur la file de commandes existante. Il faudra remplacer `Math.sin/cos/atan2` dans
+  la simulation par des versions déterministes entre navigateurs.
