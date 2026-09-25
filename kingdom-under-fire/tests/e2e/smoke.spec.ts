@@ -14,10 +14,15 @@ function collectErrors(page: Page): string[] {
 
 const game = (page: Page, expression: string) => page.evaluate(`(() => { const g = window.game; return ${expression}; })()`);
 
-test('the battle scene boots, renders and logs no error', async ({ page }) => {
+test('the battle scene boots behind the briefing, renders and logs no error', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
+  await expect(page.getByText('Les plaines de Hironeiden').first()).toBeVisible();
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
+  // The simulation waits for the player.
+  expect(await game(page, 'g.world.time.tick')).toBe(0);
+  await page.getByRole('button', { name: 'Commencer la bataille' }).click();
+  await expect.poll(() => game(page, 'g.world.time.tick')).toBeGreaterThan(0);
   const stats = (await game(page, 'g.renderer.stats()')) as { calls: number; triangles: number };
   expect(stats.calls).toBeGreaterThan(0);
   expect(stats.triangles).toBeGreaterThan(1000);
@@ -29,6 +34,7 @@ test('the player selects the army with a drag, draws a front and the formation m
   const errors = collectErrors(page);
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
+  await page.keyboard.press('Enter');
   await game(page, 'g.rtsCamera.focus(128, 172, 50, true)');
   await page.waitForTimeout(1000);
   // Screen bounding box of the 20 player units.

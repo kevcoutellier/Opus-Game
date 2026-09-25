@@ -1,4 +1,5 @@
 import type { World } from '../core/World';
+import type { BattleStory } from '../data/story/battles';
 import type { Outcome } from '../scenes/BattleOutcome';
 import type { SelectionManager } from '../selection/SelectionManager';
 import type { UnitManager } from '../units/UnitManager';
@@ -31,6 +32,7 @@ export class HUD {
     selection: SelectionManager,
     private readonly units: UnitManager,
     teamFactions: string[],
+    private readonly story: BattleStory,
   ) {
     this.box = new SelectionBox(root);
 
@@ -38,7 +40,7 @@ export class HUD {
     top.className = 'top-bar';
     const title = document.createElement('div');
     title.className = 'title game-title panel';
-    title.textContent = 'Bannières de Cendre';
+    title.innerHTML = `Kingdom Under Fire <span class="battle-name">· ${story.title}</span>`;
     this.counts = document.createElement('div');
     this.counts.className = 'army-counts panel';
     top.append(title, this.counts);
@@ -58,7 +60,7 @@ export class HUD {
     if (outcome && this.banner.hidden) {
       this.banner.hidden = false;
       this.banner.innerHTML = `<div class="title">${outcome === 'victory' ? 'Victoire' : 'Défaite'}</div><p>${
-        outcome === 'victory' ? 'L’armée ennemie est brisée.' : 'Votre armée est brisée.'
+        outcome === 'victory' ? this.story.victory : this.story.defeat
       }</p><button type="button">Rejouer la bataille</button>`;
       this.banner.querySelector('button')!.onclick = () => location.reload();
     }

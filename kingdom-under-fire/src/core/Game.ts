@@ -21,6 +21,8 @@ import { PLAYER_TEAM, setupPrototypeBattle } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
 import { SelectionInput } from '../selection/SelectionInput';
 import { SelectionManager } from '../selection/SelectionManager';
+import { PROTOTYPE_BATTLE } from '../data/story/battles';
+import { BriefingScreen } from '../ui/BriefingScreen';
 import { HUD } from '../ui/HUD';
 import { UnitManager } from '../units/UnitManager';
 import type { FormationManager } from '../formations/FormationManager';
@@ -104,7 +106,7 @@ export class Game {
       kind: (id) => world.c.unitType[id],
       isAlive: (id) => this.units.isActive(id),
     });
-    this.hud = new HUD(ui, world, this.selection, this.units, TEAM_FACTIONS);
+    this.hud = new HUD(ui, world, this.selection, this.units, TEAM_FACTIONS, PROTOTYPE_BATTLE);
     this.selectionInput = new SelectionInput(this.selection, this.input.mouse, this.input.keys, this.hud.box, (ids) => {
       const centre = this.units.centroid(ids);
       if (centre) this.rtsCamera.focus(centre.x, centre.z);
@@ -159,7 +161,18 @@ export class Game {
     this.loop.start();
     // `#perf=N` deploys N soldiers for a measurement straight away (e.g. #perf=50, #perf=1000).
     const perf = /#perf=(\d+)/.exec(location.hash);
-    if (perf) this.startPerfTest(Number(perf[1]));
+    if (perf) {
+      this.startPerfTest(Number(perf[1]));
+      return;
+    }
+    // The battle waits for the player to read the briefing (the scene keeps rendering behind it).
+    this.loop.paused = true;
+    new BriefingScreen(this.ui, {
+      story: PROTOTYPE_BATTLE,
+      portrait: () => null,
+      artwork: null,
+      onStart: () => (this.loop.paused = false),
+    });
   }
 
   /** F2: stress test with the next unit count (the AI is switched off, both armies charge). */

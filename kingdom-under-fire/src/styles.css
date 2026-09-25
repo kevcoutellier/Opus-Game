@@ -164,3 +164,79 @@ body.cursor-attack #scene { cursor: crosshair; }
 .perf-results { width: 100%; margin-top: 0.4rem; border-collapse: collapse; }
 .perf-results th, .perf-results td { padding: 0.1rem 0.3rem; text-align: right; border-bottom: 1px solid rgba(201, 164, 92, 0.25); }
 .debug-panel[hidden] { display: none; }
+
+/* ------------------------------------------------------------------ briefing */
+.briefing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background:
+    linear-gradient(rgba(8, 7, 6, 0.72), rgba(8, 7, 6, 0.9)),
+    var(--artwork, radial-gradient(ellipse at 50% 30%, rgba(90, 30, 20, 0.35), transparent 70%)) center / cover no-repeat;
+  overflow: auto;
+}
+.briefing-card {
+  width: min(64rem, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 1.4rem 1.8rem 1.2rem;
+  background: rgba(16, 14, 11, 0.92);
+}
+.briefing header { text-align: center; margin-bottom: 1rem; }
+.briefing-game { font-size: 1rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-dim); }
+.briefing-subtitle { color: var(--ink-dim); font-size: 0.9rem; margin-top: 0.2rem; }
+.briefing h1 { margin: 0.4rem 0 0; font-size: 2.2rem; font-weight: 700; }
+.briefing-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.6rem; }
+.briefing-text p { margin: 0 0 0.8rem; line-height: 1.5; }
+.briefing-objective {
+  border-left: 3px solid var(--gold);
+  padding: 0.5rem 0.8rem;
+  background: rgba(201, 164, 92, 0.1);
+}
+.briefing-objective b { color: var(--gold); margin-right: 0.4rem; }
+.briefing-commanders { display: grid; gap: 0.5rem; align-content: start; }
+.side-label { font-family: 'Cinzel', serif; font-size: 0.85rem; margin-top: 0.3rem; }
+.side-label.ally { color: var(--ally); }
+.side-label.enemy { color: var(--enemy); }
+.commander { display: flex; gap: 0.7rem; align-items: center; cursor: help; }
+.commander img, .commander .crest {
+  width: 3.4rem;
+  height: 3.4rem;
+  flex: none;
+  border-radius: 0.25rem;
+  border: 1px solid var(--panel-edge);
+  object-fit: cover;
+  object-position: top;
+}
+.commander .crest {
+  display: grid;
+  place-items: center;
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  color: #f1e6c8;
+  background: linear-gradient(160deg, var(--crest), #120f0c);
+}
+.commander b { display: block; }
+.commander span { color: var(--ink-dim); font-size: 0.85rem; }
+.chronicles { margin-top: 1rem; border-top: 1px solid var(--panel-edge); padding-top: 0.6rem; }
+.chronicles summary { cursor: pointer; color: var(--gold); font-family: 'Cinzel', serif; }
+.chronicles h3 { font-family: 'Cinzel', serif; color: var(--gold); font-size: 1rem; margin: 0.8rem 0 0.3rem; }
+.chronicles p { margin: 0 0 0.5rem; color: var(--ink); line-height: 1.45; font-size: 0.92rem; }
+.briefing footer { display: flex; justify-content: center; align-items: center; gap: 0.8rem; margin-top: 1.1rem; }
+.briefing-start {
+  font: inherit;
+  font-weight: 700;
+  color: #1b160f;
+  background: var(--gold);
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.55rem 1.8rem;
+  cursor: pointer;
+}
+.briefing footer .hint { color: var(--ink-dim); font-size: 0.8rem; }
+@media (max-width: 900px) {
+  .briefing-body { grid-template-columns: 1fr; }
+}
+.game-title .battle-name { color: var(--ink-dim); font-size: 0.8em; letter-spacing: 0.02em; }
