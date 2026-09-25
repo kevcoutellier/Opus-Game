@@ -84,7 +84,7 @@ export class MovementSystem implements System {
         const arrive = Math.min(1, (dist - stop) / 1.6 + 0.12);
         // Stragglers jog to catch up with their formation; routers run.
         const hurry = routing ? 1.25 : dist > 5 ? 1.2 : 1;
-        wantSpeed = c.maxSpeed[id] * nav.speedAt(x, z) * arrive * hurry;
+        wantSpeed = c.maxSpeed[id] * c.speedBoost[id] * nav.speedAt(x, z) * arrive * hurry;
         wantX = ux * wantSpeed;
         wantZ = uz * wantSpeed;
       }
@@ -152,7 +152,7 @@ export class MovementSystem implements System {
       // 4. Integrate with inertia, slide along obstacles.
       let vx = c.vx[id] + (tx - c.vx[id]) * blend;
       let vz = c.vz[id] + (tz - c.vz[id]) * blend;
-      const maxV = c.maxSpeed[id] * 1.4;
+      const maxV = c.maxSpeed[id] * c.speedBoost[id] * 1.4;
       const v = Math.hypot(vx, vz);
       if (v > maxV) {
         vx *= maxV / v;

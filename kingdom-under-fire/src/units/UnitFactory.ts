@@ -38,6 +38,14 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.rangedAttack[id] = def.ranged?.damage ?? 0;
   c.rangedPeriod[id] = def.ranged?.period ?? 0;
   c.rangedWindup[id] = def.ranged?.windup ?? 0;
+  c.cleave[id] = def.cleave;
+  c.shield[id] = def.shield;
+  c.brace[id] = def.brace;
+  c.chargePower[id] = def.charge?.damage ?? 0;
+  c.chargeState[id] = 0;
+  c.chargeTime[id] = 0;
+  c.chargeCooldown[id] = 0;
+  c.speedBoost[id] = 1;
   c.morale[id] = def.morale;
   c.moraleState[id] = MoraleState.Normal;
   c.discipline[id] = def.discipline;

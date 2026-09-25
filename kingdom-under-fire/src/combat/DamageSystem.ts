@@ -25,6 +25,24 @@ export interface DamageResult {
   damage: number;
   critical: boolean;
   killed: boolean;
+  flank: FlankId;
+}
+
+/** Side of the victim a blow comes from, relative to where it faces. */
+export const Flank = { Front: 0, Side: 1, Rear: 2 } as const;
+export type FlankId = (typeof Flank)[keyof typeof Flank];
+/** Damage and morale shock of a blow by flank: a soldier cannot parry what he does not see. */
+export const FLANK_DAMAGE = [1, 1.25, 1.5] as const;
+export const FLANK_MORALE = [1, 1.6, 2.5] as const;
+
+/** Flank of a unit facing `rot` at (x, z) hit from (fromX, fromZ): front within ±60°, rear beyond ±120°. */
+export function flankOf(rot: number, x: number, z: number, fromX: number, fromZ: number): FlankId {
+  const dx = fromX - x;
+  const dz = fromZ - z;
+  const len = Math.hypot(dx, dz);
+  if (len < 1e-4) return Flank.Front;
+  const dot = (Math.sin(rot) * dx + Math.cos(rot) * dz) / len;
+  return dot > 0.5 ? Flank.Front : dot > -0.5 ? Flank.Side : Flank.Rear;
 }
 
 /** Damage multiplier of a damage type against an armour type. */
@@ -60,14 +78,19 @@ export function computeDamage(
 }
 
 /**
- * Applies attacks: health, hit flash, knockback, morale shock of the victim, death. Every hit and death is
- * published on the event bus (effects, sounds, statistics).
+ * Applies attacks: flank (side and rear blows hurt more and shake more, shields stop frontal missiles),
+ * health, hit flash, knockback, morale shock of the victim, death. Every hit and death is published on
+ * the event bus (effects, sounds, statistics).
  */
 export class DamageSystem {
   apply(world: World, attack: Attack): DamageResult {
     const { c } = world;
     const t = attack.target;
-    const { damage, critical } = computeDamage(attack, c.defense[t], ARMOR_TYPES[c.armorType[t]], world.rng);
+    const flank = flankOf(c.rot[t], c.x[t], c.z[t], attack.x, attack.z);
+    const shield = attack.missile && flank === Flank.Front ? 1 - c.shield[t] : 1;
+    const hit = computeDamage(attack, c.defense[t], ARMOR_TYPES[c.armorType[t]], world.rng);
+    const damage = Math.max(1, hit.damage * FLANK_DAMAGE[flank] * shield);
+    const critical = hit.critical;
     c.hp[t] -= damage;
     c.lastHit[t] = 0;
     // Knockback along the blow, heavier units budge less.
@@ -78,11 +101,12 @@ export class DamageSystem {
     c.vx[t] += (dx / len) * impulse;
     c.vz[t] += (dz / len) * impulse;
     // Being hurt shakes a soldier; discipline absorbs part of it.
-    c.morale[t] = Math.max(0, c.morale[t] - (damage / c.maxHp[t]) * 14 * (1 - c.discipline[t] * 0.5));
+    const shock = (damage / c.maxHp[t]) * 14 * FLANK_MORALE[flank];
+    c.morale[t] = Math.max(0, c.morale[t] - shock * (1 - c.discipline[t] * 0.5));
     const killed = c.hp[t] <= 0;
-    world.events.emit('unitHit', { attack, damage, critical, killed });
+    world.events.emit('unitHit', { attack, damage, critical, killed, flank });
     if (killed) kill(world, t, attack.attacker);
-    return { damage, critical, killed };
+    return { damage, critical, killed, flank };
   }
 }
 

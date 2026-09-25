@@ -7,13 +7,14 @@ import { Terrain } from '../../src/maps/Terrain';
 import { PerformanceTestScene } from '../../src/scenes/PerformanceTestScene';
 
 /**
- * CPU cost of one simulation tick in a mass melee on the real 256 m battlefield (the 30 Hz budget is
- * 33 ms; to keep 60 FPS the whole frame has 16.7 ms). Run with `npm run bench`.
+ * CPU cost of one simulation tick in a mass battle of combined arms (infantry, spearmen, archers, cavalry)
+ * on the real 256 m battlefield (the 30 Hz budget is 33 ms; to keep 60 FPS the whole frame has 16.7 ms).
+ * Run with `npm run bench`.
  */
 it('simulation tick cost from 100 to 1000 units', () => {
   const terrain = Terrain.generate({ size: 256, seed: 20260925 });
   const rows: string[] = [];
-  const systems = ['spatial', 'formations', 'combat', 'morale', 'movement', 'ai', 'lifecycle'];
+  const systems = ['spatial', 'formations', 'combat', 'projectiles', 'charge', 'morale', 'movement', 'ai', 'lifecycle'];
   rows.push(`| Unités | tick moyen | p95 | max | ${systems.join(' | ')} | pathfinding |`);
   rows.push(`|${' --- |'.repeat(5 + systems.length)}`);
   for (const units of [100, 200, 300, 500, 1000]) {

@@ -58,13 +58,25 @@ export class EffectsRenderer {
         this.spawn(x - (dx / len) * 0.4, y + 0.1, z - (dz / len) * 0.4, this.r(-3, 3), this.r(1.5, 4), this.r(-3, 3), this.r(0.12, 0.25), this.r(0.03, 0.05), 0xffd27a, 1);
       }
     });
-    world.events.on('unitDied', ({ x, z }) => {
-      const y = this.heightAt(x, z) + 0.2;
-      for (let i = 0; i < 12; i++) {
-        const a = this.r(0, Math.PI * 2);
-        this.spawn(x, y, z, Math.cos(a) * this.r(0.8, 2), this.r(0.3, 1.2), Math.sin(a) * this.r(0.8, 2), this.r(0.8, 1.5), this.r(0.2, 0.35), 0x8a7a60, 3);
+    world.events.on('unitDied', ({ x, z }) => this.dust(x, z, 12, 1));
+    // A charge hits in a cloud of dust and splinters.
+    world.events.on('chargeImpact', ({ x, z, braced }) => {
+      this.dust(x, z, 26, 1.8);
+      if (!braced) return;
+      const y = this.heightAt(x, z) + 1.4;
+      for (let i = 0; i < 10; i++) {
+        this.spawn(x, y, z, this.r(-3, 3), this.r(1, 4), this.r(-3, 3), this.r(0.5, 0.9), this.r(0.05, 0.09), 0x9b7b4f, 0.8);
       }
     });
+  }
+
+  private dust(x: number, z: number, count: number, spread: number): void {
+    const y = this.heightAt(x, z) + 0.2;
+    for (let i = 0; i < count; i++) {
+      const a = this.r(0, Math.PI * 2);
+      const v = this.r(0.8, 2) * spread;
+      this.spawn(x, y, z, Math.cos(a) * v, this.r(0.3, 1.2), Math.sin(a) * v, this.r(0.8, 1.5), this.r(0.2, 0.35), 0x8a7a60, 3);
+    }
   }
 
   private r(min: number, max: number): number {

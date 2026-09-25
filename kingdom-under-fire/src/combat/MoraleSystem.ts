@@ -9,6 +9,8 @@ const SENSE_RADIUS = 9;
 const DEATH_RADIUS = 10;
 const FLEE_DISTANCE = 26;
 const RECOVERY_SECONDS = 4;
+/** 0 = every enemy on one side, 1 = evenly all around; beyond this a soldier feels surrounded. */
+const ENCIRCLED = 0.55;
 
 /** Thresholds with hysteresis: a unit does not flicker between two states. */
 export const MORALE = {
@@ -22,9 +24,9 @@ export const MORALE = {
 
 /**
  * Morale of every soldier (0-100) and its state machine NORMAL → SHAKEN → PANICKED → ROUTING →
- * RECOVERING. Factors: local odds (enemies vs allies around), wounds (DamageSystem), deaths of nearby
- * comrades, kills, the losses of the formation and panic spreading from routing neighbours; discipline
- * absorbs part of every loss. Routing soldiers flee away from the enemy; once safe they rally and return
+ * RECOVERING. Factors: local odds (enemies vs allies around), encirclement, wounds and blows in the flank
+ * or the back (DamageSystem), charges (ChargeSystem), deaths of nearby comrades, kills, the losses of the
+ * formation and panic spreading from routing neighbours; discipline absorbs part of every loss. Routing soldiers flee away from the enemy; once safe they rally and return
  * to their formation.
  */
 export class MoraleSystem implements System {
@@ -115,6 +117,11 @@ export class MoraleSystem implements System {
     } else {
       const odds = enemies / Math.max(1, allies);
       delta += odds > 1.3 ? -(odds - 1.3) * 6 : 0.4;
+    }
+    // Encircled: the enemies around come from every side (their directions cancel out).
+    if (enemies >= 3) {
+      const surround = 1 - Math.hypot(awayX, awayZ) / enemies;
+      if (surround > ENCIRCLED) delta -= ((surround - ENCIRCLED) / (1 - ENCIRCLED)) * 8 * Math.min(1, enemies / 6);
     }
     const formation = this.formations.get(c.formation[id]);
     if (formation && formation.losses > 0.35) delta -= (formation.losses - 0.35) * 12;

@@ -96,6 +96,23 @@ export class Components {
   readonly rangedWindup: Float32Array;
   /** Distance to its target at which an engaging unit stops closing in (set by the combat system). */
   readonly engageDist: Float32Array;
+  /** Extra enemies hit by each melee blow. */
+  readonly cleave: Uint8Array;
+  /** Fraction of frontal missile damage stopped by the shield. */
+  readonly shield: Float32Array;
+  /** Counter-charge multiplier of spears set against cavalry, 0 = cannot brace. */
+  readonly brace: Float32Array;
+
+  // Cavalry charge (ChargeSystem)
+  /** Impact damage at full gallop, 0 for units that cannot charge. */
+  readonly chargePower: Float32Array;
+  readonly chargeState: Uint8Array;
+  /** Seconds in the current charge state. */
+  readonly chargeTime: Float32Array;
+  /** Seconds before the next charge. */
+  readonly chargeCooldown: Float32Array;
+  /** Multiplier of the maximum speed (gallop of a charge). */
+  readonly speedBoost: Float32Array;
 
   // Morale
   readonly morale: Float32Array;
@@ -155,6 +172,14 @@ export class Components {
     this.rangedPeriod = f32();
     this.rangedWindup = f32();
     this.engageDist = f32();
+    this.cleave = new Uint8Array(capacity);
+    this.shield = f32();
+    this.brace = f32();
+    this.chargePower = f32();
+    this.chargeState = new Uint8Array(capacity);
+    this.chargeTime = f32();
+    this.chargeCooldown = f32();
+    this.speedBoost = new Float32Array(capacity).fill(1);
     this.morale = f32();
     this.moraleState = new Uint8Array(capacity);
     this.discipline = f32();

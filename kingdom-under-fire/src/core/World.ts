@@ -1,4 +1,4 @@
-import type { Attack } from '../combat/DamageSystem';
+import type { Attack, FlankId } from '../combat/DamageSystem';
 import { ProjectilePool } from '../combat/Projectiles';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { Comp, Components } from '../entities/Components';
@@ -15,13 +15,15 @@ import { SimTime } from './Time';
 
 export interface SimEvents extends EventMap {
   unitSpawned: { id: number };
-  unitHit: { attack: Attack; damage: number; critical: boolean; killed: boolean };
+  unitHit: { attack: Attack; damage: number; critical: boolean; killed: boolean; flank: FlankId };
   unitDied: { id: number; team: number; x: number; z: number; killer: number };
   unitRouted: { id: number };
   unitRallied: { id: number };
   projectileLaunched: { x: number; z: number; type: number };
   /** `index` is the pool slot, still readable during the event. */
   projectileLanded: { index: number; x: number; z: number; hit: boolean };
+  chargeStarted: { id: number };
+  chargeImpact: { id: number; x: number; z: number; braced: boolean };
 }
 
 export interface WorldOptions {

@@ -110,6 +110,8 @@ export class AudioManager {
       if (!attack.missile) this.play('clash', 0.35 + 0.65 * near(attack.x, attack.z));
     });
     world.events.on('projectileLaunched', ({ x, z }) => this.play('bow', 0.25 + 0.75 * near(x, z)));
+    world.events.on('chargeStarted', ({ id }) => this.play('horn', 0.3 + 0.5 * near(world.c.x[id], world.c.z[id])));
+    world.events.on('chargeImpact', ({ x, z }) => this.play('clash', 0.5 + 0.5 * near(x, z)));
     world.events.on('unitDied', ({ x, z }) => this.play('death', 0.3 + 0.7 * near(x, z)));
     world.events.on('unitRouted', ({ id }) => this.play('horn', 0.4 * near(world.c.x[id], world.c.z[id])));
   }

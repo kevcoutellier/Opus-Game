@@ -29,8 +29,8 @@ export interface PerfSample {
 }
 
 /**
- * Mass-battle stress test: replaces the armies with N soldiers (N/2 per side) deployed face to face on the
- * central plain and marching into each other, then measures FPS, frame time, simulation time and GPU
+ * Mass-battle stress test: replaces the armies with N soldiers (N/2 per side, infantry, spearmen, archers
+ * and cavalry) deployed face to face on the central plain and marching into each other, then measures FPS, frame time, simulation time and GPU
  * time. Each F2 press runs the next count of PERF_STEPS.
  */
 export class PerformanceTestScene {
@@ -57,31 +57,53 @@ export class PerformanceTestScene {
     return this.count;
   }
 
-  /** Removes every unit and deploys `total` soldiers in two armies that attack each other. */
+  /**
+   * Removes every unit and deploys `total` soldiers in two combined-arms armies that attack each other:
+   * infantry in front, spearmen behind, archers at the rear, cavalry on both wings.
+   */
   static deploy(world: World, total: number): { a: number[]; b: number[] } {
     const { entities } = world;
     const doomed: number[] = [];
     for (let i = 0; i < entities.count; i++) if (entities.mask[entities.dense[i]] & Comp.Unit) doomed.push(entities.dense[i]);
     for (const id of doomed) entities.destroy(id);
-    const size = world.size;
     const perSide = Math.floor(total / 2);
-    const columns = Math.min(40, Math.max(10, Math.round(Math.sqrt(perSide * 4))));
-    const half = Math.ceil(perSide / 2);
-    const cx = size / 2;
-    const humans = [unitIndex('human_footman'), unitIndex('human_spearman')];
-    const orcs = [unitIndex('orc_warrior'), unitIndex('orc_spearman')];
-    const rowsDepth = Math.ceil(half / columns) * 1.65;
-    const a = [
-      ...spawnBlock(world, humans[0], 0, half, columns, cx, size / 2 + 30, Math.PI, 1.65),
-      ...spawnBlock(world, humans[1], 0, perSide - half, columns, cx, size / 2 + 30 + rowsDepth + 1, Math.PI, 1.65),
-    ];
-    const b = [
-      ...spawnBlock(world, orcs[0], 1, half, columns, cx, size / 2 - 30, 0, 1.65),
-      ...spawnBlock(world, orcs[1], 1, perSide - half, columns, cx, size / 2 - 30 - rowsDepth - 1, 0, 1.65),
-    ];
-    world.commands.push({ kind: 'formationMove', team: 0, units: a, x: cx, z: size / 2 - 40, facing: null, width: null, formation: 'LINE', attackMove: true });
-    world.commands.push({ kind: 'formationMove', team: 1, units: b, x: cx, z: size / 2 + 40, facing: null, width: null, formation: 'LINE', attackMove: true });
+    const a = PerformanceTestScene.army(world, 0, perSide, ['human_footman', 'human_spearman', 'human_archer', 'human_knight']);
+    const b = PerformanceTestScene.army(world, 1, perSide, ['orc_warrior', 'orc_spearman', 'dark_elf_archer', 'dark_elf_rider']);
     return { a, b };
+  }
+
+  /** One army of `count` soldiers: team 0 north of the centre facing south, team 1 south facing north. */
+  private static army(world: World, team: number, count: number, roster: [string, string, string, string]): number[] {
+    const size = world.size;
+    const cx = size / 2;
+    const dir = team === 0 ? 1 : -1;
+    const rot = team === 0 ? Math.PI : 0;
+    const spacing = 1.65;
+    const cavalry = Math.round(count * 0.12);
+    const archers = Math.round(count * 0.2);
+    const spears = Math.round(count * 0.2);
+    const foot = count - cavalry - archers - spears;
+    const columns = Math.min(40, Math.max(10, Math.round(Math.sqrt(count * 3))));
+    const body: number[] = [];
+    let depth = 30;
+    for (const [type, n] of [[roster[0], foot], [roster[1], spears], [roster[2], archers]] as const) {
+      if (n <= 0) continue;
+      const blockDepth = Math.ceil(n / columns) * spacing;
+      body.push(...spawnBlock(world, unitIndex(type), team, n, columns, cx, size / 2 + dir * (depth + blockDepth / 2), rot, spacing));
+      depth += blockDepth + 1;
+    }
+    const enemySide = size / 2 - dir * 40;
+    world.commands.push({ kind: 'formationMove', team, units: body, x: cx, z: enemySide, facing: null, width: null, formation: 'LINE', attackMove: true });
+    const all = [...body];
+    const wing = Math.ceil(cavalry / 2);
+    for (const [side, n] of [[-1, wing], [1, cavalry - wing]] as const) {
+      if (n <= 0) continue;
+      const x = cx + side * ((columns * spacing) / 2 + 10);
+      const riders = spawnBlock(world, unitIndex(roster[3]), team, n, 4, x, size / 2 + dir * 32, rot, 2.4);
+      world.commands.push({ kind: 'formationMove', team, units: riders, x, z: enemySide, facing: null, width: null, formation: 'LINE', attackMove: true });
+      all.push(...riders);
+    }
+    return all;
   }
 
   /** Feeds one frame; returns the result when the measurement of the current count is complete. */

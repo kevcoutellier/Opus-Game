@@ -13,6 +13,10 @@ const RESCAN_TICKS = 9;
 const CROWD_PENALTY = 0.9;
 /** Idle/defending units chase enemies at most this far from their slot. */
 const LEASH = 14;
+/** Distance (m) at which cavalry on the offensive picks a target to charge. */
+const CHARGE_SIGHT = 32;
+/** Damage of a sweeping blow on the extra enemies it catches, relative to the main one. */
+const CLEAVE_DAMAGE = 0.7;
 
 /**
  * Melee and missile resolution: target acquisition through the spatial grid (nearest enemy, penalised when
@@ -28,10 +32,10 @@ export class CombatSystem implements System {
   private attackers: Uint8Array = new Uint8Array(0);
   /** Blows landing this tick, applied together at the end: no side strikes first by iteration order. */
   private readonly impacts: Attack[] = [];
-  /** Shooter of the current `nearest` search (avoids a closure per call). */
-  private shooter = NO_ENTITY;
+  /** Unit of the current `nearest` search (avoids a closure per call). */
+  private seeker = NO_ENTITY;
   private world: World | null = null;
-  private readonly enemyOfShooter = (e: number) => this.isEnemy(this.world!, this.shooter, e);
+  private readonly enemyOfSeeker = (e: number) => this.isEnemy(this.world!, this.seeker, e);
 
   constructor(private readonly formations: FormationManager) {}
 
@@ -134,8 +138,15 @@ export class CombatSystem implements System {
   }
 
   private acquire(world: World, id: number, current: number, order: number, panicked: boolean): number {
-    if (world.c.range[id] > 0 && !panicked) return this.acquireShot(world, id, current, order);
-    return this.acquireMelee(world, id, current, order, panicked);
+    const { c } = world;
+    if (c.range[id] > 0 && !panicked) return this.acquireShot(world, id, current, order);
+    const target = this.acquireMelee(world, id, current, order, panicked);
+    if (target >= 0 || panicked || c.chargePower[id] <= 0 || c.chargeCooldown[id] > 0) return target;
+    // Cavalry with fresh horses on the offensive looks further for something to charge.
+    if (order !== Order.Attack && order !== Order.AttackMove) return target;
+    if (order === Order.Attack && current >= 0 && this.isEnemy(world, id, current)) return current;
+    this.seeker = id;
+    return world.spatial.nearest(c.x[id], c.z[id], CHARGE_SIGHT, c.x, c.z, this.enemyOfSeeker);
   }
 
   /**
@@ -149,8 +160,8 @@ export class CombatSystem implements System {
     if (current >= 0 && this.isEnemy(world, id, current)) {
       if (order === Order.Attack || Math.hypot(c.x[current] - c.x[id], c.z[current] - c.z[id]) <= c.range[id]) return current;
     }
-    this.shooter = id;
-    return spatial.nearest(c.x[id], c.z[id], c.range[id], c.x, c.z, this.enemyOfShooter);
+    this.seeker = id;
+    return spatial.nearest(c.x[id], c.z[id], c.range[id], c.x, c.z, this.enemyOfSeeker);
   }
 
   /** Nearest reachable enemy, penalised when crowded; keeps the current one unless another is clearly better. */
@@ -201,21 +212,47 @@ export class CombatSystem implements System {
             launchProjectile(world, id, t, c.rangedAttack[id] * (c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1));
           }
         } else if (dist - c.radius[id] - c.radius[t] <= c.reach[id] + 0.6) {
-          this.impacts.push({
-            attacker: id,
-            target: t,
-            damage: c.attack[id] * (c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1),
-            damageType: DAMAGE_TYPES[c.damageType[id]],
-            timestamp: world.time.elapsed,
-            x: c.x[id],
-            z: c.z[id],
-            ability: null,
-            missile: false,
-            criticalChance: c.critChance[id],
-          });
+          const damage = c.attack[id] * (c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1);
+          this.strike(world, id, t, damage);
+          if (c.cleave[id] > 0) this.cleave(world, id, t, damage * CLEAVE_DAMAGE);
         }
       }
     }
     c.swing[id] = next >= c.swingDuration[id] ? -1 : next;
+  }
+
+  private strike(world: World, id: number, target: number, damage: number): void {
+    const { c } = world;
+    this.impacts.push({
+      attacker: id,
+      target,
+      damage,
+      damageType: DAMAGE_TYPES[c.damageType[id]],
+      timestamp: world.time.elapsed,
+      x: c.x[id],
+      z: c.z[id],
+      ability: null,
+      missile: false,
+      criticalChance: c.critChance[id],
+    });
+  }
+
+  /** A sweeping blow also hits up to `cleave` other enemies within reach in front of the attacker. */
+  private cleave(world: World, id: number, target: number, damage: number): void {
+    const { c, spatial } = world;
+    const n = spatial.query(c.x[id], c.z[id], c.radius[id] + c.reach[id] + 1.5, c.x, c.z, this.neighbours);
+    const fx = Math.sin(c.rot[id]);
+    const fz = Math.cos(c.rot[id]);
+    let hits = 0;
+    for (let k = 0; k < n && hits < c.cleave[id]; k++) {
+      const e = this.neighbours[k];
+      if (e === target || !this.isEnemy(world, id, e)) continue;
+      const dx = c.x[e] - c.x[id];
+      const dz = c.z[e] - c.z[id];
+      const dist = Math.hypot(dx, dz);
+      if (dist - c.radius[id] - c.radius[e] > c.reach[id] + 0.3 || (dx * fx + dz * fz) / (dist || 1) < 0.2) continue;
+      this.strike(world, id, e, damage);
+      hits++;
+    }
   }
 }

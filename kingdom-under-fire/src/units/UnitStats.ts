@@ -104,6 +104,13 @@ export const UnitDefSchema = z.object({
   discipline: z.number().min(0).max(1),
   /** Extra enemies hit by each blow (sweeping clubs of the ogres). */
   cleave: z.number().int().nonnegative().default(0),
+  /** Fraction of the damage of missiles coming from the front that the shield stops (0..0.9). */
+  shield: z.number().min(0).max(0.9).default(0),
+  /**
+   * Spears set against a charge: a charger hitting this unit from the front while it stands takes
+   * `brace` × its attack in return and is stopped dead; 0 = cannot brace.
+   */
+  brace: z.number().nonnegative().default(0),
   ranged: RangedSchema.optional(),
   charge: ChargeSchema.optional(),
   cost: CostSchema,
