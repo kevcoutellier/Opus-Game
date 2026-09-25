@@ -92,6 +92,7 @@ export function menuScreen(game, { page = 'main' } = {}) {
         game.saveSettings({ voice: v });
         if (v) game.audio.say('Bienvenue au Stadium !');
       })),
+      h('div.option-row', h('span', 'Modèles 3D'), segmented([['animated', 'Animés (HD)'], ['light', 'Légers']], game.settings.modelQuality, (v) => game.saveSettings({ modelQuality: v }))),
       h('div.option-row', h('span', 'Vitesse des combats'), segmented([[1, 'x1'], [1.5, 'x1.5'], [2, 'x2']], game.settings.speed, (v) => game.saveSettings({ speed: v }))),
       h('div.menu-list', { style: { marginTop: '16px' } }, h('button.btn.ghost', { 'data-nav': true, onclick: () => open('main') }, 'Retour')),
     ],

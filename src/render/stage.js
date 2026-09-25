@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { updateTweens } from './tween.js';
 
 /** Renderer, camera, lights and the frame loop shared by every screen. */
@@ -18,6 +19,8 @@ export class Stage {
     this.timer = new THREE.Timer();
     this.time = 0;
     this.updaters = new Set();
+    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.environments = new Map();
 
     const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x3a4a2a, 1.1);
     this.scene.add(hemi);
@@ -51,6 +54,30 @@ export class Stage {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+  }
+
+  /** Image-based lighting from an equirectangular HDR (cached, prefiltered once). */
+  async setEnvironment(url, intensity = 1) {
+    if (!this.environments.has(url)) {
+      this.environments.set(
+        url,
+        new HDRLoader()
+          .loadAsync(url)
+          .then((hdr) => {
+            const target = this.pmrem.fromEquirectangular(hdr);
+            hdr.dispose();
+            return target.texture;
+          })
+          .catch((err) => {
+            console.warn('[stage] HDR environment unavailable', url, err?.message || err);
+            return null;
+          }),
+      );
+    }
+    const texture = await this.environments.get(url);
+    this.scene.environment = texture;
+    this.scene.environmentIntensity = intensity;
+    return !!texture;
   }
 
   onUpdate(fn) {

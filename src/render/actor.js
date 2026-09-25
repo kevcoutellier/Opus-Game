@@ -2,28 +2,43 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { assetUrl } from './assets.js';
-import { ease, lerp, tween, wait } from './tween.js';
+import { assetUrl, modelCandidates } from './assets.js';
+import { ease, lerp, tween, tweenSpeed, wait } from './tween.js';
 
 // three.js ships the Draco decoder and Vite bundles it (import.meta.url).
 const draco = new DRACOLoader();
 const loader = new GLTFLoader();
 loader.setDRACOLoader(draco);
 const cache = new Map();
+let preferAnimated = true;
+
+/** 'animated' (06wj models with real clips, ~3 MB each) or 'light' (Pokemon-3D-api, ~170 KB). */
+export function setModelQuality(quality) {
+  const animated = quality !== 'light';
+  if (animated !== preferAnimated) cache.clear();
+  preferAnimated = animated;
+}
 
 // Pokémon that hover above the field, like in Stadium.
 const HOVERING = new Set([12, 15, 17, 18, 22, 41, 42, 49, 81, 82, 92, 93, 109, 110, 142, 144, 145, 146, 151]);
 
+/** Resolves to the best available glTF ({ scene, animations, source }) or null. */
 export function loadModel(num) {
   if (!cache.has(num)) {
-    cache.set(
-      num,
-      loader.loadAsync(assetUrl('models', num)).catch((err) => {
-        console.warn(`[models] #${num} unavailable, using a sprite instead`, err);
-        cache.delete(num);
-        return null;
-      }),
-    );
+    const attempt = async () => {
+      for (const { source, url } of modelCandidates(num, { animated: preferAnimated })) {
+        try {
+          const gltf = await loader.loadAsync(url);
+          gltf.source = source;
+          return gltf;
+        } catch (err) {
+          console.warn(`[models] #${num} ${source} unavailable`, err?.message || err);
+        }
+      }
+      cache.delete(num);
+      return null;
+    };
+    cache.set(num, attempt());
   }
   return cache.get(num);
 }
@@ -41,6 +56,8 @@ function classifyClips(clips) {
     attack: find(/attack|fight_b|impactrueno|roar/i),
     hit: find(/damage|fight_d|stun_start/i),
     faint: find(/down_start|\|?\d*ko$|dizzy/i),
+    happy: find(/^happy$|glad/i),
+    sleep: find(/^sleep$|sleep01_loop|sleep_loop/i),
   };
 }
 
@@ -128,12 +145,43 @@ export class PokemonActor {
     this.width = Math.max(size.x, size.z) * scale;
     this.pivot.add(model);
 
-    this.clips = { idle: null, attack: null, hit: null, faint: null };
+    this.source = gltf?.source || 'sprite';
+    this.clips = { idle: null, attack: null, hit: null, faint: null, happy: null, sleep: null };
+    this.base = 'idle';
     if (gltf?.animations?.length) {
       this.mixer = new THREE.AnimationMixer(model);
       this.clips = classifyClips(gltf.animations);
       if (this.clips.idle) this.mixer.clipAction(this.clips.idle).play();
+      // One-shot clips hand back to the looping base state (idle or sleep) when done.
+      this.mixer.addEventListener('finished', (e) => {
+        if (e.action === this.oneShot && e.action.getClip() !== this.clips.faint) this.fadeToBase(0.25);
+      });
     }
+  }
+
+  baseAction() {
+    const clip = this.clips[this.base] || this.clips.idle;
+    return clip && this.mixer?.clipAction(clip);
+  }
+
+  fadeToBase(fade = 0.3) {
+    const base = this.baseAction();
+    if (!base) return;
+    base.enabled = true;
+    base.setLoop(THREE.LoopRepeat, Infinity);
+    base.reset().fadeIn(fade).play();
+    this.oneShot?.fadeOut(fade);
+    this.oneShot = null;
+  }
+
+  /** Loops the model's sleep clip while asleep (when it has one). */
+  setSleeping(on) {
+    const next = on && this.clips.sleep ? 'sleep' : 'idle';
+    if (next === this.base || !this.mixer) return;
+    const previous = this.baseAction();
+    this.base = next;
+    previous?.fadeOut(0.4);
+    this.fadeToBase(0.4);
   }
 
   /** Chest height in world space, where projectiles come from and land. */
@@ -142,9 +190,10 @@ export class PokemonActor {
   }
 
   update(dt, time, camera) {
-    this.mixer?.update(dt);
+    this.mixer?.update(dt * tweenSpeed());
     const t = time + this.phase;
-    const breathe = this.idleEnabled ? Math.sin(t * 2.4) * 0.025 : 0;
+    // Models with a real idle clip only need a hint of procedural breathing.
+    const breathe = this.idleEnabled ? Math.sin(t * 2.4) * (this.clips.idle ? 0.008 : 0.025) : 0;
     const bob = this.hover && this.idleEnabled ? Math.sin(t * 1.7) * 0.18 : 0;
     this.pivot.position.set(this.offset.x, this.offset.y + this.hover + bob, this.offset.z);
     this.pivot.scale.set(1 / Math.sqrt(this.squash) - breathe * 0.5, this.squash + breathe, 1 / Math.sqrt(this.squash) - breathe * 0.5);
@@ -170,23 +219,21 @@ export class PokemonActor {
     }
   }
 
+  /** Plays a one-shot clip; long clips are sped up to fit the battle pacing. Returns its duration. */
   playClip(name, fade = 0.15) {
     const clip = this.clips[name];
     if (!clip || !this.mixer) return 0;
+    const maxDuration = { attack: 2.2, happy: 2.8, hit: 0.8 }[name] ?? clip.duration;
     const action = this.mixer.clipAction(clip);
     action.reset();
     action.setLoop(THREE.LoopOnce, 1);
-    action.clampWhenFinished = name === 'faint';
+    action.clampWhenFinished = true;
+    action.timeScale = Math.max(1, clip.duration / maxDuration);
+    this.baseAction()?.fadeOut(fade);
+    if (this.oneShot && this.oneShot !== action) this.oneShot.fadeOut(fade);
     action.fadeIn(fade).play();
-    const idle = this.clips.idle && this.mixer.clipAction(this.clips.idle);
-    if (idle && name !== 'faint') {
-      idle.fadeOut(fade);
-      setTimeout(() => {
-        idle.reset().fadeIn(0.25).play();
-        action.fadeOut(0.25);
-      }, Math.max(0.3, clip.duration - 0.25) * 1000);
-    }
-    return clip.duration;
+    this.oneShot = action;
+    return clip.duration / action.timeScale;
   }
 
   // --------------------------------------------------------------- motions
@@ -302,6 +349,11 @@ export class PokemonActor {
   }
 
   async celebrate() {
+    const duration = this.playClip('happy');
+    if (duration) {
+      await wait(Math.min(duration, 2.8));
+      return;
+    }
     for (let i = 0; i < 2; i++) {
       await tween(0.28, (k) => {
         this.offset.y = Math.sin(k * Math.PI) * 0.9;

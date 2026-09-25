@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { assetUrl } from './assets.js';
 
 // The battle field is a raised rectangle; Pokémon stand at z = ±FIELD_SPOT.
 export const FIELD = { width: 16, length: 28, height: 0.6 };
@@ -7,9 +8,9 @@ export const FIELD_SPOT = 7.2;
 export const TRAINER_SPOT = 12.4;
 
 const THEMES = {
-  day: { top: '#3d8fe0', horizon: '#bfe3ff', sun: 1.0, hemi: 1.1, fog: '#b9d9f2', exposure: 1.05, towers: 0.35 },
-  sunset: { top: '#2b3a78', horizon: '#ffb07a', sun: 0.8, hemi: 0.8, fog: '#d99a7c', exposure: 1.0, towers: 0.8 },
-  night: { top: '#050a1c', horizon: '#1c2b52', sun: 0.55, hemi: 0.45, fog: '#101a33', exposure: 1.15, towers: 1.6 },
+  day: { top: '#3d8fe0', horizon: '#bfe3ff', sun: 1.0, hemi: 1.1, fog: '#b9d9f2', exposure: 1.05, towers: 0.35, env: 0.8 },
+  sunset: { top: '#2b3a78', horizon: '#ffb07a', sun: 0.8, hemi: 0.8, fog: '#d99a7c', exposure: 1.0, towers: 0.8, env: 0.55 },
+  night: { top: '#050a1c', horizon: '#1c2b52', sun: 0.55, hemi: 0.45, fog: '#101a33', exposure: 1.15, towers: 1.6, env: 0.35 },
 };
 
 function canvasTexture(width, height, draw) {
@@ -425,9 +426,15 @@ export class Arena {
     this.cheerTimer = setTimeout(() => this.setCheer(0.12), duration * 1000);
   }
 
-  setTheme(name) {
+  /** `environment`: 'forest_slope_1k' (outdoor, default) or 'studio_small_09_1k'. */
+  setTheme(name, { environment = 'forest_slope_1k' } = {}) {
     const t = THEMES[name] || THEMES.day;
     this.theme = name;
+    // HDRI lighting for the PBR Pokémon models; the hemisphere light is dimmed to compensate.
+    const hemi = this.stage.scene.children.find((c) => c.isHemisphereLight);
+    this.stage.setEnvironment(assetUrl('env', environment), t.env).then((ok) => {
+      if (this.theme === name) hemi.intensity = ok ? t.hemi * 0.55 : t.hemi;
+    });
     this.skyUniforms.topColor.value.set(t.top);
     this.skyUniforms.horizonColor.value.set(t.horizon);
     this.stage.scene.fog = new THREE.Fog(t.fog, 90, 420);

@@ -1,4 +1,4 @@
-import { ASSET_SOURCES } from '../assetSources.js';
+import { ASSET_SOURCES, NAMED_ASSETS } from '../assetSources.js';
 
 // Files downloaded by `npm run assets` are listed in public/assets/manifest.json.
 // Anything missing is streamed from GitHub instead, so the game also works
@@ -17,15 +17,28 @@ export async function loadManifest() {
   return manifest;
 }
 
-export function hasStadiumModel(num) {
-  return !!manifest.stadium?.includes(num);
+export function isLocal(kind, key) {
+  return !!manifest[kind]?.includes(key);
 }
 
-export function assetUrl(kind, num) {
-  if (kind === 'models' && hasStadiumModel(num)) return `${BASE}assets/stadium/${num}.glb`;
-  const source = ASSET_SOURCES[kind];
-  if (manifest[kind]?.includes(num)) return `${BASE}assets/${kind}/${num}.${source.ext}`;
-  return source.url(num);
+export function hasStadiumModel(num) {
+  return isLocal('stadium', num);
+}
+
+/** URL of an asset by dex number (numbered kinds) or name (fx, trainers, people, env). */
+export function assetUrl(kind, key) {
+  const source = NAMED_ASSETS[kind] || ASSET_SOURCES[kind];
+  if (isLocal(kind, key)) return `${BASE}assets/${kind}/${key}.${source.ext}`;
+  return source.url(key);
+}
+
+/** Model candidates, best first: Stadium rip > animated model > light model. */
+export function modelCandidates(num, { animated = true } = {}) {
+  const list = [];
+  if (hasStadiumModel(num)) list.push({ source: 'stadium', url: `${BASE}assets/stadium/${num}.glb` });
+  if (animated) list.push({ source: 'animated', url: assetUrl('animated', num) });
+  list.push({ source: 'models', url: assetUrl('models', num) });
+  return list;
 }
 
 export function assetStats() {

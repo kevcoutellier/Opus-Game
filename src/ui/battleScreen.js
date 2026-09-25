@@ -312,10 +312,12 @@ export function battleScreen(game, { mine, foe }) {
       case 'status':
         audio.sfx('status');
         huds[side].status(ev.status);
+        if (ev.status === 'slp') scene.setSleeping(side, true);
         await Promise.all([scene.statusFx(side, ev.status), say(describe(ev, ctx))]);
         return;
       case 'cure':
         huds[side].status(null);
+        scene.setSleeping(side, false);
         await say(describe(ev, ctx));
         return;
       case 'cant':

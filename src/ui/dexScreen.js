@@ -1,12 +1,11 @@
 import { h, icon, keyboardNav } from './dom.js';
 import { speciesCard } from './speciesCard.js';
 import { menuScreen } from './menuScreen.js';
-import { hasStadiumModel } from '../render/assets.js';
 
 export function dexScreen(game, { num = 1 } = {}) {
   const { data } = game;
   game.resetField();
-  game.arena.setTheme('night');
+  game.arena.setTheme('night', { environment: 'studio_small_09_1k' });
   game.arena.setScoreboard({ title: 'POKéDEX 3D', left: '151', right: 'POKéMON' });
   game.audio.playTheme('menu');
   game.showcase.spin = 0.35;
@@ -14,6 +13,8 @@ export function dexScreen(game, { num = 1 } = {}) {
   const items = new Map();
   const info = h('div');
   const animInfo = h('div.hint');
+  const animButtons = h('div.segmented');
+  const CLIP_LABELS = { attack: 'Attaque', happy: 'Joie', sleep: 'Dodo' };
   const list = h('div.dex-items');
   let current = null;
   let timer;
@@ -43,8 +44,24 @@ export function dexScreen(game, { num = 1 } = {}) {
         const actor = await game.showcase.show(s);
         if (actor && current === s) {
           const clips = Object.entries(actor.clips).filter(([, c]) => c).map(([k]) => k);
-          const source = hasStadiumModel(s.num) ? 'modèle Stadium (local)' : 'modèle Pokemon-3D-api';
+          const source = { stadium: 'modèle Stadium (local)', animated: 'modèle animé 06wj', models: 'modèle Pokemon-3D-api', sprite: 'sprite (modèle indisponible)' }[actor.source];
           animInfo.textContent = `${source} · ${clips.length ? `animations : ${clips.join(', ')}` : 'animation procédurale'}`;
+          animButtons.replaceChildren(
+            ...Object.keys(CLIP_LABELS)
+              .filter((k) => actor.clips[k])
+              .map((k) =>
+                h('button.btn.small.ghost', {
+                  onclick: () => {
+                    if (k === 'sleep') actor.setSleeping(actor.base !== 'sleep');
+                    else {
+                      actor.setSleeping(false);
+                      actor.playClip(k);
+                      if (k === 'attack') game.audio.cry(s.num);
+                    }
+                  },
+                }, CLIP_LABELS[k]),
+              ),
+          );
         }
       }
       if (cry) game.audio.cry(s.num);
@@ -59,6 +76,7 @@ export function dexScreen(game, { num = 1 } = {}) {
       'div.panel.side-panel',
       info,
       animInfo,
+      animButtons,
       h(
         'div.bottom-actions',
         h('button.btn.small.blue', { onclick: () => current && game.audio.cry(current.num) }, 'Cri ♪'),

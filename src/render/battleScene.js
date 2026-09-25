@@ -4,6 +4,7 @@ import { createPokeball, createTrainer } from './props.js';
 import { spotOf } from './director.js';
 import { TRAINER_SPOT } from './arena.js';
 import { ease, lerp, tween, wait } from './tween.js';
+import { CONTACT_SPRITES, STATUS_SPRITES, projectileSprite } from './moveSprites.js';
 
 const TYPE_COLOR = {
   Normal: '#ffffff', Fighting: '#ff8a4a', Flying: '#cfe8ff', Poison: '#c05ce8', Ground: '#d9b36a',
@@ -151,6 +152,7 @@ export class BattleScene {
       for (let i = 0; i < 3; i++) {
         this.director.shake(0.9);
         this.fx.ring(spotOf(side).setY(0.06), color, { radius: 14, duration: 0.6 });
+        this.fx.spriteBurst(spotOf(1 - side).setY(0.3), 'rocks', { count: 8, speed: 6, up: 5, gravity: 14, size: 1.2, life: 0.9 });
         await wait(0.22);
       }
       return;
@@ -159,6 +161,7 @@ export class BattleScene {
       await user.channel(color);
       this.director.focus(1 - side, target?.height ?? 2, 0.35);
       await this.fx.rocks(outcome === 'miss' ? missTo.setY(0) : spotOf(1 - side));
+      this.fx.spriteBurst(aim, 'rock2', { count: 10, speed: 6, up: 3, gravity: 12, size: 0.9 });
       this.director.shake(0.6);
       return;
     }
@@ -166,26 +169,32 @@ export class BattleScene {
       await user.channel(color);
       this.director.focus(1 - side, target?.height ?? 2, 0.3);
       this.fx.flashScreen('#fffbd0', 0.3, 0.7);
+      this.fx.pop(aim.clone().add(new THREE.Vector3(0, 1.5, 0)), 'lightning', { size: 4.5, duration: 0.6 });
       await this.fx.lightning(aim.clone().add(new THREE.Vector3(0, 16, 0)), aim, color, { duration: 0.6, bolts: 4 });
+      this.fx.spriteBurst(aim, 'electroball', { count: 12, speed: 6, size: 1 });
       return;
     }
     if (id === 'thunderbolt' || id === 'thundershock') {
       await user.channel(color);
+      this.fx.projectile(from, aim, color, { sprite: 'electroball', duration: 0.35, size: 1.4 });
       await this.fx.lightning(from, aim, color, { duration: 0.55 });
+      this.fx.pop(aim, 'lightning', { size: 2.6, duration: 0.4 });
       return;
     }
     if (BEAMS[id]) {
       await user.channel(BEAMS[id]);
       if (id === 'hyperbeam' || id === 'solarbeam') this.director.shake(0.5);
       await this.fx.beam(from, aim, BEAMS[id], { width: id === 'hyperbeam' || id === 'solarbeam' ? 0.6 : 0.35, duration: 0.8 });
+      if (outcome !== 'miss') this.fx.spriteBurst(aim, projectileSprite(move), { count: 12, speed: 6, size: 1.1 });
       return;
     }
     if (id === 'fireblast') {
       await user.channel(color);
-      await this.fx.projectile(from, aim, '#ffb347', { duration: 0.5, size: 2.2 });
+      await this.fx.projectile(from, aim, '#ffb347', { sprite: 'flareball', duration: 0.5, size: 2.6, spin: 0.2 });
       if (outcome !== 'miss') {
         this.director.shake(0.6);
-        this.fx.burst(aim, '#ff7a1a', { count: 110, speed: 9, size: 1.2, life: 0.8 });
+        this.fx.spriteBurst(aim, 'fireball', { count: 22, speed: 9, size: 1.3, life: 0.8 });
+        this.fx.burst(aim, '#ff7a1a', { count: 60, speed: 9, size: 1.2, life: 0.8 });
         this.fx.burst(aim, '#ffe08a', { count: 40, speed: 4, size: 1.6, life: 0.6 });
         this.fx.ring(aim.clone().setY(0.1), '#ff7a1a', { radius: 4, duration: 0.6 });
       }
@@ -193,15 +202,15 @@ export class BattleScene {
     }
     if (id === 'flamethrower' || id === 'ember') {
       await user.channel(color);
-      await this.fx.stream(from, aim, color, { duration: 0.8, rate: 260, size: 1, speed: 16, jitter: 0.5 });
-      if (outcome !== 'miss') this.fx.burst(aim, '#ffb347', { count: 50, speed: 5, size: 1, up: 2 });
+      await this.fx.stream(from, aim, color, { sprite: 'fireball', duration: 0.8, rate: 90, size: 1.2, speed: 16, jitter: 0.5 });
+      if (outcome !== 'miss') this.fx.spriteBurst(aim, 'fireball', { count: 12, speed: 5, size: 1, up: 2 });
       return;
     }
     if (id === 'hydropump' || id === 'watergun' || id === 'bubblebeam' || id === 'bubble') {
       await user.channel(color);
       const thick = id === 'hydropump';
-      await this.fx.stream(from, aim, color, { duration: thick ? 0.9 : 0.6, rate: thick ? 320 : 160, size: thick ? 1.2 : 0.7, speed: 18, jitter: thick ? 0.6 : 0.3 });
-      if (outcome !== 'miss') this.fx.burst(aim, '#dff3ff', { count: 50, speed: 6, size: 0.8, up: 2, gravity: 8 });
+      await this.fx.stream(from, aim, color, { sprite: 'waterwisp', duration: thick ? 0.9 : 0.6, rate: thick ? 160 : 70, size: thick ? 1.5 : 0.9, speed: 18, jitter: thick ? 0.6 : 0.3 });
+      if (outcome !== 'miss') this.fx.spriteBurst(aim, 'waterwisp', { count: 14, speed: 6, size: 0.9, up: 2, gravity: 8 });
       return;
     }
     if (id === 'psychic' || id === 'confusion') {
@@ -211,30 +220,32 @@ export class BattleScene {
         this.fx.ring(aim, color, { radius: 3.5, duration: 0.5, vertical: true });
         await wait(0.15);
       }
+      if (outcome !== 'miss') this.fx.spriteBurst(aim, 'mistball', { count: 10, speed: 4, size: 1.2 });
       return;
     }
     if (id === 'surf') {
       this.director.sideView(side, 0.4);
       await user.channel(color);
-      await this.fx.stream(spotOf(side).setY(0.6), aim.clone().setY(0.8), color, { duration: 0.8, rate: 260, size: 1.2, speed: 13, jitter: 1.4 });
+      await this.fx.stream(spotOf(side).setY(0.6), aim.clone().setY(0.8), color, { sprite: 'waterwisp', duration: 0.8, rate: 150, size: 1.8, speed: 13, jitter: 1.4 });
       this.fx.burst(aim, '#ffffff', { count: 50, speed: 6, size: 0.8, up: 3 });
       return;
     }
     if (id === 'blizzard') {
       await user.channel(color);
-      await this.fx.stream(from, aim, '#ffffff', { duration: 0.9, rate: 220, size: 0.7, speed: 12, jitter: 1.6 });
+      await this.fx.stream(from, aim, '#ffffff', { sprite: 'icicle', duration: 0.9, rate: 90, size: 1, speed: 12, jitter: 1.6 });
+      this.fx.stream(from, aim, '#ffffff', { duration: 0.6, rate: 160, size: 0.6, speed: 12, jitter: 1.8 });
       return;
     }
     if (id === 'megadrain' || id === 'absorb' || id === 'leechlife' || id === 'dreameater') {
       if (move.category === 'Physical') await user.lunge(to, 3.5);
       else await user.channel(color);
-      if (outcome !== 'miss') this.fx.stream(to, from, '#8dff8d', { duration: 0.6, rate: 80, size: 0.6, speed: 9 });
+      if (outcome !== 'miss') this.fx.stream(to, from, '#8dff8d', { sprite: 'energyball', duration: 0.6, rate: 40, size: 0.8, speed: 9 });
       return;
     }
     if (id === 'swift') {
       await user.channel('#fff27a');
       for (let i = 0; i < 4; i++) {
-        this.fx.projectile(from.clone().add(new THREE.Vector3(0, i * 0.2, 0)), aim, '#fff27a', { duration: 0.35, size: 0.8, arc: 1 - i * 0.4 });
+        this.fx.projectile(from.clone().add(new THREE.Vector3(0, i * 0.2, 0)), aim, '#fff27a', { sprite: 'shine', duration: 0.35, size: 1.1, arc: 1 - i * 0.4, spin: 0.3 });
         await wait(0.08);
       }
       await wait(0.3);
@@ -245,6 +256,7 @@ export class BattleScene {
       const center = target ? target.center : aim;
       for (let i = 0; i < 3; i++) {
         this.fx.ring(center.clone().setY(0.4 + i * 0.6), color, { radius: 2, duration: 0.45 });
+        if (id === 'firespin') this.fx.spriteBurst(center, 'fireball', { count: 6, speed: 3, size: 1 });
         await wait(0.12);
       }
       return;
@@ -255,45 +267,47 @@ export class BattleScene {
       this.director.sideView(side, 0.35);
       // Dash until just in front of the target; the return trip plays in the background.
       await user.lunge(to, outcome === 'miss' ? 3 : Math.max(2.5, 14.4 - 1.2 - (target?.width ?? 1) * 0.5 - user.width * 0.5));
-      if (outcome !== 'miss') this.fx.burst(to, color === '#ffffff' ? '#ffe9a8' : color, { count: 30, speed: 7, size: 0.7, life: 0.35 });
+      if (outcome !== 'miss') {
+        const contact = CONTACT_SPRITES[id] || 'impact';
+        if (contact === 'bite') this.fx.bite(to);
+        else this.fx.pop(to, contact, { size: contact === 'impact' ? 2.2 : 1.8, rotation: Math.random() * 0.6 - 0.3 });
+        if (move.type !== 'Normal' && move.type !== 'Fighting') this.fx.spriteBurst(to, projectileSprite(move), { count: 8, speed: 5, size: 0.9 });
+        this.fx.burst(to, color === '#ffffff' ? '#ffe9a8' : color, { count: 24, speed: 7, size: 0.6, life: 0.35 });
+      }
       return;
     }
 
-    // Generic special / ranged move by type.
+    // Generic special / ranged move by type, drawn with Showdown's effect sprites.
     await user.channel(color);
+    const sprite = projectileSprite(move);
     switch (move.type) {
       case 'Fire':
       case 'Dragon':
-        await this.fx.stream(from, aim, color, { duration: 0.6, rate: 200, size: 0.9, speed: 15 });
-        break;
       case 'Water':
-        await this.fx.stream(from, aim, color, { duration: 0.6, rate: 180, size: 0.75, speed: 15, gravity: 2 });
+        await this.fx.stream(from, aim, color, { sprite, duration: 0.6, rate: 80, size: 1.1, speed: 15, gravity: move.type === 'Water' ? 2 : 0 });
         break;
       case 'Electric':
+        this.fx.projectile(from, aim, color, { sprite, duration: 0.35, size: 1.2 });
         await this.fx.lightning(from, aim, color, { duration: 0.45 });
         break;
       case 'Grass':
-        for (let i = 0; i < 5; i++) {
-          this.fx.projectile(from, aim, color, { duration: 0.4, size: 0.6, arc: (i - 2) * 0.5 });
-          await wait(0.06);
-        }
-        await wait(0.3);
-        break;
       case 'Bug':
       case 'Poison':
       case 'Normal':
       case 'Flying':
       case 'Ground':
       case 'Rock':
-        for (let i = 0; i < 3; i++) {
-          this.fx.projectile(from, aim, color, { duration: 0.35, size: 0.6, arc: 0.3 * i });
-          await wait(0.08);
+      case 'Fighting':
+        for (let i = 0; i < 4; i++) {
+          this.fx.projectile(from, aim, color, { sprite, duration: 0.38, size: 0.9, arc: (i - 1.5) * 0.5, spin: sprite === 'bone' || sprite.startsWith('leaf') ? 0.35 : 0 });
+          await wait(0.07);
         }
-        await wait(0.28);
+        await wait(0.3);
         break;
       default:
-        await this.fx.projectile(from, aim, color, { duration: 0.45, size: 1.1 });
+        await this.fx.projectile(from, aim, color, { sprite, duration: 0.45, size: 1.5 });
     }
+    if (outcome !== 'miss') this.fx.spriteBurst(aim, sprite, { count: 8, speed: 5, size: 0.8 });
   }
 
   async playStatusMove(side, move, color, outcome) {
@@ -307,6 +321,13 @@ export class BattleScene {
     await wait(0.3);
     const at = actor.center;
     const aimAt = outcome === 'miss' ? at.clone().add(new THREE.Vector3(2.5, 1, 0)) : at;
+    const statusSprite = STATUS_SPRITES[id];
+    if (statusSprite && outcome !== 'miss') {
+      const onUser = ['swordsdance', 'focusenergy', 'metronome', 'meditate', 'sharpen', 'growth'].includes(id);
+      const spot = (onUser ? user : actor).center.clone().add(new THREE.Vector3(0, (onUser ? user : actor).height * 0.55, 0));
+      if (id === 'lovelykiss' || id === 'stringshot') await this.fx.projectile(user.center, at, '#ffffff', { sprite: statusSprite, duration: 0.45, size: 1.1 });
+      this.fx.pop(spot, statusSprite, { size: 1.8, duration: 0.8, spin: id === 'swordsdance' ? Math.PI * 2 : id === 'metronome' ? 0.8 : 0 });
+    }
     switch (id) {
       case 'sing':
       case 'lovelykiss':
@@ -333,6 +354,7 @@ export class BattleScene {
       case 'poisongas':
       case 'smokescreen':
       case 'haze':
+        if (id === 'toxic' || id === 'poisongas') this.fx.spriteBurst(aimAt, 'purplewisp', { count: 14, speed: 2, up: 1.5, size: 1.2, life: 0.9 });
         await this.fx.powder(aimAt.clone().setY(0), id === 'toxic' || id === 'poisongas' ? '#9b2fd6' : '#666677', { count: 90, spread: 2.2 });
         return;
       case 'leechseed':
@@ -457,6 +479,10 @@ export class BattleScene {
     actor.root.position.copy(pos);
     actor.setFlash('#ff9ae6', 1);
     await tween(0.5, (k) => actor.setFlash('#ff9ae6', 1 - k));
+  }
+
+  setSleeping(side, on) {
+    this.actors[side]?.setSleeping(on);
   }
 
   setSubstitute(side, on) {

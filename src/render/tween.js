@@ -22,6 +22,10 @@ export function setTweenSpeed(value) {
   speed = value;
 }
 
+export function tweenSpeed() {
+  return speed;
+}
+
 /**
  * Calls onUpdate(k) with k going 0 -> 1 over `duration` seconds.
  * Resolves when done (or immediately if duration is 0).

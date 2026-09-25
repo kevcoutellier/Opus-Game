@@ -5,6 +5,7 @@ import { Director } from './render/director.js';
 import { BattleScene } from './render/battleScene.js';
 import { Showcase } from './render/showcase.js';
 import { setTweenSpeed } from './render/tween.js';
+import { setModelQuality } from './render/actor.js';
 import { Audio } from './audio/audio.js';
 import { loadProgress, saveProgress } from './game/progress.js';
 
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS = {
   speed: 1,
   freeRules: 'fixed50',
   difficulty: 1,
+  modelQuality: 'animated',
 };
 
 function loadSettings() {
@@ -64,6 +66,7 @@ export class Game {
 
   applySettings() {
     setTweenSpeed(this.settings.speed);
+    setModelQuality(this.settings.modelQuality);
     this.audio.apply({ music: this.settings.music, sfx: this.settings.sfx, voice: this.settings.voice });
   }
 

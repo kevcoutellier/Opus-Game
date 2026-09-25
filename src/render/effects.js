@@ -1,5 +1,19 @@
 import * as THREE from 'three';
 import { ease, lerp, tween } from './tween.js';
+import { assetUrl } from './assets.js';
+import { isGlow } from './moveSprites.js';
+
+const spriteCache = new Map();
+
+/** Pokémon Showdown effect sprite (fireball, lightning, fist...) as a texture. */
+export function fxTexture(name) {
+  if (!spriteCache.has(name)) {
+    const tex = new THREE.TextureLoader().load(assetUrl('fx', name));
+    tex.colorSpace = THREE.SRGBColorSpace;
+    spriteCache.set(name, tex);
+  }
+  return spriteCache.get(name);
+}
 
 let dotTexture;
 function getDotTexture() {
@@ -163,7 +177,12 @@ export class Effects {
   }
 
   /** Continuous emission between two points over time (flamethrower, water gun...). */
-  stream(from, to, color, { duration = 0.7, rate = 160, size = 0.55, speed = 16, jitter = 0.35, gravity = 0, map, additive = true } = {}) {
+  stream(from, to, color, { duration = 0.7, rate = 160, size = 0.55, speed = 16, jitter = 0.35, gravity = 0, map, additive = true, sprite } = {}) {
+    if (sprite) {
+      map = fxTexture(sprite);
+      additive = isGlow(sprite);
+      color = '#ffffff';
+    }
     const total = Math.ceil(duration * rate);
     const sys = this.addSystem(new Particles(total, { map, additive }));
     sys.gravity = gravity;
@@ -186,11 +205,22 @@ export class Effects {
   }
 
   /** A glowing orb flying from A to B, leaving a trail. Resolves on impact. */
-  projectile(from, to, color, { duration = 0.45, size = 0.9, arc = 0, map } = {}) {
-    const trail = this.addSystem(new Particles(80, { map }));
+  projectile(from, to, color, { duration = 0.45, size = 0.9, arc = 0, map, sprite, spin = 0 } = {}) {
+    let additive = true;
+    if (sprite) {
+      map = fxTexture(sprite);
+      additive = isGlow(sprite);
+      color = '#ffffff';
+    }
+    const trail = this.addSystem(new Particles(80, { map, additive }));
     const c = new THREE.Color(color);
     const orb = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: map || getDotTexture(), color: c, blending: THREE.AdditiveBlending, depthWrite: false }),
+      new THREE.SpriteMaterial({
+        map: map || getDotTexture(),
+        color: c,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+        depthWrite: false,
+      }),
     );
     orb.scale.setScalar(size);
     this.scene.add(orb);
@@ -200,6 +230,7 @@ export class Effects {
       p.lerpVectors(from, to, k);
       p.y += Math.sin(k * Math.PI) * arc;
       orb.position.copy(p);
+      orb.material.rotation += spin;
       for (let n = 0; n < 3 && i < trail.count; n++, i++) {
         trail.spawn(i, p, randomDir().multiplyScalar(0.4), c, size * 0.7, 0.35);
       }
@@ -403,6 +434,72 @@ export class Effects {
       el.style.opacity = String(Math.sin(k * Math.PI) * peak);
     }, ease.linear).then(() => {
       el.style.opacity = '0';
+    });
+  }
+
+  /** Sprite particles bursting from a point (fireballs, leaves, rocks...). */
+  spriteBurst(at, sprite, opts = {}) {
+    const additive = isGlow(sprite);
+    const count = opts.count ?? 16;
+    const sys = this.addSystem(new Particles(count, { map: fxTexture(sprite), additive }));
+    sys.gravity = opts.gravity ?? 0;
+    sys.drag = opts.drag ?? 1.5;
+    const white = new THREE.Color('#ffffff');
+    for (let i = 0; i < count; i++) {
+      const v = randomDir().multiplyScalar((opts.speed ?? 5) * rand(0.4, 1));
+      v.y += opts.up ?? 0;
+      sys.spawn(i, at, v, white, (opts.size ?? 1) * rand(0.7, 1.2), (opts.life ?? 0.6) * rand(0.7, 1));
+    }
+    sys.done = true;
+    return sys;
+  }
+
+  /** A single sprite that pops on a point, grows and fades (fist, slash, impact...). */
+  pop(at, sprite, { size = 1.6, duration = 0.45, spin = 0, rotation = 0, offset } = {}) {
+    const mat = new THREE.SpriteMaterial({
+      map: fxTexture(sprite),
+      blending: isGlow(sprite) ? THREE.AdditiveBlending : THREE.NormalBlending,
+      depthWrite: false,
+      depthTest: false,
+      transparent: true,
+      rotation,
+    });
+    const s = new THREE.Sprite(mat);
+    s.position.copy(at);
+    if (offset) s.position.add(offset);
+    s.renderOrder = 10;
+    this.scene.add(s);
+    return tween(duration, (k) => {
+      s.scale.setScalar(size * (0.55 + 0.6 * ease.outBack(Math.min(1, k * 2.2))));
+      mat.opacity = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+      mat.rotation = rotation + spin * k;
+    }, ease.linear).then(() => {
+      this.scene.remove(s);
+      mat.dispose();
+    });
+  }
+
+  /** Top and bottom jaws snapping shut on a target (Bite, Hyper Fang). */
+  bite(at, { size = 1.5, duration = 0.45 } = {}) {
+    const jaws = ['topbite', 'bottombite'].map((name, i) => {
+      const mat = new THREE.SpriteMaterial({ map: fxTexture(name), depthTest: false, transparent: true });
+      const s = new THREE.Sprite(mat);
+      s.scale.setScalar(size);
+      s.renderOrder = 10;
+      this.scene.add(s);
+      return { s, mat, dir: i === 0 ? 1 : -1 };
+    });
+    return tween(duration, (k) => {
+      const close = ease.inCubic(Math.min(1, k * 1.6));
+      for (const { s, mat, dir } of jaws) {
+        s.position.copy(at).add(new THREE.Vector3(0, dir * size * 0.55 * (1 - close), 0));
+        mat.opacity = k > 0.75 ? (1 - k) / 0.25 : 1;
+      }
+    }, ease.linear).then(() => {
+      for (const { s, mat } of jaws) {
+        this.scene.remove(s);
+        mat.dispose();
+      }
     });
   }
 
