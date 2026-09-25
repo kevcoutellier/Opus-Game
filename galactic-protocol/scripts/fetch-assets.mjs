@@ -29,13 +29,16 @@ const manifestPath = join(ROOT, 'manifest.json');
 const manifest = existsSync(manifestPath) && !FORCE ? JSON.parse(readFileSync(manifestPath, 'utf8')) : { files: {} };
 const stats = { ok: 0, cached: 0, failed: [] };
 
-function isImage(buf, svg) {
-  if (svg) return buf.subarray(0, 200).toString('utf8').includes('<svg');
-  const jpeg = buf[0] === 0xff && buf[1] === 0xd8;
-  const png = buf[0] === 0x89 && buf[1] === 0x50;
-  const webp = buf.subarray(8, 12).toString('ascii') === 'WEBP';
-  const gif = buf.subarray(0, 3).toString('ascii') === 'GIF';
-  return jpeg || png || webp || gif;
+/** Actual format of a downloaded file, or null when it is not a picture (error page...). */
+function imageType(buf) {
+  if (buf[0] === 0xff && buf[1] === 0xd8) return 'jpg';
+  if (buf[0] === 0x89 && buf[1] === 0x50) return 'png';
+  if (buf.subarray(8, 12).toString('ascii') === 'WEBP') return 'webp';
+  if (buf.subarray(0, 3).toString('ascii') === 'GIF') return 'gif';
+  // SVG files may start with a long XML prologue or comments.
+  const head = buf.subarray(0, 16384).toString('utf8');
+  if (/<svg[\s>]/i.test(head) && !/<html[\s>]/i.test(head)) return 'svg';
+  return null;
 }
 
 const AGENT = { 'User-Agent': 'galactic-protocol-assets/1.0 (fan project)' };
@@ -49,8 +52,7 @@ const BROWSER = {
 
 /** Downloads the first candidate URL that answers with a valid image. */
 async function download(key, urls, file, headers = AGENT) {
-  const target = join(ROOT, file);
-  if (!FORCE && manifest.files[key] === file && existsSync(target)) {
+  if (!FORCE && manifest.files[key] && existsSync(join(ROOT, manifest.files[key]))) {
     stats.cached++;
     return true;
   }
@@ -60,10 +62,14 @@ async function download(key, urls, file, headers = AGENT) {
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const buf = Buffer.from(await res.arrayBuffer());
-      if (!isImage(buf, file.endsWith('.svg'))) throw new Error('not an image');
+      const type = imageType(buf);
+      if (!type) throw new Error('fichier non reconnu');
+      // Keep the real format (the CDN may serve a PNG rendering of an SVG file, for instance).
+      const actual = file.replace(/\.[a-z0-9]+$/i, `.${type}`);
+      const target = join(ROOT, actual);
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, buf);
-      manifest.files[key] = file;
+      manifest.files[key] = actual;
       stats.ok++;
       return true;
     } catch (err) {

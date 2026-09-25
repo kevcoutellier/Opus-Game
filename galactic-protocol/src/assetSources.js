@@ -149,8 +149,9 @@ export function eventImage(id) {
 
 /** Emblem of a faction: { url, svg } — SVG icons are recoloured with the faction colour. */
 export function emblemIcon(factionId) {
+  // Wookieepedia emblems keep their own colours (shown as pictures, never recoloured).
   const wook = manifest.files[`wookieepedia/emblems/${factionId}`];
-  if (wook) return { url: `assets/${wook}`, svg: wook.endsWith('.svg') };
+  if (wook) return { url: `assets/${wook}`, svg: false };
   const icon = EMBLEMS[factionId];
   if (icon) return { url: resolve(`emblems/${icon}`, `${FA_BASE}/${icon}.svg`), svg: true };
   return null;
