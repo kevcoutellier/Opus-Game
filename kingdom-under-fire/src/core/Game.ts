@@ -19,7 +19,8 @@ import { SelectionManager } from '../selection/SelectionManager';
 import { HUD } from '../ui/HUD';
 import { UnitManager } from '../units/UnitManager';
 import { MovementSystem } from '../units/MovementSystem';
-import { registerMoveOrders } from '../units/MoveOrders';
+import { FormationManager } from '../formations/FormationManager';
+import { FORMATION_LABELS, FORMATION_TYPES } from '../formations/FormationType';
 import { GameLoop } from './GameLoop';
 import { Simulation } from './Simulation';
 import { World } from './World';
@@ -37,6 +38,7 @@ export class Game {
   readonly terrain: Terrain;
   readonly world: World;
   readonly simulation: Simulation;
+  readonly formations: FormationManager;
   readonly units: UnitManager;
   readonly rtsCamera: RTSCamera;
   readonly input: InputManager;
@@ -58,8 +60,8 @@ export class Game {
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
 
     this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
-    registerMoveOrders(this.world);
-    this.simulation = new Simulation(this.world, [new SpatialSystem(), new MovementSystem()], this.perf);
+    this.formations = new FormationManager(this.world);
+    this.simulation = new Simulation(this.world, [new SpatialSystem(), this.formations, new MovementSystem()], this.perf);
     this.units = new UnitManager(this.world);
     setupPrototypeBattle(this.world, MAP_SIZE);
 
@@ -104,9 +106,27 @@ export class Game {
         const id = this.selection.pick(x, y);
         return id >= 0 && world.c.team[id] !== PLAYER_TEAM ? id : -1;
       },
+      formationOf: (units) => this.formations.typeOf(units),
       marker: (x, z, attack) => this.overlay.marker(x, z, attack),
+      preview: (points) => this.overlay.preview(points),
     });
     this.selectionInput.blocked = () => this.orderInput.attackMoveArmed;
+    const orders = this.orderInput;
+    this.hud.panel.setActions([
+      ...FORMATION_TYPES.map((type) => ({
+        label: FORMATION_LABELS[type],
+        title: `Formation : ${FORMATION_LABELS[type]} (F : suivante)`,
+        onClick: () => orders.setFormation(type),
+        active: () => this.formations.typeOf(this.selection.ids) === type,
+      })),
+      { label: 'Tenir (H)', title: 'Tenir la position : ne combattre qu’à portée', onClick: () => orders.hold() },
+      {
+        label: 'Marche offensive (T)',
+        title: 'Le prochain clic engage tout ennemi rencontré en chemin',
+        onClick: () => (orders.attackMoveArmed = true),
+        active: () => orders.attackMoveArmed,
+      },
+    ]);
 
     this.loop = new GameLoop(
       SIM_HZ,

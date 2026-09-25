@@ -3,6 +3,7 @@ import type { World } from '../core/World';
 
 const MAX_RINGS = 2048;
 const MAX_MARKERS = 12;
+const MAX_PREVIEW = 1024;
 const MARKER_SECONDS = 0.9;
 const MOVE = new THREE.Color(0x9be36a);
 const OWN = new THREE.Color(0x9be36a);
@@ -31,6 +32,7 @@ export class OverlayRenderer {
   private readonly rings: THREE.InstancedMesh;
   private readonly markerMesh: THREE.InstancedMesh;
   private readonly markers: Marker[] = [];
+  private readonly previewMesh: THREE.InstancedMesh;
   private readonly tint = new THREE.Color();
   private readonly pos = { x: 0, z: 0 };
   private readonly matrix = new THREE.Matrix4();
@@ -56,6 +58,26 @@ export class OverlayRenderer {
     this.markerMesh.renderOrder = 3;
     this.markerMesh.count = 0;
     this.group.add(this.markerMesh);
+
+    const previewMaterial = new THREE.MeshBasicMaterial({ color: 0xc8f59a, transparent: true, opacity: 0.55, depthWrite: false, fog: false });
+    this.previewMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(0.34, 12).rotateX(-Math.PI / 2), previewMaterial, MAX_PREVIEW);
+    this.previewMesh.frustumCulled = false;
+    this.previewMesh.renderOrder = 3;
+    this.previewMesh.count = 0;
+    this.group.add(this.previewMesh);
+  }
+
+  /** Ghost slots of the formation being drawn with a right-drag (null hides them). */
+  preview(points: ArrayLike<number> | null): void {
+    const n = points ? Math.min(MAX_PREVIEW, points.length / 2) : 0;
+    for (let i = 0; i < n; i++) {
+      const x = points![i * 2];
+      const z = points![i * 2 + 1];
+      this.matrix.makeTranslation(x, this.heightAt(x, z) + 0.07, z);
+      this.previewMesh.setMatrixAt(i, this.matrix);
+    }
+    this.previewMesh.count = n;
+    this.previewMesh.instanceMatrix.needsUpdate = true;
   }
 
   marker(x: number, z: number, attack: boolean): void {

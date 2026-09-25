@@ -3,8 +3,17 @@ import { FACTIONS } from '../data/factions';
 import { UNIT_DEFS } from '../data/units';
 import type { SelectionManager } from '../selection/SelectionManager';
 
-/** Bottom panel: what is selected (count per unit type, health, faction). Rebuilt only on change. */
+export interface PanelAction {
+  label: string;
+  title: string;
+  onClick(): void;
+  /** Highlighted when true (current formation, armed order). */
+  active?(): boolean;
+}
+
+/** Bottom panel: what is selected (count per unit type, health, faction) and the order buttons. */
 export class SelectionPanel {
+  private buttons: { el: HTMLButtonElement; action: PanelAction }[] = [];
   readonly el: HTMLDivElement;
   private readonly summary: HTMLDivElement;
   private readonly stats: HTMLDivElement;
@@ -29,8 +38,25 @@ export class SelectionPanel {
     root.appendChild(this.el);
   }
 
+  setActions(actions: PanelAction[]): void {
+    this.buttons = actions.map((action) => {
+      const el = document.createElement('button');
+      el.textContent = action.label;
+      el.title = action.title;
+      el.onclick = () => action.onClick();
+      return { el, action };
+    });
+    this.actions.replaceChildren(...this.buttons.map((b) => b.el));
+  }
+
   update(): void {
     const { selection, world } = this;
+    if (selection.commandable) {
+      for (const { el, action } of this.buttons) {
+        const on = action.active?.() ?? false;
+        if (el.classList.contains('active') !== on) el.classList.toggle('active', on);
+      }
+    }
     if (selection.version !== this.version) {
       this.version = selection.version;
       this.el.classList.toggle('empty', selection.size === 0);

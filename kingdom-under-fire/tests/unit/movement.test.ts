@@ -9,7 +9,7 @@ import { NavGrid } from '../../src/navigation/NavGrid';
 import { SpatialHashGrid } from '../../src/navigation/SpatialHashGrid';
 import { SpatialSystem } from '../../src/navigation/SpatialSystem';
 import { MovementSystem, turnTowards } from '../../src/units/MovementSystem';
-import { registerMoveOrders } from '../../src/units/MoveOrders';
+import { FormationManager } from '../../src/formations/FormationManager';
 import { spawnBlock, spawnUnit } from '../../src/units/UnitFactory';
 
 /** Vertical wall at x in [60, 62) over the whole height except a gap around z = 100. */
@@ -22,8 +22,7 @@ function wallWithGap(grid: NavGrid): void {
 }
 
 function sim(world: World): Simulation {
-  registerMoveOrders(world);
-  return new Simulation(world, [new SpatialSystem(), new MovementSystem()]);
+  return new Simulation(world, [new SpatialSystem(), new FormationManager(world), new MovementSystem()]);
 }
 
 const run = (s: Simulation, seconds: number) => {
