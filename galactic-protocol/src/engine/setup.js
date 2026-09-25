@@ -184,6 +184,13 @@ export function createGame({ scenario: scenarioId, player, seed = Date.now() }) 
     state.wars.push({ id: newId(state, 'war'), name: w.name, att: [...w.attackers], def: [...w.defenders], start: 0, losses: { att: 0, def: 0 } });
     for (const a of w.attackers) for (const d of w.defenders) setRelation(state, a, d, -90);
   }
+  // Vassals fight their overlord's wars.
+  for (const [lord, vassal] of sc.vassals) {
+    for (const w of state.wars) {
+      if (w.att.includes(lord) && !w.att.includes(vassal)) w.att.push(vassal);
+      if (w.def.includes(lord) && !w.def.includes(vassal)) w.def.push(vassal);
+    }
+  }
   if (state.insurgency) for (const o of state.insurgency.against) setRelation(state, state.insurgency.faction, o, -100);
   if (sc.senate) {
     state.senate = {

@@ -315,7 +315,7 @@ export const STORY = {
   },
   wookiee_enslavement: {
     scenario: 'bby19', faction: 'empire', title: 'Le sort de Kashyyyk',
-    when: (state) => state.day >= 60 && state.factions.kashyyyk?.alive && !atWar(state, 'empire', 'kashyyyk'),
+    when: (state) => state.day >= 300 && state.factions.kashyyyk?.alive && !atWar(state, 'empire', 'kashyyyk'),
     text: () => 'Les ingénieurs de l’Étoile de la Mort réclament une main-d’œuvre robuste. Les Wookiees de Kashyyyk conviendraient parfaitement.',
     options: [
       { label: 'Envahir Kashyyyk', tip: 'Déclare la guerre à Kashyyyk', apply: (state, fid) => declareWar(state, fid, 'kashyyyk', { name: 'Occupation de Kashyyyk' }) },

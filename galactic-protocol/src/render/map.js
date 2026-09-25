@@ -617,7 +617,7 @@ export class GalaxyMap {
         ctx.stroke();
       }
       const important = capOf || stat.pop >= 10 || this.selection?.id === stat.id;
-      if (z >= 0.95 || (important && z >= 0.45)) {
+      if (z >= 0.75 || (important && z >= 0.42)) {
         const labelY = y + (showPlanets ? Math.max(7, r * 2.1) : r) + 12;
         this.label(hidden ? `${stat.name} ?` : stat.name, x, labelY, capOf ? '#ffe7a8' : 'rgba(225,232,245,0.88)', !!capOf);
       }
