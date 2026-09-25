@@ -56,6 +56,16 @@ lance directement une partie, sans menu ni texte déroulant.
 | Panneaux | `E` économie, `F` armée, `G` diplomatie, `I` renseignement, `R` recherche, `N` Sénat, `P` politique, `L` alerte, `C` classement, `H` HoloNet | barre de gauche |
 | Mode de carte | `M` | boutons en bas |
 
+### Interface holographique
+
+Toute l’interface est projetée comme un hologramme de salle de commandement : panneaux translucides cyan à coins
+lumineux, lignes de balayage et bande d’interférence, léger scintillement, animation de projection à l’ouverture,
+inscriptions en aurebesh sous les titres. L’écran titre montre la galaxie au-dessus d’une table holographique ;
+en jeu, la carte devient une carte galactique graduée (anneaux des régions, relèvements, balayage radar), les
+dirigeants apparaissent en hologrammes bleus et les événements arrivent comme des transmissions entrantes.
+Menu ▸ **Effets holographiques** coupe les animations (choix mémorisé) ; elles sont aussi désactivées quand le
+système demande de réduire les animations.
+
 ## Assets officiels
 
 Les visuels et les sons officiels ne sont **pas versionnés** (`public/assets/` est dans `.gitignore`) : ils
@@ -70,6 +80,7 @@ dessiné ou synthétisé par le jeu.
 | Planètes, emblèmes et dirigeants absents de SWAPI (Kuat, Scarif, Lothal, Hutts, Chiss, Rae Sloane, Snoke…) | [Wookieepedia](https://starwars.fandom.com) (API MediaWiki) |
 | Bruitages (lasers, explosions, alarmes, interface, hyperespace) | [The Sounds Resource](https://sounds.spriters-resource.com) : Empire at War, X-Wing vs. TIE Fighter, TIE Fighter, X-Wing |
 | Thème principal | votre propre fichier, copié dans `public/assets/audio/theme.mp3` |
+| Police Aurebesh (versionnée dans `src/fonts/`) | [silvinor/font-aurebesh](https://github.com/silvinor/font-aurebesh) (SIL Open Font License 1.1, voir `src/fonts/Aurebesh-OFL.md`) |
 
 Les sons sont triés automatiquement d’après le nom des fichiers (lasers, explosions, superlaser, alarmes,
 interface, hyperespace) ; sans eux, le jeu synthétise ses bruitages et une fanfare originale en WebAudio.
@@ -89,8 +100,10 @@ src/
     politics.js    stabilité, insurrection, élections, décisions ; espionage.js ; research.js ; senate.js
     superweapons.js  niveau d’alerte, Base Delta Zéro, superlasers ; events.js : crises et événements
     ai.js          IA des factions ; save.js : sauvegardes (localStorage)
-  render/map.js  carte en Canvas 2D : galaxie spirale, territoires, hyperroutes, planètes, flottes, effets
+  render/map.js  carte holographique en Canvas 2D : galaxie spirale, grille polaire, territoires, hyperroutes,
+                 planètes, flottes, effets
   ui/            écran titre, choix de faction, texte déroulant, HUD, panneaux, fiches, fenêtres
+  styles.css     thème holographique ; fonts/ : police Aurebesh
   audio/         échantillons officiels ou sons synthétisés
 scripts/fetch-assets.mjs  téléchargement des assets officiels et du manifeste
 ```

@@ -122,3 +122,37 @@ export function hideTooltip() {
 export function esc(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// ---------------------------------------------------------------- holograms
+
+// The Aurebesh font only has unaccented Latin letters and digits.
+export function aurebesh(text, cls = '') {
+  const plain = String(text).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’']/g, ' ');
+  return h('span', { class: `aurebesh ${cls}`.trim(), 'aria-hidden': 'true' }, plain.toLowerCase());
+}
+
+// A portrait projected as a blue hologram.
+export function holoPic(src, { width = 88, height = 116, contain = false, alt = '' } = {}) {
+  const px = (v) => (typeof v === 'number' ? `${v}px` : v);
+  return h('div', { class: `holo-pic ${contain ? 'contain' : ''}`, style: { width: px(width), height: px(height) } },
+    h('img', { src, alt, onerror: (e) => { e.target.parentElement.style.display = 'none'; } }));
+}
+
+// Replays the projection animation on an element (panels opening, new selection).
+export function project(el) {
+  if (document.body.classList.contains('no-holo')) return;
+  el.classList.remove('holo-in');
+  void el.offsetWidth;
+  el.classList.add('holo-in');
+  const done = (e) => {
+    if (e.target !== el) return;
+    el.classList.remove('holo-in');
+    el.removeEventListener('animationend', done);
+  };
+  el.addEventListener('animationend', done);
+}
+
+// Head bar of a side panel: optional icon, title with its Aurebesh transliteration, then extra nodes.
+export function holoHead(title, { lead = null, extra = [] } = {}) {
+  return h('div', { class: 'side-head' }, lead, h('div', { class: 'titles' }, h('h2', {}, title), aurebesh(title)), extra);
+}

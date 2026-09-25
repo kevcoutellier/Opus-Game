@@ -5,7 +5,7 @@ import { planPath, orderMove } from '../engine/military.js';
 import { playerSees } from '../engine/news.js';
 import { saveGame } from '../engine/save.js';
 import { staticSystem } from '../engine/query.js';
-import { h, clear, hideTooltip } from './dom.js';
+import { h, clear, hideTooltip, project } from './dom.js';
 import { preloadEmblems } from './emblems.js';
 import { buildHud } from './hud.js';
 import { PANELS, renderPanel } from './panels.js';
@@ -53,13 +53,14 @@ export class GameUI {
     this.right = h('section', { class: 'side right', style: { display: 'none' } });
     this.toasts = h('div', { id: 'toasts' });
     this.minimap = h('canvas', { id: 'minimap', width: 340, height: 340 });
+    this.minimapWrap = h('div', { id: 'minimap-wrap' }, this.minimap);
     this.modes = h('div', { class: 'modes' });
     this.tickerMsg = h('span', { class: 'msg' }, '');
     this.bottom = h('div', { id: 'bottom' },
       this.modes,
-      h('div', { class: 'ticker', onclick: () => this.openPanel('news'), 'data-tip': 'Journal HoloNet' }, h('span', { class: 'holo' }, 'HOLONET'), this.tickerMsg),
+      h('div', { class: 'ticker', onclick: () => this.openPanel('news'), 'data-tip': 'Journal HoloNet' }, h('span', { class: 'holo-tag' }, 'HOLONET'), this.tickerMsg),
     );
-    root.append(this.hud.el, this.nav, this.left, this.right, this.bottom, this.minimap, this.toasts);
+    root.append(this.hud.el, this.nav, this.left, this.right, this.bottom, this.minimapWrap, this.toasts);
     this.buildNav();
     this.buildModes();
     this.map.setState(this.state);
@@ -269,9 +270,14 @@ export class GameUI {
   }
 
   openPanel(id) {
+    const changed = this.panel !== id;
     this.panel = id;
     this.left.style.display = 'flex';
     this.refreshPanels(true);
+    if (changed) {
+      project(this.left);
+      audio.holo();
+    }
   }
 
   closePanel() {
@@ -281,6 +287,7 @@ export class GameUI {
   }
 
   select(selection) {
+    const changed = !selection || !this.selection || selection.type !== this.selection.type || selection.id !== this.selection.id;
     this.selection = selection;
     this.map.selection = selection;
     this.moveMode = false;
@@ -288,6 +295,7 @@ export class GameUI {
     if (selection) {
       this.right.style.display = 'flex';
       renderDetails(this, selection, this.right);
+      if (changed) project(this.right);
     } else this.right.style.display = 'none';
   }
 

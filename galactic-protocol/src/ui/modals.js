@@ -4,7 +4,7 @@ import { answerInbox, inboxText, inboxTitle, gdpShare } from '../engine/sim.js';
 import { fac, formatDate } from '../engine/query.js';
 import { SLOTS, listSaves, loadGame, saveGame } from '../engine/save.js';
 import { eventImage, leaderImage } from '../assetSources.js';
-import { h, esc, fmt } from './dom.js';
+import { h, esc, fmt, aurebesh, holoPic, project } from './dom.js';
 import { emblemSvg } from './emblems.js';
 import { helpModal } from './help.js';
 import { audio } from '../audio/audio.js';
@@ -18,16 +18,21 @@ export function closeModal() {
   open = null;
 }
 
-export function modal({ title, image = null, emblem = null, body, actions = [], wide = false, dismissable = false }) {
+// `transmission` turns the window into an incoming holographic call; `image` is projected above the text.
+export function modal({ title, image = null, emblem = null, body, actions = [], wide = false, dismissable = false, transmission = null }) {
   closeModal();
-  const overlay = h('div', { class: 'overlay', onclick: (e) => { if (dismissable && e.target === overlay) closeModal(); } },
-    h('div', { class: `modal ${wide ? 'wide' : ''}` },
-      image ? h('img', { class: 'modal-img', src: image, alt: '' }) : null,
-      h('div', { class: 'modal-head' }, emblem, h('h3', {}, title)),
-      h('div', { class: 'modal-body' }, body),
-      actions.length ? h('div', { class: 'modal-actions' }, actions) : null,
-    ));
+  const box = h('div', { class: `modal ${wide ? 'wide' : ''}` },
+    transmission ? h('div', { class: 'transmission-bar' }, h('span', { class: 'dot' }), transmission, aurebesh(transmission)) : null,
+    image ? h('div', { class: 'projection' }, holoPic(image, { width: '100%', height: 210, contain: true })) : null,
+    h('div', { class: 'modal-head' }, emblem, h('h3', {}, title)),
+    h('div', { class: 'modal-body' }, body),
+    actions.length ? h('div', { class: 'modal-actions' }, actions) : null,
+  );
+  const overlay = h('div', { class: 'overlay', onclick: (e) => { if (dismissable && e.target === overlay) closeModal(); } }, box);
   document.getElementById('ui').append(overlay);
+  project(box);
+  if (transmission) audio.transmission();
+  else audio.holo();
   open = overlay;
   return overlay;
 }
@@ -38,7 +43,6 @@ function action(label, tip, onclick, cls = '') {
 
 export function showInbox(ui, item) {
   const state = ui.state;
-  audio.notify();
   const done = (choice) => {
     closeModal();
     audio.click();
@@ -52,6 +56,7 @@ export function showInbox(ui, item) {
     const def = eventDef(item);
     modal({
       title: def.title,
+      transmission: 'TRANSMISSION HOLONET',
       image: eventImage(item.event),
       body: h('p', {}, def.text(state, state.player, item.ctx)),
       actions: def.options.map((o, i) => action(o.label, o.tip, () => done(i), i === 0 ? 'primary' : '')),
@@ -64,10 +69,10 @@ export function showInbox(ui, item) {
   const no = { treaty: 'Refuser', peace: 'Rejeter', call: 'Refuser (l’alliance sera rompue)', peacekeeping: 'Rester neutre' }[item.kind];
   modal({
     title: inboxTitle(state, item),
+    transmission: from ? `TRANSMISSION ENTRANTE — ${from.short || from.name}` : 'TRANSMISSION ENTRANTE',
+    image: img,
     emblem: from ? h('span', { class: 'emblem', style: { width: '40px', height: '40px' }, html: emblemSvg(from, 26) }) : null,
-    body: h('div', { class: 'row', style: { alignItems: 'flex-start', gap: '12px' } },
-      img ? h('img', { class: 'portrait', src: img, alt: '' }) : null,
-      h('p', { style: { margin: 0 } }, inboxText(state, item))),
+    body: h('p', { style: { margin: 0 } }, inboxText(state, item)),
     actions: [action(yes, null, () => done(0), 'primary'), action(no, null, () => done(1))],
   });
 }
@@ -105,8 +110,7 @@ export function quitToTitle(ui) {
   ui.app.showTitle();
 }
 
-export function openMenu(ui) {
-  const wasSpeed = ui.speed;
+export function openMenu(ui, wasSpeed = ui.speed) {
   ui.setSpeed(0);
   const saves = listSaves();
   const slotRow = (slot) => {
@@ -115,7 +119,7 @@ export function openMenu(ui) {
       h('div', {}, h('b', {}, slot === 'auto' ? 'Automatique' : `Emplacement ${slot}`),
         h('div', { class: 'muted small' }, meta ? `${esc(meta.name)} · jour ${meta.day} · ${new Date(meta.savedAt).toLocaleString('fr-FR')}` : 'vide')),
       h('div', { class: 'row' },
-        slot !== 'auto' ? h('button', { class: 'btn small', onclick: () => { if (saveGame(ui.state, slot)) { ui.flash('Partie sauvegardée.', true); openMenu(ui); } else ui.flash('Sauvegarde impossible (stockage plein ?)'); } }, 'Sauver') : null,
+        slot !== 'auto' ? h('button', { class: 'btn small', onclick: () => { if (saveGame(ui.state, slot)) { ui.flash('Partie sauvegardée.', true); openMenu(ui, wasSpeed); } else ui.flash('Sauvegarde impossible (stockage plein ?)'); } }, 'Sauver') : null,
         meta ? h('button', { class: 'btn small', onclick: () => {
           const state = loadGame(slot);
           if (!state) return;
@@ -131,6 +135,10 @@ export function openMenu(ui) {
     actions: [
       action('Reprendre', null, () => { closeModal(); ui.setSpeed(wasSpeed); }, 'primary'),
       action('Comment jouer', null, () => helpModal(ui.app)),
+      action(`Effets holographiques : ${ui.app.holo ? 'activés' : 'désactivés'}`, 'Lignes de balayage, scintillement, balayage radar et animations de projection.', () => {
+        ui.app.setHolo(!ui.app.holo);
+        openMenu(ui, wasSpeed);
+      }),
       action('Quitter vers le menu principal', 'La partie en cours est sauvegardée automatiquement.', () => { saveGame(ui.state, 'auto'); closeModal(); quitToTitle(ui); }),
     ],
   });

@@ -13,6 +13,8 @@ const WORLD = 1300; // Half-size of the rendered world square.
 const TERR_RES = 3; // World units per territory pixel.
 const TERR_RADIUS = 150;
 const TERR_SIZE = Math.round((WORLD * 2) / TERR_RES);
+const GRID_R = 1180; // Radius of the holographic chart ring.
+const HOLO = '114,228,255';
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -109,6 +111,26 @@ function buildGalaxyBackground() {
   return c;
 }
 
+/** Recolours a layer as a blue hologram, keeping a little of the original hue. */
+function holoTint(src) {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const g = c.getContext('2d');
+  g.drawImage(src, 0, 0);
+  const img = g.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    const l = d[i] * 0.3 + d[i + 1] * 0.55 + d[i + 2] * 0.15;
+    d[i] = Math.min(255, l * 0.42 + d[i] * 0.18);
+    d[i + 1] = Math.min(255, l * 0.88 + d[i + 1] * 0.12);
+    d[i + 2] = Math.min(255, l * 1.05 + d[i + 2] * 0.12);
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+
 function buildStarTile() {
   const size = 512;
   const c = document.createElement('canvas');
@@ -195,7 +217,8 @@ export class GalaxyMap {
     this.chipRects = [];
     this.images = new Map();
     this.dirty = true;
-    this.background = buildGalaxyBackground();
+    this.background = holoTint(buildGalaxyBackground());
+    this.fx = true; // Animated hologram effects (radar sweep); off with the "no-holo" option.
     this.starTile = buildStarTile();
     this.terr = buildTerritoryIndex();
     this.terrCanvas = document.createElement('canvas');
@@ -404,25 +427,22 @@ export class GalaxyMap {
 
   // ------------------------------------------------------------ drawing
 
-  /** Slowly rotating galaxy behind the title screen. */
+  /** Slowly rotating galaxy projected above a holotable, behind the title screens (tilted by CSS). */
   drawIdle(t) {
     const { ctx } = this;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#03050b';
+    ctx.fillStyle = '#02060c';
     ctx.fillRect(0, 0, this.w, this.h);
-    this.cam.x = Math.sin(t / 30000) * 400;
-    this.cam.y = Math.cos(t / 41000) * 300;
-    this.cam.zoom = 1;
-    this.drawStarfield();
-    const size = Math.max(this.w, this.h) * 1.35;
+    const radius = Math.min(this.w, this.h) * 0.45; // The whole disc stays inside the tilted canvas.
+    const z = radius / GRID_R;
     ctx.save();
-    ctx.translate(this.w / 2, this.h * 0.55);
-    ctx.rotate(t / 90000);
-    ctx.scale(1, 0.62);
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(this.background, -size / 2, -size / 2, size, size);
-    ctx.restore();
+    ctx.translate(this.w / 2, this.h / 2);
+    ctx.rotate(t / 60000);
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(this.background, -WORLD * z, -WORLD * z, WORLD * 2 * z, WORLD * 2 * z);
     ctx.globalAlpha = 1;
+    ctx.restore();
+    this.holoGrid(this.w / 2, this.h / 2, z, t, { labels: false, rotate: t / 60000 });
   }
 
   draw() {
@@ -440,7 +460,8 @@ export class GalaxyMap {
     ctx.globalAlpha = 0.95;
     ctx.drawImage(this.background, bx, by, WORLD * 2 * z, WORLD * 2 * z);
     ctx.globalAlpha = 1;
-    this.drawRegions();
+    const [gx, gy] = this.toScreen(0, 0);
+    this.holoGrid(gx, gy, z, now, { labels: z <= 0.8 });
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.terrSmooth, bx, by, WORLD * 2 * z, WORLD * 2 * z);
     this.drawLanes();
@@ -460,34 +481,95 @@ export class GalaxyMap {
     ctx.globalAlpha = 1;
   }
 
-  drawRegions() {
+  /** Polar chart of a holographic galaxy map: region rings, bearings, graduated rim and a radar sweep. */
+  holoGrid(cx, cy, z, now, { labels = true, rotate = 0 } = {}) {
     const { ctx } = this;
-    const z = this.cam.zoom;
-    if (z > 0.8) return;
-    const [cx, cy] = this.toScreen(0, 0);
+    const R = GRID_R * z;
+    const fade = Math.max(0.25, Math.min(1, 1.5 - z * 0.6));
     ctx.save();
-    ctx.setLineDash([4, 10]);
-    ctx.strokeStyle = 'rgba(140,170,220,0.10)';
     ctx.lineWidth = 1;
-    const rings = ['deep', 'core', 'colonies', 'inner', 'expansion', 'mid'];
-    ctx.font = '600 10px Orbitron, sans-serif';
-    ctx.fillStyle = 'rgba(170,190,230,0.32)';
-    ctx.textAlign = 'center';
-    for (const id of rings) {
-      const r = REGIONS[id].band[1] * z;
+    // Region rings (dropped when zoomed in, where they would only be long dashed arcs off screen).
+    if (z < 2) {
+      ctx.setLineDash([3, 9]);
+      ctx.strokeStyle = `rgba(${HOLO},${0.16 * fade})`;
+      for (const id of ['deep', 'core', 'colonies', 'inner', 'expansion', 'mid', 'outer']) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, REGIONS[id].band[1] * z, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    // Bearings every 30°.
+    ctx.strokeStyle = `rgba(${HOLO},${0.07 * fade})`;
+    ctx.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = rotate + (i * Math.PI) / 6;
+      ctx.moveTo(cx + Math.cos(a) * 60 * z, cy + Math.sin(a) * 60 * z);
+      ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+    }
+    ctx.stroke();
+    // Graduated rim (a wide faint stroke under a thin one reads as a glow, much cheaper than shadowBlur).
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${HOLO},${0.1 * fade})`;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(${HOLO},${0.45 * fade})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(${HOLO},${0.2 * fade})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R + 14 * Math.min(1, z * 2), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(${HOLO},${0.4 * fade})`;
+    ctx.beginPath();
+    for (let i = 0; i < 72; i++) {
+      const a = rotate + (i * Math.PI) / 36;
+      const len = (i % 6 === 0 ? 14 : 6) * Math.min(1, z * 2);
+      ctx.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+      ctx.lineTo(cx + Math.cos(a) * (R + len), cy + Math.sin(a) * (R + len));
+    }
+    ctx.stroke();
+    if (labels) {
+      ctx.font = '600 10px Orbitron, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `rgba(${HOLO},0.55)`;
+      for (let i = 0; i < 12; i++) {
+        const a = (i * Math.PI) / 6 - Math.PI / 2;
+        ctx.fillText(String(i * 30).padStart(3, '0'), cx + Math.cos(a) * (R + 30), cy + Math.sin(a) * (R + 30));
+      }
+      const names = [['Noyau', 'core', -0.35], ['Colonies', 'colonies', -0.55], ['Bordure Intérieure', 'inner', -0.7],
+        ['Région d’Expansion', 'expansion', -0.85], ['Bordure Médiane', 'mid', -1.0], ['Bordure Extérieure', 'outer', -1.25]];
+      ctx.fillStyle = `rgba(${HOLO},0.38)`;
+      for (const [text, id, ang] of names) {
+        const [r0, r1] = REGIONS[id].band;
+        const r = ((r0 + r1) / 2) * z;
+        ctx.fillText(text.toUpperCase(), cx + Math.cos(ang - Math.PI / 2) * r, cy + Math.sin(ang - Math.PI / 2) * r);
+      }
+      ctx.fillText('RÉGIONS INCONNUES', cx - 980 * z, cy + 260 * z);
+      ctx.textBaseline = 'alphabetic';
+    }
+    // Radar sweep: only the trailing wedge is filled.
+    if (this.fx && z < 1.9 && ctx.createConicGradient) {
+      const a = (now / 7000) * Math.PI * 2;
+      const tail = 0.9;
+      const sweep = ctx.createConicGradient(a - tail, cx, cy);
+      sweep.addColorStop(0, `rgba(${HOLO},0)`);
+      sweep.addColorStop(tail / (Math.PI * 2), `rgba(${HOLO},0.09)`);
+      sweep.addColorStop(tail / (Math.PI * 2) + 0.001, `rgba(${HOLO},0)`);
+      ctx.fillStyle = sweep;
       ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a - tail, a);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${HOLO},0.22)`;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
       ctx.stroke();
     }
-    ctx.setLineDash([]);
-    const labels = [['Noyau', 'core', -0.35], ['Colonies', 'colonies', -0.55], ['Bordure Intérieure', 'inner', -0.7],
-      ['Région d’Expansion', 'expansion', -0.85], ['Bordure Médiane', 'mid', -1.0], ['Bordure Extérieure', 'outer', -1.25]];
-    for (const [text, id, ang] of labels) {
-      const [r0, r1] = REGIONS[id].band;
-      const r = ((r0 + r1) / 2) * z;
-      ctx.fillText(text.toUpperCase(), cx + Math.cos(ang - Math.PI / 2) * r, cy + Math.sin(ang - Math.PI / 2) * r);
-    }
-    ctx.fillText('RÉGIONS INCONNUES', cx - 980 * z, cy + 260 * z);
     ctx.restore();
   }
 
@@ -495,7 +577,7 @@ export class GalaxyMap {
     const { ctx } = this;
     const z = this.cam.zoom;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(150,180,230,0.16)';
+    ctx.strokeStyle = `rgba(${HOLO},0.2)`;
     ctx.lineWidth = Math.max(0.6, 0.8 * Math.sqrt(z));
     ctx.beginPath();
     for (const lane of GALAXY.lanes) {
@@ -508,8 +590,7 @@ export class GalaxyMap {
       ctx.lineTo(x2, y2);
     }
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,205,120,0.38)';
-    ctx.lineWidth = Math.max(1, 1.5 * Math.sqrt(z));
+    // Trade routes: a wide faint halo under a bright core line.
     ctx.beginPath();
     for (const lane of GALAXY.lanes) {
       if (!lane.major) continue;
@@ -520,6 +601,11 @@ export class GalaxyMap {
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
     }
+    ctx.strokeStyle = `rgba(${HOLO},0.12)`;
+    ctx.lineWidth = Math.max(3, 4.5 * Math.sqrt(z));
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(170,245,255,0.55)';
+    ctx.lineWidth = Math.max(1, 1.3 * Math.sqrt(z));
     ctx.stroke();
   }
 
@@ -571,21 +657,21 @@ export class GalaxyMap {
           ctx.fill();
         }
         ctx.restore();
-        ctx.strokeStyle = owner ? this.factionColor(owner) : 'rgba(200,210,230,0.5)';
+        ctx.strokeStyle = owner ? this.factionColor(owner) : `rgba(${HOLO},0.6)`;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.arc(x, y, pr + 1.5, 0, Math.PI * 2);
         ctx.stroke();
       } else {
         const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 3.2);
-        glow.addColorStop(0, 'rgba(255,255,255,0.9)');
-        glow.addColorStop(0.3, 'rgba(190,215,255,0.35)');
-        glow.addColorStop(1, 'rgba(160,190,255,0)');
+        glow.addColorStop(0, 'rgba(235,252,255,0.95)');
+        glow.addColorStop(0.3, `rgba(${HOLO},0.35)`);
+        glow.addColorStop(1, `rgba(${HOLO},0)`);
         ctx.fillStyle = glow;
         ctx.beginPath();
         ctx.arc(x, y, r * 3.2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = owner ? this.factionColor(owner) : '#cfd8e8';
+        ctx.fillStyle = owner ? this.factionColor(owner) : '#bfefff';
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
@@ -600,17 +686,9 @@ export class GalaxyMap {
         ctx.arc(x, y, r * 2.4 + 5 + pulse * 3, 0, Math.PI * 2);
         ctx.stroke();
       }
-      if (this.selection?.type === 'system' && this.selection.id === stat.id) {
-        ctx.strokeStyle = '#ffd35a';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 4]);
-        ctx.beginPath();
-        ctx.arc(x, y, (showPlanets ? Math.max(7, r * 2.1) : r) + 9, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
+      if (this.selection?.type === 'system' && this.selection.id === stat.id) this.reticle(x, y, (showPlanets ? Math.max(7, r * 2.1) : r) + 9, now);
       if (this.hoverSys === stat.id) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.strokeStyle = `rgba(${HOLO},0.7)`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(x, y, (showPlanets ? Math.max(7, r * 2.1) : r) + 6, 0, Math.PI * 2);
@@ -619,7 +697,7 @@ export class GalaxyMap {
       const important = capOf || stat.pop >= 10 || this.selection?.id === stat.id;
       if (z >= 0.75 || (important && z >= 0.42)) {
         const labelY = y + (showPlanets ? Math.max(7, r * 2.1) : r) + 12;
-        this.label(hidden ? `${stat.name} ?` : stat.name, x, labelY, capOf ? '#ffe7a8' : 'rgba(225,232,245,0.88)', !!capOf);
+        this.label(hidden ? `${stat.name} ?` : stat.name, x, labelY, capOf ? '#ffffff' : 'rgba(190,240,255,0.9)', !!capOf);
       }
     }
   }
@@ -660,10 +738,40 @@ export class GalaxyMap {
     ctx.font = `${bold ? 700 : 500} ${bold ? 12 : 11}px "Exo 2", sans-serif`;
     ctx.textAlign = 'center';
     ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(3,5,11,0.85)';
+    ctx.strokeStyle = 'rgba(2,8,16,0.85)';
     ctx.strokeText(text, x, y);
     ctx.fillStyle = color;
+    ctx.shadowColor = `rgba(${HOLO},0.8)`;
+    ctx.shadowBlur = bold ? 8 : 5;
     ctx.fillText(text, x, y);
+    ctx.shadowBlur = 0;
+  }
+
+  /** Rotating targeting brackets around the selected system. */
+  reticle(x, y, r, now) {
+    const { ctx } = this;
+    const a0 = now / 1400;
+    ctx.save();
+    ctx.strokeStyle = `rgb(${HOLO})`;
+    ctx.shadowColor = `rgb(${HOLO})`;
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const a = a0 + (i * Math.PI) / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, a, a + 0.8);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      ctx.moveTo(x + Math.cos(a) * (r + 3), y + Math.sin(a) * (r + 3));
+      ctx.lineTo(x + Math.cos(a) * (r + 9), y + Math.sin(a) * (r + 9));
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawPath() {
@@ -688,7 +796,7 @@ export class GalaxyMap {
       const start = sel.move ? [sel.move.from, sel.move.to] : [sel.sys];
       draw([...start, ...sel.path], 'rgba(120,220,255,0.8)', [6, 5]);
     }
-    if (this.pathPreview) draw(this.pathPreview, 'rgba(255,215,90,0.85)', [3, 4]);
+    if (this.pathPreview) draw(this.pathPreview, 'rgba(200,250,255,0.9)', [3, 4]);
   }
 
   stackPosition(st) {
@@ -727,7 +835,7 @@ export class GalaxyMap {
         const [tx, ty] = this.toScreen(b.x, b.y);
         const ang = Math.atan2(ty - y, tx - x);
         // Hyperspace streak.
-        ctx.strokeStyle = `rgba(200,230,255,${0.3 + 0.2 * Math.sin(now / 90)})`;
+        ctx.strokeStyle = `rgba(${HOLO},${0.35 + 0.2 * Math.sin(now / 90)})`;
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(x - Math.cos(ang) * 14, y - Math.sin(ang) * 14);
@@ -761,7 +869,7 @@ export class GalaxyMap {
     const h = 13;
     const rx = x;
     const ry = y - h / 2;
-    ctx.fillStyle = 'rgba(6,10,18,0.9)';
+    ctx.fillStyle = 'rgba(3,16,28,0.88)';
     ctx.strokeStyle = color;
     ctx.lineWidth = own ? 1.8 : 1;
     ctx.beginPath();
@@ -775,9 +883,13 @@ export class GalaxyMap {
     ctx.fillText(text, rx + w / 2 + 2, ry + h - 3);
     const selected = this.selection?.type === 'stack' && this.selection.id === st.id;
     if (selected) {
-      ctx.strokeStyle = '#ffd35a';
+      ctx.save();
+      ctx.strokeStyle = `rgb(${HOLO})`;
+      ctx.shadowColor = `rgb(${HOLO})`;
+      ctx.shadowBlur = 8;
       ctx.lineWidth = 2;
       ctx.strokeRect(rx - 2, ry - 2, w + 4, h + 4);
+      ctx.restore();
     }
     if (moving && own) {
       ctx.fillStyle = 'rgba(120,220,255,0.9)';
@@ -878,22 +990,39 @@ export class GalaxyMap {
     return best;
   }
 
-  /** Small overview used by the minimap. */
+  /** Small circular overview used by the minimap. */
   drawMinimap(canvas) {
     const g = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
     g.clearRect(0, 0, w, h);
+    g.fillStyle = 'rgba(2,14,26,0.85)';
+    g.fillRect(0, 0, w, h);
     g.globalAlpha = 0.9;
     g.drawImage(this.background, 0, 0, w, h);
     g.globalAlpha = 1;
     g.drawImage(this.terrSmooth, 0, 0, w, h);
     const k = w / (WORLD * 2);
+    g.strokeStyle = `rgba(${HOLO},0.25)`;
+    g.lineWidth = 1;
+    g.beginPath();
+    for (const r of [0.25, 0.5, 0.75]) {
+      g.moveTo(w / 2 + GRID_R * k * r, h / 2);
+      g.arc(w / 2, h / 2, GRID_R * k * r, 0, Math.PI * 2);
+    }
+    g.moveTo(0, h / 2);
+    g.lineTo(w, h / 2);
+    g.moveTo(w / 2, 0);
+    g.lineTo(w / 2, h);
+    g.stroke();
     const vw = (this.w / this.cam.zoom) * k;
     const vh = (this.h / this.cam.zoom) * k;
-    g.strokeStyle = '#ffd35a';
-    g.lineWidth = 1;
+    g.strokeStyle = `rgb(${HOLO})`;
+    g.shadowColor = `rgb(${HOLO})`;
+    g.shadowBlur = 6;
+    g.lineWidth = 2;
     g.strokeRect((this.cam.x + WORLD) * k - vw / 2, (this.cam.y + WORLD) * k - vh / 2, vw, vh);
+    g.shadowBlur = 0;
   }
 
   minimapToWorld(mx, my, canvas) {

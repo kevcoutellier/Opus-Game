@@ -128,6 +128,18 @@ class SoundSystem {
     this.tone({ freq: 990, type: 'triangle', dur: 0.14, vol: 0.1, delay: 0.08 });
   }
   notify() { if (this.throttle('notify', 400)) this.tone({ freq: 880, type: 'sine', dur: 0.25, vol: 0.08, slide: 1320 }); }
+  /** Soft shimmer of a hologram switching on. */
+  holo() {
+    if (!this.throttle('holo', 250)) return;
+    this.tone({ freq: 1500, type: 'sine', dur: 0.16, vol: 0.025, slide: 2600 });
+    this.tone({ freq: 2250, type: 'triangle', dur: 0.12, vol: 0.015, slide: 3400, delay: 0.04 });
+  }
+  /** Incoming holographic transmission: warbling chirps over a burst of static. */
+  transmission() {
+    if (!this.throttle('transmission', 800)) return;
+    this.noise({ dur: 0.35, vol: 0.05, filter: 3200 });
+    for (let i = 0; i < 3; i++) this.tone({ freq: 1250 + i * 180, type: 'sine', dur: 0.07, vol: 0.05, slide: 1700 + i * 200, delay: 0.1 + i * 0.09 });
+  }
   laser() {
     if (!this.throttle('laser', 700)) return;
     if (this.sample('laser', { volume: 0.3 })) return;

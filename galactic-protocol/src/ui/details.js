@@ -18,7 +18,7 @@ import {
 import { fundInsurrection, insurrectionBlocker, insurrectionCost } from '../engine/politics.js';
 import { bdzBlocker, fireBlocker, fireSuperweapon, orbitalBombardment } from '../engine/superweapons.js';
 import { planetImage, leaderImage, unitImage } from '../assetSources.js';
-import { h, clear, fmt, fmt1, bar, icon, pop, esc, signed } from './dom.js';
+import { h, clear, fmt, fmt1, bar, icon, pop, esc, signed, holoHead, holoPic } from './dom.js';
 import { emblemSvg } from './emblems.js';
 import { recruitGrid } from './panels.js';
 import { confirmModal } from './modals.js';
@@ -41,7 +41,7 @@ export function renderDetails(ui, selection, container) {
     [title, body] = stackDetails(ui, selection.id);
   } else if (selection.type === 'faction') [title, body] = factionDetails(ui, selection.id);
   const bodyEl = h('div', { class: 'side-body' }, body);
-  container.append(h('div', { class: 'side-head' }, h('h2', {}, title), h('button', { class: 'btn icon ghost', html: icon('close', 16), onclick: () => ui.select(null) })), bodyEl);
+  container.append(holoHead(title, { extra: h('button', { class: 'btn icon ghost', html: icon('close', 16), onclick: () => ui.select(null) }) }), bodyEl);
   bodyEl.scrollTop = scroll;
 }
 
@@ -58,7 +58,7 @@ function systemDetails(ui, id) {
   const img = planetImage(id);
   const vis = dayCache(state, `vis:${ui.player}`, () => visibleSystems(state, ui.player));
   const out = [];
-  if (img) out.push(h('img', { class: 'hero-img', src: img, alt: stat.name, style: { objectPosition: 'center' } }));
+  if (img) out.push(h('div', { class: 'hero scanned' }, h('img', { class: 'hero-img', src: img, alt: stat.name, style: { objectPosition: 'center' } })));
   out.push(h('div', { class: 'row', style: { marginTop: '8px' } },
     owner ? emblem(owner, 20) : null,
     h('div', { class: 'grow' },
@@ -230,7 +230,7 @@ function factionDetails(ui, fid) {
   const systems = Object.values(state.systems).filter((s) => s.owner === fid);
   const out = [];
   out.push(h('div', { class: 'row', style: { alignItems: 'flex-start', gap: '10px' } },
-    img ? h('img', { class: 'portrait', src: img, alt: '' }) : h('span', { class: 'emblem', style: { width: '76px', height: '76px' }, html: emblemSvg(f, 48) }),
+    img ? holoPic(img, { width: 76, height: 100 }) : h('span', { class: 'emblem', style: { width: '76px', height: '76px' }, html: emblemSvg(f, 48) }),
     h('div', { class: 'stack', style: { gap: '3px' } },
       h('div', { class: 'row' }, emblem(f, 16), h('b', { style: { color: f.color } }, f.name)),
       h('div', { class: 'small' }, f.leader), h('div', { class: 'muted small' }, g.name), h('div', { class: 'muted small' }, AGENCIES[f.agency].name),

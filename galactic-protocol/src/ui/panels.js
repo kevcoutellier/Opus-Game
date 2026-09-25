@@ -24,7 +24,7 @@ import { ALERT_LEVELS, SW_TYPES, alertLevel, swLocation, tensionTarget } from '.
 import { answerInbox, dominationTarget, goalProgress, gdpShare, inboxText, inboxTitle } from '../engine/sim.js';
 import { playerSees } from '../engine/news.js';
 import { leaderImage, unitImage, iconUrl } from '../assetSources.js';
-import { h, clear, fmt, fmt1, signed, bar, icon, esc } from './dom.js';
+import { h, clear, fmt, fmt1, signed, bar, icon, esc, holoHead, holoPic } from './dom.js';
 import { emblemSvg } from './emblems.js';
 import { ALERT_COLORS } from './hud.js';
 
@@ -61,8 +61,8 @@ export function renderPanel(ui, id, container) {
   container.classList.toggle('wide', !!p.wide);
   const body = h('div', { class: 'side-body' });
   container.append(
-    h('div', { class: 'side-head' }, h('span', { html: p.icon, class: 'accent' }), h('h2', {}, p.title),
-      h('button', { class: 'btn icon ghost', html: icon('close', 16), onclick: () => ui.closePanel() })),
+    holoHead(p.title, { lead: h('span', { html: p.icon, class: 'accent' }),
+      extra: h('button', { class: 'btn icon ghost', html: icon('close', 16), onclick: () => ui.closePanel() }) }),
     body,
   );
   body.append(...[p.render(ui)].flat(Infinity).filter(Boolean));
@@ -411,7 +411,7 @@ function politicsPanel(ui) {
   const target = dominationTarget(state, ui.player);
   return [
     h('div', { class: 'row', style: { alignItems: 'flex-start', gap: '12px' } },
-      img ? h('img', { class: 'portrait', src: img, alt: '' }) : h('span', { class: 'emblem', style: { width: '84px', height: '84px' }, html: emblemSvg(f, 54) }),
+      img ? holoPic(img, { width: 84, height: 110 }) : h('span', { class: 'emblem', style: { width: '84px', height: '84px' }, html: emblemSvg(f, 54) }),
       h('div', { class: 'stack', style: { gap: '3px' } },
         h('b', { style: { color: f.color } }, f.name), h('div', {}, f.leader), h('div', { class: 'muted small' }, g.name),
         h('div', { class: 'small muted' }, g.desc),

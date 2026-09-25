@@ -5,7 +5,7 @@ import { createGame, difficultyStars } from '../engine/setup.js';
 import { militaryPower, staticSystem, yearLabel } from '../engine/query.js';
 import { listSaves, loadGame } from '../engine/save.js';
 import { leaderImage } from '../assetSources.js';
-import { clear, fmt, h, esc } from './dom.js';
+import { clear, fmt, h, esc, aurebesh, holoPic, project } from './dom.js';
 import { emblemSvg, preloadEmblems } from './emblems.js';
 import { startGame } from './game.js';
 import { helpModal } from './help.js';
@@ -25,8 +25,14 @@ function idleLoop(app) {
   requestAnimationFrame(tick);
 }
 
+// The idle galaxy is projected above a holotable (CSS perspective on the map canvas).
+function holotable(on) {
+  document.body.classList.toggle('holo-table', on);
+}
+
 export function titleScreen(app) {
   app.map.setState(null);
+  holotable(true);
   if (!app.idle) idleLoop(app);
   // Browsers only allow music after a user gesture.
   const startMusic = () => audio.playTheme({ volume: 0.35, restart: false, loop: true });
@@ -43,13 +49,16 @@ export function titleScreen(app) {
       h('div', { class: 'pre' }, 'GRANDE STRATÉGIE GALACTIQUE'),
       h('h1', {}, 'GALACTIC PROTOCOL'),
       h('div', { class: 'sub' }, 'LE NOUVEL ORDRE'),
+      aurebesh('galactic protocol'),
     ),
     menu,
+    h('div', { class: 'emitter' }),
     h('div', { class: 'footer-note' }, 'Projet de fan non commercial inspiré de Global Protocol: New World Order. Star Wars et les visuels officiels sont la propriété de Lucasfilm Ltd. / Disney.'),
   ));
 }
 
 function loadScreen(app) {
+  holotable(true);
   const root = clear(app.root);
   const saves = listSaves();
   const list = h('div', { class: 'stack' }, saves.map((meta) => h('div', { class: 'card row between' },
@@ -70,6 +79,7 @@ function loadScreen(app) {
 
 function scenarioScreen(app) {
   app.map.setState(null);
+  holotable(true);
   const root = clear(app.root);
   const cards = SCENARIOS.map((sc) => h('div', { class: 'scenario-card', onclick: () => { audio.click(); factionScreen(app, sc.id); } },
     h('div', { class: 'year' }, yearLabel(sc.year)),
@@ -80,7 +90,7 @@ function scenarioScreen(app) {
   root.append(h('div', { class: 'screen dim' }, h('div', { class: 'setup' },
     h('div', { class: 'row between' }, h('h2', {}, 'Choisissez une époque'), h('button', { class: 'btn', onclick: () => titleScreen(app) }, 'Retour')),
     h('div', { class: 'scenario-grid' }, cards),
-  )));
+  ), h('div', { class: 'emitter' })));
 }
 
 async function factionScreen(app, scenarioId) {
@@ -89,6 +99,7 @@ async function factionScreen(app, scenarioId) {
   preview.factions[sc.factions[0].id].isPlayer = false;
   await preloadEmblems(Object.values(preview.factions));
   const ratings = difficultyStars(preview);
+  holotable(false);
   app.idle = false;
   app.map.setState({ ...preview, player: null });
   app.map.centerOn(preview.factions[sc.factions[0].id].capital, 0.55);
@@ -113,9 +124,10 @@ async function factionScreen(app, scenarioId) {
     const systems = Object.values(preview.systems).filter((s) => s.owner === fid);
     const popTotal = systems.reduce((acc, s) => acc + s.pop, 0);
     const img = leaderImage(f.leader);
+    project(detail);
     clear(detail).append(
       h('div', { class: 'row', style: { gap: '14px', alignItems: 'flex-start' } },
-        img ? h('img', { class: 'portrait', src: img, alt: f.leader }) : h('div', { class: 'emblem', style: { width: '84px', height: '84px' }, html: emblemSvg(f, 56) }),
+        img ? holoPic(img, { width: 88, height: 116, alt: f.leader }) : h('div', { class: 'emblem', style: { width: '84px', height: '84px' }, html: emblemSvg(f, 56) }),
         h('div', { class: 'stack', style: { gap: '4px' } },
           h('div', { class: 'row' }, h('span', { class: 'emblem', style: { width: '34px', height: '34px' }, html: emblemSvg(f, 22) }), h('h3', { style: { fontSize: '17px', color: f.color } }, f.name)),
           h('div', {}, 'Dirigeant : ', h('b', {}, f.leader)),
@@ -165,6 +177,7 @@ async function factionScreen(app, scenarioId) {
 }
 
 function crawl(app, sc, done) {
+  holotable(false);
   const root = clear(app.root);
   let finished = false;
   const finish = () => {
@@ -188,6 +201,7 @@ function crawl(app, sc, done) {
 }
 
 function launch(app, state, fresh) {
+  holotable(false);
   app.idle = false;
   app.previewing = false;
   startGame(app, state, { fresh });
