@@ -1,0 +1,54 @@
+/* The UI is DOM laid over the WebGL canvas: its resolution never depends on the 3D render scale.
+   Sizes use rem scaled with the viewport height, readable from 1080p to 4K. */
+:root {
+  --ui-scale: clamp(14px, 1.45vh, 30px);
+  --ink: #e9e2d0;
+  --ink-dim: #b3a98f;
+  --gold: #c9a45c;
+  --panel: rgba(18, 16, 13, 0.82);
+  --panel-edge: rgba(201, 164, 92, 0.45);
+  --ally: #5b8fe0;
+  --enemy: #d9534a;
+  font-size: var(--ui-scale);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  color: var(--ink);
+  font-family: 'Alegreya Sans', 'Segoe UI', sans-serif;
+  user-select: none;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#ui .interactive { pointer-events: auto; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.3rem;
+  box-shadow: 0 0.3rem 1.2rem rgba(0, 0, 0, 0.45);
+}
+
+.title {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+}

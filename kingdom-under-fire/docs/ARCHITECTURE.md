@@ -41,3 +41,4 @@ suffit).
 | Phase | Contenu | État |
 | --- | --- | --- |
 | 1. Architecture | boucle à pas fixe, ECS, bus d'événements, commandes, RNG, données Zod, tests | ✅ |
+| 2. Rendu | renderer WebGL (ACES, ombres PCF, budget de pixels 4K), ciel dégradé, brouillard, terrain heightmap 256 m à couleurs de sommets + grain tuilé, forêts et rochers en `InstancedMesh` (3 draw calls) | ✅ |
