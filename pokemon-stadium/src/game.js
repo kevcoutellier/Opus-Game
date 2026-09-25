@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
   freeRules: 'fixed50',
   difficulty: 1,
   modelQuality: 'animated',
+  playerSprite: 'red',
 };
 
 function loadSettings() {

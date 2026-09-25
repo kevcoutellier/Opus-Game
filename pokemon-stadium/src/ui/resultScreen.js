@@ -1,4 +1,4 @@
-import { h, keyboardNav } from './dom.js';
+import { h, keyboardNav, trainerPortrait } from './dom.js';
 import { pickScreen } from './pickScreen.js';
 import { rentalScreen } from './rentalScreen.js';
 import { trophyScreen } from './trophyScreen.js';
@@ -63,7 +63,7 @@ export function resultScreen(game, { won, foe, turns, survivors, team }) {
 
   const el = h(
     'div.screen.result-screen',
-    h(`div.panel.result-card${won ? '' : '.lose'}`, trophy, h('h1', title), h('p', subtitle), h('p.hint', run.title), bracket, h('div.result-actions', actions)),
+    h(`div.panel.result-card${won ? '' : '.lose'}`, trophy || trainerPortrait(foe.pic), h('h1', title), h('p', subtitle), h('p.hint', run.title), bracket, h('div.result-actions', actions)),
   );
   const nav = keyboardNav(el, { onBack: () => game.show(hub) });
   nav.focus(0);

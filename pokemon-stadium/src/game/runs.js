@@ -53,7 +53,7 @@ export function freeRun(data, rulesId, ai) {
     rules,
     rounds: [
       {
-        name: FREE_OPPONENTS[Math.floor(Math.random() * FREE_OPPONENTS.length)],
+        ...FREE_OPPONENTS[Math.floor(Math.random() * FREE_OPPONENTS.length)],
         title: 'Combat Libre',
         ai,
         theme: 'day',

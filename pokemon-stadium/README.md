@@ -6,14 +6,19 @@ cinématiques avec commentateur, les **4 coupes du Stadium** et le **Château de
 
 ## Fonctionnalités
 
-- **Stade 3D procédural** : terrain avec emblème Poké Ball, gradins elliptiques et environ 2 700 spectateurs
-  animés (instancing + shader), pylônes d'éclairage, écrans géants avec le score, ciel jour, crépuscule ou nuit.
-- **151 modèles 3D** (GLB, Draco + WebP), normalisés selon la taille réelle de chaque Pokémon. Certains
-  flottent, comme dans Stadium. Les clips d'animation sont joués quand le modèle en a (Onix, Mewtwo, Bulbizarre…) ;
-  sinon l'animation est procédurale (respiration, charge, recul, K.O.).
-- **Mise en scène** : lancer de Poké Ball par le dresseur, caméra « réalisateur » (plans d'attaque,
-  gros plans, secousses) et effets par capacité : Lance-Flammes, Tonnerre (éclair venu du ciel),
-  Ultralaser, Surf, Éboulement, Séisme, Explosion, poudres, notes de Berceuse, murs Protection/Mur Lumière…
+- **Stade 3D** : terrain avec emblème Poké Ball, gradins elliptiques remplis d'environ 2 700 spectateurs, qui sont
+  les PNJ de Pokémon Rouge Feu / Vert Feuille (sprites instanciés qui piétinent quand le public s'enflamme).
+  Pylônes d'éclairage, écrans géants avec le score, ciel jour, crépuscule ou nuit, éclairage HDRI (CC0).
+- **Dresseurs** : Red (ou Leaf), vu de dos avec l'animation de lancer de Poké Ball, et chaque adversaire avec
+  son sprite RF/VF (Gamin, Montagnard, Médium…, les 8 Champions d'Arène, le Conseil 4 et Blue), en 3D sur les
+  plots comme dans l'interface.
+- **151 modèles 3D animés** : `idle`, `attack`, `happy` et `sleep` (le Pokémon dort réellement quand il est
+  endormi), normalisés selon la taille réelle de chaque Pokémon. Certains flottent, comme dans Stadium.
+  Une option bascule vers des modèles plus légers (peu animés, 26 Mo au total).
+- **Mise en scène** : lancer de Poké Ball, caméra « réalisateur » (plans d'attaque, gros plans, secousses) et
+  effets par capacité dessinés avec les sprites d'effets de Pokémon Showdown : boules de feu de Déflagration et
+  Lance-Flammes, éclairs de Tonnerre, feuilles de Tranch'Herbe, poings, pieds, griffes et mâchoires des attaques
+  au contact, rochers d'Éboulement, épée de Danse Lames, étoiles de Météores…
 - **Moteur de combat Gen 1 fidèle à Stadium** (`src/engine/`), sans DOM et testé :
   - formule de dégâts Gen 1 (débordement des stats > 255, STAB, efficacité appliquée type par type, facteur 217-255) ;
   - critiques façon Stadium (`((VitBase + 76) >> 2) << 1`, Puissance x4 +160, taux critique élevé x4) ;
@@ -71,7 +76,7 @@ Autres commandes :
 | `npm test` | tests du moteur, des règles de coupe et de la progression (`node --test`) |
 | `npm run build` | build statique dans `dist/` (chemins relatifs, compatible GitHub Pages) |
 | `npm run data` | régénère `src/data/gen1.json` depuis Showdown et PokeAPI |
-| `npm run assets -- --only=models --from=1 --to=9` | téléchargement partiel |
+| `npm run assets -- --only=fx,trainers` | téléchargement partiel (`--skip=…`, `--from=1 --to=9`) |
 
 Raccourcis d'URL : `#dex/150` ouvre le Pokédex sur un Pokémon, `#battle` lance un combat rapide et
 `#battle/6,25,150` un combat avec l'équipe de son choix.
@@ -91,15 +96,29 @@ Raccourcis d'URL : `#dex/150` ouvre le Pokédex sur un Pokémon, `#battle` lance
 ## Assets : sources
 
 Les assets ne sont **pas versionnés** (`public/assets/` est dans `.gitignore`) : ils restent la propriété
-de Nintendo / Creatures / Game Freak, et le script les télécharge à la demande.
+de Nintendo / Creatures / Game Freak, et `npm run assets` les télécharge à la demande. Un fichier absent est
+chargé directement depuis GitHub.
 
-| Asset | Source |
-| --- | --- |
-| Modèles 3D `.glb` (151) | [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets) |
-| Cris Gen 1 `.ogg` | [PokeAPI/cries](https://github.com/PokeAPI/cries) (dossier `legacy`) |
-| Icônes et sprites Rouge/Bleu | [PokeAPI/sprites](https://github.com/PokeAPI/sprites) |
-| Stats, capacités, learnsets, sets de location | [pokemon-showdown](https://github.com/smogon/pokemon-showdown), mod `gen1stadium` (MIT) |
-| Noms français | [PokeAPI data](https://github.com/PokeAPI/pokeapi) (CSV) |
+| Asset | Dossier | Volume | Source |
+| --- | --- | --- | --- |
+| Modèles 3D animés `.glb` (151) | `animated/` | ~460 Mo | [06wj/pokemon](https://github.com/06wj/pokemon) |
+| Modèles 3D légers `.glb` (151) | `models/` | ~26 Mo | [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets) |
+| Sprites d'effets des attaques (58) | `fx/` | < 1 Mo | [pokemon-showdown-client](https://github.com/smogon/pokemon-showdown-client) (`play.pokemonshowdown.com/fx`) |
+| Dresseurs RF/VF, face et dos (47) | `trainers/` | < 1 Mo | [pret/pokefirered](https://github.com/pret/pokefirered) (`graphics/trainers`) |
+| PNJ du public (37) | `people/` | < 1 Mo | [pret/pokefirered](https://github.com/pret/pokefirered) (`graphics/object_events`) |
+| HDRI d'éclairage (2) | `env/` | ~4 Mo | [Poly Haven](https://polyhaven.com) (CC0), via [06wj/pokemon](https://github.com/06wj/pokemon) |
+| Cris Gen 1 `.ogg` | `cries/` | ~1 Mo | [PokeAPI/cries](https://github.com/PokeAPI/cries) (dossier `legacy`) |
+| Icônes et sprites Rouge/Bleu | `icons/`, `sprites/` | < 1 Mo | [PokeAPI/sprites](https://github.com/PokeAPI/sprites) |
+
+Pour ne pas télécharger les modèles animés : `npm run assets -- --skip=animated`, puis l'option
+« Modèles 3D : Légers ».
+
+Les données de jeu, versionnées dans `src/data/gen1.json`, viennent de
+[pokemon-showdown](https://github.com/smogon/pokemon-showdown), mod `gen1stadium` (MIT) : stats, capacités,
+learnsets et sets de location. Les noms français viennent des CSV de [PokeAPI](https://github.com/PokeAPI/pokeapi).
+
+Aucun fichier de code tiers n'est inclus : les sprites de Showdown (dépôt AGPL-3.0) et les images issues des
+jeux sont seulement téléchargés en local, jamais redistribués.
 
 ### Utiliser les vrais modèles de Pokémon Stadium
 
@@ -129,7 +148,9 @@ src/
     arena.js     stade procédural (terrain, gradins, foule instanciée, pylônes, écrans)
     actor.js     chargement GLB/Draco, normalisation, animations procédurales et clips
     battleScene.js  chorégraphie des capacités, Poké Balls, dresseurs
-    effects.js   particules, rayons, éclairs, ondes de choc, rochers
+    effects.js   particules, sprites d'effets, rayons, éclairs, ondes de choc, rochers
+    moveSprites.js  quel sprite Showdown pour quelle capacité
+    trainerSprite.js  dresseurs RF/VF sur les plots (face/dos, lancer de Poké Ball)
     director.js  caméra cinématique
   game/          règles des coupes, tournois, Château des Champions, runs, sauvegarde
   ui/            écrans (titre, menu, Stadium, Château, location, choix 3/6, combat, résultats,

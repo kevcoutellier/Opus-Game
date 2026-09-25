@@ -41,6 +41,12 @@ export function icon(num, kind = 'icons') {
   return h('img', { src: assetUrl(kind, num), alt: '', loading: 'lazy', draggable: 'false' });
 }
 
+/** FireRed/LeafGreen trainer picture (64x64 pixel art) as an <img>. */
+export function trainerPortrait(pic, className = 'trainer-portrait') {
+  if (!pic) return null;
+  return h(`img.${className}`, { src: assetUrl('trainers', pic), alt: '', draggable: 'false' });
+}
+
 export function hpColor(ratio) {
   if (ratio > 0.5) return 'var(--hp-green)';
   if (ratio > 0.2) return 'var(--hp-yellow)';

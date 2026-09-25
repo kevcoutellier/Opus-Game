@@ -1383,6 +1383,37 @@ body {
   padding: 4px 8px;
 }
 
+/* ------------------------------------------------------------ trainer pictures */
+
+.trainer-portrait {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+}
+
+.gym-portrait {
+  width: 56px;
+  height: 56px;
+  image-rendering: pixelated;
+}
+
+.foe-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.foe-head .trainer-portrait {
+  width: 72px;
+  height: 72px;
+}
+
+.gym-card {
+  grid-template-columns: 46px 1fr 56px;
+}
+
 /* ------------------------------------------------------------ responsive */
 
 @media (max-width: 1000px) {

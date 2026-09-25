@@ -76,6 +76,7 @@ export function battleScreen(game, { mine, foe }) {
   const { data, battleScene: scene, director, audio, arena } = game;
   const playerName = game.settings.playerName;
   game.resetField();
+  scene.setTrainerPics(game.settings.playerSprite, foe.pic);
   scene.setTrainersVisible(true);
   arena.setTheme(foe.theme);
   audio.playTheme('battle');

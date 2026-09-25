@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { PokemonActor } from './actor.js';
-import { createPokeball, createTrainer } from './props.js';
+import { createPokeball } from './props.js';
+import { TrainerSprite } from './trainerSprite.js';
 import { spotOf } from './director.js';
 import { TRAINER_SPOT } from './arena.js';
-import { ease, lerp, tween, wait } from './tween.js';
+import { ease, tween, wait } from './tween.js';
 import { CONTACT_SPRITES, STATUS_SPRITES, projectileSprite } from './moveSprites.js';
 
 const TYPE_COLOR = {
@@ -34,16 +35,24 @@ export class BattleScene {
     this.group = new THREE.Group();
     stage.scene.add(this.group);
     this.actors = [null, null];
-    this.trainers = [createTrainer('#e2493b'), createTrainer('#3b6fe2')];
+    // FireRed/LeafGreen trainer pictures on the trainer boxes, facing the field.
+    this.trainers = [new TrainerSprite({ facing: new THREE.Vector3(0, 0, -1) }), new TrainerSprite({ facing: new THREE.Vector3(0, 0, 1) })];
     this.trainers.forEach((t, side) => {
-      t.position.set(0, 0.5, side === 0 ? TRAINER_SPOT : -TRAINER_SPOT);
-      t.rotation.y = side === 0 ? Math.PI : 0;
-      this.group.add(t);
+      t.group.position.set(0, 0.5, side === 0 ? TRAINER_SPOT : -TRAINER_SPOT);
+      this.group.add(t.group);
     });
+    this.setTrainerPics('red', 'cool_trainer_m');
     this.subs = [false, false];
     stage.onUpdate((dt, time) => {
       for (const a of this.actors) a?.update(dt, time, stage.camera);
+      for (const t of this.trainers) if (t.group.visible) t.update(stage.camera);
     });
+  }
+
+  /** `player`: 'red' or 'leaf' (front + back pictures); `foe`: any trainer picture. */
+  setTrainerPics(player, foe) {
+    this.trainers[0].setPics(player, `${player}_back`);
+    this.trainers[1].setPics(foe || 'cool_trainer_m');
   }
 
   clear() {
@@ -55,7 +64,7 @@ export class BattleScene {
   }
 
   setTrainersVisible(visible) {
-    for (const t of this.trainers) t.visible = visible;
+    for (const t of this.trainers) t.group.visible = visible;
   }
 
   /** Loads and places a Pokémon without any animation (menus, previews). */
@@ -76,17 +85,12 @@ export class BattleScene {
 
   async throwBall(side) {
     const trainer = this.trainers[side];
-    const arm = trainer.userData.armR;
     const ball = createPokeball();
-    const start = trainer.position.clone().add(new THREE.Vector3(0.5, 2.3, 0));
+    const start = trainer.group.position.clone().add(new THREE.Vector3(0.4, 2.4, 0));
     const end = spotOf(side).add(new THREE.Vector3(0, 1.2, 0));
+    // The back picture's frames animate the throw; the ball leaves on the last one.
+    await trainer.throw(0.35);
     this.group.add(ball);
-    await tween(0.25, (k) => {
-      arm.rotation.x = lerp(0, side === 0 ? -2.6 : 2.6, k);
-    });
-    tween(0.3, (k) => {
-      arm.rotation.x = lerp(side === 0 ? -2.6 : 2.6, 0, k);
-    });
     await tween(0.6, (k) => {
       ball.position.lerpVectors(start, end, k);
       ball.position.y += Math.sin(k * Math.PI) * 3.2;
@@ -114,7 +118,7 @@ export class BattleScene {
   async recall(side) {
     const actor = this.actors[side];
     if (!actor) return;
-    const from = this.trainers[side].position.clone().add(new THREE.Vector3(0, 2, 0));
+    const from = this.trainers[side].group.position.clone().add(new THREE.Vector3(0, 2, 0));
     this.fx.beam(from, actor.center, '#ff4a4a', { width: 0.12, duration: 0.5 });
     await actor.recall();
   }

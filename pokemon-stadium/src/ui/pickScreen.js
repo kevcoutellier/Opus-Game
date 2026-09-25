@@ -1,4 +1,4 @@
-import { h, icon, keyboardNav, typeBadge } from './dom.js';
+import { h, icon, keyboardNav, trainerPortrait, typeBadge } from './dom.js';
 import { battleScreen } from './battleScreen.js';
 import { hubFor } from './hub.js';
 import { pickThree } from '../game/teams.js';
@@ -51,7 +51,7 @@ export function pickScreen(game) {
     h(
       'div.pick-columns',
       h('div.panel.pick-team.mine', h('h3', `Équipe de ${game.settings.playerName}`), mineCards, levelPanel),
-      h('div.panel.pick-team.foe', h('h3', `Équipe de ${foe.name}`), foe.team.map((s) => card(s, false))),
+      h('div.panel.pick-team.foe', h('div.foe-head', trainerPortrait(foe.pic), h('h3', `Équipe de ${foe.name}`)), foe.team.map((s) => card(s, false))),
     ),
     h('div.pick-footer', h('button.btn.ghost', { 'data-nav': true, onclick: () => game.show(hubFor(run)) }, 'Abandonner'), go),
   );

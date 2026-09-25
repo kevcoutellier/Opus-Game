@@ -1,4 +1,4 @@
-import { h, icon, keyboardNav, toast, typeBadge } from './dom.js';
+import { h, keyboardNav, toast, trainerPortrait, typeBadge } from './dom.js';
 import { menuScreen } from './menuScreen.js';
 import { rentalScreen } from './rentalScreen.js';
 import { ELITE_FOUR, GYMS, RIVAL, ofCity } from '../game/castle.js';
@@ -14,7 +14,6 @@ export function castleScreen(game) {
   game.arena.setScoreboard({ title: 'CHÂTEAU DES CHAMPIONS', left: 'BADGES', right: `${badges}/8` });
   game.audio.playTheme('menu');
   game.director.startOrbit({ radius: 40, height: 20, speed: 0.035 });
-  const byId = (id) => data.species.find((s) => s.id === id);
 
   const gymCards = GYMS.map((gym) => {
     const won = !!progress.badges[gym.id];
@@ -28,7 +27,7 @@ export function castleScreen(game) {
         h('div.hint', `Arène ${ofCity(gym.city)}`),
         h('div', { style: { display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' } }, typeBadge(data, gym.type), h('span.hint', won ? gym.badge : '2 combats')),
       ),
-      h('div.gym-ace', icon(byId(gym.team[0]).num)),
+      h('div.gym-ace', trainerPortrait(gym.pic, 'gym-portrait')),
     );
   });
 
@@ -38,7 +37,7 @@ export function castleScreen(game) {
     { 'data-nav': true, onclick: () => startElite() },
     h('div.gym-leader', progress.elite ? '🏆 Conseil 4 vaincu' : eliteUnlocked ? 'Conseil 4' : '🔒 Conseil 4'),
     h('div.hint', `${ELITE_FOUR.map((e) => e.name).join(', ')}, puis ton rival ${RIVAL.name} : 5 combats d'affilée.`),
-    h('div.elite-icons', [...ELITE_FOUR.map((e) => byId(e.team[0])), byId(RIVAL.team[1])].map((s) => icon(s.num))),
+    h('div.elite-icons', [...ELITE_FOUR.map((e) => e.pic), RIVAL.pic].map((pic) => trainerPortrait(pic, 'gym-portrait'))),
   );
 
   function startGym(gym) {

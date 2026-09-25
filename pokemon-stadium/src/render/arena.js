@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { assetUrl } from './assets.js';
+import { CROWD_PEOPLE } from '../assetSources.js';
 
 // The battle field is a raised rectangle; Pokémon stand at z = ±FIELD_SPOT.
 export const FIELD = { width: 16, length: 28, height: 0.6 };
@@ -180,27 +181,8 @@ function buildStands() {
   return { mesh, tiers, r0, step, rise, base, rTop, yTop, scaleX: 0.82 };
 }
 
-function buildCrowd(stands) {
-  // Kept very low-poly: there are ~2,700 spectators.
-  const body = new THREE.CylinderGeometry(0.2, 0.3, 0.75, 5, 1, true);
-  body.translate(0, 0.38, 0);
-  const head = new THREE.IcosahedronGeometry(0.2, 0);
-  head.translate(0, 0.95, 0);
-  const geo = mergeGeometries([body.toNonIndexed(), head]);
-  const uniforms = { uTime: { value: 0 }, uCheer: { value: 0.12 } };
-  const mat = new THREE.MeshLambertMaterial();
-  mat.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = uniforms.uTime;
-    shader.uniforms.uCheer = uniforms.uCheer;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uCheer;')
-      .replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-        float ph = float(gl_InstanceID) * 1.618;
-        transformed.y += abs(sin(uTime * (5.0 + mod(ph, 3.0)) + ph)) * uCheer;`,
-      );
-  };
+/** Seats of the crowd: [x, y, z, angle] on every tier, leaving aisles. */
+function crowdSpots(stands) {
   const spots = [];
   for (let t = 0; t < stands.tiers; t++) {
     const r = stands.r0 + t * stands.step + stands.step * 0.55;
@@ -214,6 +196,30 @@ function buildCrowd(stands) {
       spots.push([Math.cos(a) * r * stands.scaleX, y, Math.sin(a) * r, a]);
     }
   }
+  return spots;
+}
+
+/** Placeholder crowd (low-poly figures) used until the NPC sprites are loaded, or if they can't be. */
+function buildCrowd(spots, uniforms) {
+  // Kept very low-poly: there are ~2,700 spectators.
+  const body = new THREE.CylinderGeometry(0.2, 0.3, 0.75, 5, 1, true);
+  body.translate(0, 0.38, 0);
+  const head = new THREE.IcosahedronGeometry(0.2, 0);
+  head.translate(0, 0.95, 0);
+  const geo = mergeGeometries([body.toNonIndexed(), head]);
+  const mat = new THREE.MeshLambertMaterial();
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.uniforms.uCheer = uniforms.uCheer;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uCheer;')
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        float ph = float(gl_InstanceID) * 1.618;
+        transformed.y += abs(sin(uTime * (5.0 + mod(ph, 3.0)) + ph)) * uCheer;`,
+      );
+  };
   const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -229,7 +235,84 @@ function buildCrowd(stands) {
     mesh.setColorAt(i, c.set(colors[Math.floor(Math.random() * colors.length)]));
   });
   mesh.instanceMatrix.needsUpdate = true;
-  return { mesh, uniforms };
+  return mesh;
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// FRLG overworld sheets are 16x32 frames: 0 = facing down, 3 and 4 = walking down.
+const CROWD_FRAMES = [0, 3, 4];
+
+/**
+ * Crowd of FireRed/LeafGreen NPCs: one instanced quad per seat, reading its
+ * character from a runtime atlas; when the crowd cheers they step in place.
+ */
+async function buildSpriteCrowd(spots, uniforms) {
+  const images = (await Promise.all(CROWD_PEOPLE.map((name) => loadImage(assetUrl('people', name)).catch(() => null)))).filter(
+    (img) => img && img.height === 32 && img.width >= 16 * 5,
+  );
+  if (images.length < 4) throw new Error('crowd sprites unavailable');
+  const canvas = document.createElement('canvas');
+  canvas.width = 16 * CROWD_FRAMES.length;
+  canvas.height = 32 * images.length;
+  const ctx = canvas.getContext('2d');
+  images.forEach((img, row) => {
+    CROWD_FRAMES.forEach((frame, col) => ctx.drawImage(img, frame * 16, 0, 16, 32, col * 16, row * 32, 16, 32));
+  });
+  const atlas = new THREE.CanvasTexture(canvas);
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  atlas.magFilter = THREE.NearestFilter;
+
+  const geo = new THREE.PlaneGeometry(0.8, 1.6);
+  geo.translate(0, 0.8, 0);
+  const rows = new Float32Array(spots.length);
+  const phases = new Float32Array(spots.length);
+  const mat = new THREE.MeshLambertMaterial({ map: atlas, alphaTest: 0.5, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.uniforms.uCheer = uniforms.uCheer;
+    shader.uniforms.uRows = { value: images.length };
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform float uTime;\nuniform float uCheer;\nuniform float uRows;\nattribute float aRow;\nattribute float aPhase;',
+      )
+      .replace(
+        '#include <uv_vertex>',
+        `#include <uv_vertex>
+        float frame = uCheer > 0.25 ? 1.0 + mod(floor(uTime * 7.0 + aPhase * 5.0), 2.0) : 0.0;
+        vMapUv = vec2((uv.x + frame) / ${CROWD_FRAMES.length}.0, 1.0 - (aRow + 1.0 - uv.y) / uRows);`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        transformed.y += abs(sin(uTime * (5.0 + mod(aPhase * 7.0, 3.0)) + aPhase * 6.28)) * uCheer * 0.8;`,
+      );
+  };
+  const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+  const dummy = new THREE.Object3D();
+  spots.forEach(([x, y, z], i) => {
+    dummy.position.set(x, y, z);
+    dummy.lookAt(0, y + 1, 0);
+    const k = 0.95 + Math.random() * 0.2;
+    dummy.scale.set(Math.random() < 0.5 ? -k : k, k, k);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+    rows[i] = Math.floor(Math.random() * images.length);
+    phases[i] = Math.random();
+  });
+  geo.setAttribute('aRow', new THREE.InstancedBufferAttribute(rows, 1));
+  geo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phases, 1));
+  mesh.instanceMatrix.needsUpdate = true;
+  return mesh;
 }
 
 function buildTower(glowMaterial) {
@@ -352,9 +435,20 @@ export class Arena {
 
     const stands = buildStands();
     this.group.add(stands.mesh);
-    const crowd = buildCrowd(stands);
+    const crowdUniforms = { uTime: { value: 0 }, uCheer: { value: 0.12 } };
+    const spots = crowdSpots(stands);
+    const crowd = { uniforms: crowdUniforms, mesh: buildCrowd(spots, crowdUniforms) };
     this.crowd = crowd;
     this.group.add(crowd.mesh);
+    // Swap in the Pokémon-world spectators once their sprites are loaded.
+    buildSpriteCrowd(spots, crowdUniforms)
+      .then((mesh) => {
+        this.group.remove(crowd.mesh);
+        crowd.mesh.geometry.dispose();
+        crowd.mesh = mesh;
+        this.group.add(mesh);
+      })
+      .catch((err) => console.warn('[arena] keeping the placeholder crowd:', err.message));
 
     // Banners on the rim
     const bannerColors = ['#a8a878', '#c03028', '#a890f0', '#a040a0', '#e0c068', '#b8a038', '#a8b820', '#705898', '#f08030', '#6890f0', '#78c850', '#f8d030', '#f85888', '#98d8d8', '#7038f8'];

@@ -51,27 +51,33 @@ export function pickThree(data, team, foeTeam) {
     .map((x) => x.s);
 }
 
-// Gen 1 French trainer classes, with the types they like.
+// Gen 1 French trainer classes, the types they like and their FRLG picture.
 const CLASSES = [
-  ['Gamin', ['Normal', 'Bug']],
-  ['Fillette', ['Normal', 'Grass']],
-  ['Scout', ['Bug', 'Grass']],
-  ['Pêcheur', ['Water']],
-  ['Nageuse', ['Water', 'Ice']],
-  ['Montagnard', ['Rock', 'Ground']],
-  ['Karatéka', ['Fighting']],
-  ['Motard', ['Poison']],
-  ['Ornithologue', ['Flying', 'Normal']],
-  ['Scientifique', ['Electric', 'Poison']],
-  ['Médium', ['Ghost', 'Psychic']],
-  ['Jongleur', ['Psychic', 'Normal']],
-  ['Dompteur', ['Fire', 'Normal']],
-  ['Canon', ['Water', 'Grass', 'Normal']],
+  ['Gamin', ['Normal', 'Bug'], 'youngster'],
+  ['Fillette', ['Normal', 'Grass'], 'lass'],
+  ['Scout', ['Bug', 'Grass'], 'bug_catcher'],
+  ['Pêcheur', ['Water'], 'fisherman'],
+  ['Nageuse', ['Water', 'Ice'], 'swimmer_f'],
+  ['Montagnard', ['Rock', 'Ground'], 'hiker'],
+  ['Karatéka', ['Fighting'], 'black_belt'],
+  ['Motard', ['Poison'], 'biker'],
+  ['Ornithologue', ['Flying', 'Normal'], 'bird_keeper'],
+  ['Scientifique', ['Electric', 'Poison'], 'scientist'],
+  ['Médium', ['Ghost', 'Psychic'], 'channeler'],
+  ['Jongleur', ['Psychic', 'Normal'], 'juggler'],
+  ['Dompteur', ['Fire', 'Normal'], 'tamer'],
+  ['Canon', ['Water', 'Grass', 'Normal'], 'beauty'],
 ];
 const NAMES = ['Théo', 'Léa', 'Hugo', 'Manon', 'Lucas', 'Chloé', 'Nathan', 'Inès', 'Enzo', 'Jade', 'Louis', 'Emma', 'Jules', 'Lina', 'Rémi', 'Zoé', 'Marcel', 'Élise', 'Kenji', 'Aurore', 'Nils', 'Sacha', 'Clément', 'Maëlle'];
 const ROUND_TITLES = ['1er tour', '2e tour', '3e tour', 'Quart de finale', 'Demi-finale', 'Finale'];
 
-export const FREE_OPPONENTS = ['Rival Blue', 'Dresseuse Aurore', 'Scientifique Lucas', 'Karatéka Kenji', 'Topdresseur Nils'];
+export const FREE_OPPONENTS = [
+  { name: 'Rival Blue', pic: 'champion_rival' },
+  { name: 'Topdresseuse Aurore', pic: 'cool_trainer_f' },
+  { name: 'Scientifique Lucas', pic: 'scientist' },
+  { name: 'Karatéka Kenji', pic: 'black_belt' },
+  { name: 'Topdresseur Nils', pic: 'cool_trainer_m' },
+];
 
 /** The six opponents of a cup at a given rank; difficulty ramps up each round. */
 export function buildTournament(data, cup, rankIndex) {
@@ -81,11 +87,12 @@ export function buildTournament(data, cup, rankIndex) {
   return ROUND_TITLES.map((title, i) => {
     const k = i / (ROUND_TITLES.length - 1);
     const last = i === ROUND_TITLES.length - 1;
-    const [cls, types] = last ? ['Topdresseur', null] : classes[i];
+    const [cls, types, pic] = last ? ['Topdresseur', null, 'cool_trainer_m'] : classes[i];
     const ai = Math.round(rank.ai[0] + (rank.ai[1] - rank.ai[0]) * k);
     const tier = rank.tier[0] + (rank.tier[1] - rank.tier[0]) * k;
     return {
       name: `${cls} ${names[i]}`,
+      pic,
       title,
       ai,
       theme: last ? 'night' : k > 0.5 ? 'sunset' : cup.theme,

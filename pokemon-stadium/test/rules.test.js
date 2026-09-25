@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { CUPS, FREE_RULES, RANKS, allowed, cupById, defaultLevels, isBasic, levelTotal, levelsValid } from '../src/game/rules.js';
 import { buildTournament } from '../src/game/teams.js';
 import { ELITE_FOUR, GYMS, RIVAL } from '../src/game/castle.js';
-import { cupRun, eliteRun, gymRun } from '../src/game/runs.js';
+import { cupRun, eliteRun, freeRun, gymRun } from '../src/game/runs.js';
+import { TRAINER_PICS } from '../src/assetSources.js';
 import { badgeCount, emptyProgress, hasTrophy, loadProgress, rankUnlocked, recordVictory, saveProgress } from '../src/game/progress.js';
 
 const data = JSON.parse(readFileSync(new URL('../src/data/gen1.json', import.meta.url), 'utf8'));
@@ -94,4 +95,16 @@ test('progress: trophies unlock the next ball, badges and hall of fame', () => {
   saveProgress(p, storage);
   assert.deepEqual(loadProgress(storage), p);
   assert.deepEqual(loadProgress({ getItem: () => '{broken' }), emptyProgress());
+});
+
+test('every opponent has a FireRed/LeafGreen trainer picture', () => {
+  const runs = [
+    ...CUPS.map((cup) => cupRun(data, cup, 3)),
+    ...GYMS.map((gym) => gymRun(data, gym)),
+    eliteRun(data),
+    freeRun(data, 'fixed50', 1),
+  ];
+  for (const run of runs) {
+    for (const round of run.rounds) assert.ok(TRAINER_PICS.includes(round.pic), `${round.name}: ${round.pic}`);
+  }
 });

@@ -86,6 +86,7 @@ export function menuScreen(game, { page = 'main' } = {}) {
           oninput: (e) => game.saveSettings({ playerName: e.target.value.toUpperCase() || 'ROUGE' }),
         }),
       ),
+      h('div.option-row', h('span', 'Personnage'), segmented([['red', 'Red'], ['leaf', 'Leaf']], game.settings.playerSprite, (v) => game.saveSettings({ playerSprite: v }))),
       h('div.option-row', h('span', 'Musique'), segmented([[true, 'Oui'], [false, 'Non']], game.settings.music, (v) => game.saveSettings({ music: v }))),
       h('div.option-row', h('span', 'Effets sonores et cris'), segmented([[true, 'Oui'], [false, 'Non']], game.settings.sfx, (v) => game.saveSettings({ sfx: v }))),
       h('div.option-row', h('span', 'Commentateur vocal'), segmented([[true, 'Oui'], [false, 'Non']], game.settings.voice, (v) => {
