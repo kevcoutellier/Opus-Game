@@ -1,3 +1,4 @@
+import type { AssetManager } from '../assets/AssetManager';
 import type { World } from '../core/World';
 import type { BattleStory } from '../data/story/battles';
 import type { Outcome } from '../scenes/BattleOutcome';
@@ -15,6 +16,7 @@ const HELP = [
   ['Ctrl + 1–9 / 1–9', 'créer / rappeler un groupe (double appui : caméra)'],
   ['WASD (ZQSD) / bords', 'déplacer la caméra · Q/E (A/E) : rotation · molette : zoom'],
   ['PgUp / PgDn', 'inclinaison · C : caméra libre · Origine : recentrer'],
+  ['P / M', 'pause · couper le son'],
   ['F1 / F2', 'panneau développeur · test de performance'],
 ];
 
@@ -25,6 +27,7 @@ export class HUD {
   private readonly counts: HTMLDivElement;
   private readonly banner: HTMLDivElement;
   private lastCounts = '';
+  private readonly emblems: string[];
 
   constructor(
     root: HTMLElement,
@@ -33,7 +36,13 @@ export class HUD {
     private readonly units: UnitManager,
     teamFactions: string[],
     private readonly story: BattleStory,
+    assets: AssetManager,
   ) {
+    const emblem = (team: number) => {
+      const url = assets.emblem(teamFactions[team]);
+      return url ? `<img class="emblem" src="${url}" alt="" />` : '⚑';
+    };
+    this.emblems = [emblem(0), emblem(1)];
     this.box = new SelectionBox(root);
 
     const top = document.createElement('div');
@@ -66,7 +75,7 @@ export class HUD {
     }
     const own = this.units.countActive(0);
     const enemy = this.units.countActive(1);
-    const text = `<span class="ally">⚑ ${own}</span><span class="sep">contre</span><span class="enemy">${enemy} ⚑</span>`;
+    const text = `<span class="ally">${this.emblems[0]} ${own}</span><span class="sep">contre</span><span class="enemy">${enemy} ${this.emblems[1]}</span>`;
     if (text !== this.lastCounts) {
       this.counts.innerHTML = text;
       this.lastCounts = text;

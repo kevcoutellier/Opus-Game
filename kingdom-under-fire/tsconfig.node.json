@@ -17,6 +17,7 @@
   "include": [
     "vite.config.ts",
     "playwright.config.ts",
-    "tests/e2e"
+    "tests/e2e",
+    "tests/node"
   ]
 }

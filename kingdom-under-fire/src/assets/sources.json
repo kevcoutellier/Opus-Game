@@ -1,0 +1,42 @@
+{
+  "$comment": "Official Kingdom Under Fire artwork and sounds used by the game. Read by scripts/fetch-assets.mjs (download) and by the game (keys of public/assets/manifest.json). Nothing downloaded is versioned.",
+  "wiki": {
+    "name": "Kingdom Under Fire Wiki",
+    "api": "https://kingdomunderfire.fandom.com/api.php",
+    "portraits": {
+      "curian": "Curian",
+      "russelaunt": "Russelaunt",
+      "gernot": "Gernot",
+      "moonlight": "Moonlight",
+      "demetrich": "Lord Demetrich",
+      "rick_blood": "Rick Blood",
+      "likuku": "Likuku",
+      "lauriana": "Lauriana",
+      "richter": "Richter Rosenheim",
+      "lily": "Lily",
+      "amaruak": "Amaruak the Lich",
+      "regnier": "Regnier"
+    },
+    "emblems": {
+      "human_alliance": "Human Alliance",
+      "dark_legion": "Dark Legion"
+    },
+    "artwork": {
+      "cover": "Kingdom Under Fire: A War of Heroes"
+    }
+  },
+  "steam": {
+    "name": "Steam — Kingdom Under Fire: A War of Heroes (GOLD Edition)",
+    "appId": 2183600,
+    "cdn": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183600",
+    "extra": ["library_hero.jpg", "library_600x900.jpg"]
+  },
+  "soundCategories": {
+    "music": "bgm|music|theme|track|song|intro",
+    "clash": "sword|clash|hit|metal|blade|slash|axe|swing|attack|impact|weapon",
+    "death": "die|death|dead|dying|scream|pain|groan",
+    "horn": "horn|trumpet|charge|warcry|war_cry|rally",
+    "march": "march|step|walk|foot|run",
+    "ack": "yes|ok|order|select|ready|confirm|move"
+  }
+}

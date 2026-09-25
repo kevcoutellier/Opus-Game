@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     projects: [
-      { extends: true, test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
+      { extends: true, test: { name: 'unit', include: ['tests/unit/**/*.test.ts', 'tests/node/**/*.test.ts'] } },
       // CPU benchmarks of the simulation (npm run bench): slow, printed tables, never part of `npm test`.
       { extends: true, test: { name: 'bench', include: ['tests/bench/**/*.test.ts'], testTimeout: 600_000 } },
     ],

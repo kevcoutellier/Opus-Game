@@ -3,3 +3,6 @@ dist/
 *.log
 test-results/
 playwright-report/
+# Official artwork and your own sounds, downloaded or copied by `npm run assets`
+# (property of Blueside / Phantagram and of their authors): never versioned.
+public/assets/

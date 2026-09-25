@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { AIController } from '../ai/AIController';
+import type { AssetManager } from '../assets/AssetManager';
+import { AudioManager } from '../audio/AudioManager';
 import { RTSCamera } from '../camera/RTSCamera';
 import { faction } from '../data/factions';
 import { DebugManager } from '../debug/DebugManager';
@@ -64,11 +66,16 @@ export class Game {
   readonly debug: DebugManager;
   readonly perfTest = new PerformanceTestScene();
   private readonly gpu: GpuTimer;
+  readonly audio: AudioManager;
   private fps = 60;
   private time = 0;
   frames = 0;
 
-  constructor(canvas: HTMLCanvasElement, readonly ui: HTMLElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    readonly ui: HTMLElement,
+    readonly assets: AssetManager,
+  ) {
     this.renderer = new Renderer(canvas);
     this.terrain = Terrain.generate({ size: MAP_SIZE, seed: 20260925 });
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
@@ -106,7 +113,9 @@ export class Game {
       kind: (id) => world.c.unitType[id],
       isAlive: (id) => this.units.isActive(id),
     });
-    this.hud = new HUD(ui, world, this.selection, this.units, TEAM_FACTIONS, PROTOTYPE_BATTLE);
+    this.hud = new HUD(ui, world, this.selection, this.units, TEAM_FACTIONS, PROTOTYPE_BATTLE, assets);
+    this.audio = new AudioManager(assets);
+    this.audio.attach(world, () => this.rtsCamera.target);
     this.selectionInput = new SelectionInput(this.selection, this.input.mouse, this.input.keys, this.hud.box, (ids) => {
       const centre = this.units.centroid(ids);
       if (centre) this.rtsCamera.focus(centre.x, centre.z);
@@ -124,7 +133,10 @@ export class Game {
         return id >= 0 && world.c.team[id] !== PLAYER_TEAM ? id : -1;
       },
       formationOf: (units) => this.formations.typeOf(units),
-      marker: (x, z, attack) => this.overlay.marker(x, z, attack),
+      marker: (x, z, attack) => {
+        this.overlay.marker(x, z, attack);
+        this.audio.play('ack', 0.9);
+      },
       preview: (points) => this.overlay.preview(points),
     });
     this.selectionInput.blocked = () => this.orderInput.attackMoveArmed;
@@ -169,9 +181,13 @@ export class Game {
     this.loop.paused = true;
     new BriefingScreen(this.ui, {
       story: PROTOTYPE_BATTLE,
-      portrait: () => null,
-      artwork: null,
-      onStart: () => (this.loop.paused = false),
+      portrait: (id) => this.assets.portrait(id),
+      artwork: this.assets.artwork(),
+      credits: this.assets.credits(),
+      onStart: () => {
+        this.loop.paused = false;
+        this.audio.play('horn');
+      },
     });
   }
 
@@ -211,6 +227,7 @@ export class Game {
       if (code === 'F1') this.debug.toggle();
       if (code === 'F2') this.startPerfTest();
       if (code === 'KeyP' || code === 'Pause') this.loop.paused = !this.loop.paused;
+      if (code === 'KeyM') this.audio.toggleMute();
     }
     this.rtsCamera.update(dt, keys, mouse, this.renderer, !mouse.isDown(0));
     this.rtsCamera.camera.updateMatrixWorld();

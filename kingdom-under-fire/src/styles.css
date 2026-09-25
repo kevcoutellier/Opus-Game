@@ -240,3 +240,6 @@ body.cursor-attack #scene { cursor: crosshair; }
   .briefing-body { grid-template-columns: 1fr; }
 }
 .game-title .battle-name { color: var(--ink-dim); font-size: 0.8em; letter-spacing: 0.02em; }
+.army-counts .emblem { height: 1.3em; width: auto; vertical-align: middle; }
+.briefing-credits { margin-top: 0.8rem; text-align: center; color: var(--ink-dim); font-size: 0.75rem; }
+.briefing-credits code { color: var(--gold); }

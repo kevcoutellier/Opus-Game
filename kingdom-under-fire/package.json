@@ -12,7 +12,8 @@
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "bench": "vitest run --project bench --silent=false",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "assets": "node scripts/fetch-assets.mjs"
   },
   "dependencies": {
     "three": "^0.186.1",

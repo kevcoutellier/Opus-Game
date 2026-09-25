@@ -8,6 +8,8 @@ export interface BriefingOptions {
   portrait(id: string): string | null;
   /** Background artwork, or null. */
   artwork: string | null;
+  /** Sources of the installed official assets (credits line), empty when none. */
+  credits: string[];
   onStart(): void;
 }
 
@@ -52,6 +54,11 @@ export class BriefingScreen {
           ${LORE.map((ch) => `<h3>${escape(ch.title)}</h3>${ch.paragraphs.map((p) => `<p>${escape(p)}</p>`).join('')}`).join('')}
         </details>
         <footer><button type="button" class="briefing-start">Commencer la bataille</button><span class="hint">Entrée</span></footer>
+        <div class="briefing-credits">${
+          options.credits.length
+            ? `Illustrations et sons : ${options.credits.map(escape).join(', ')}.`
+            : 'Portraits et illustrations officiels : <code>npm run assets</code>.'
+        } Kingdom Under Fire © Blueside / Phantagram — projet de fan non commercial.</div>
       </div>`;
     this.el.querySelector<HTMLButtonElement>('.briefing-start')!.onclick = () => this.start();
     root.appendChild(this.el);

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Story of Kingdom Under Fire: A War of Heroes (Phantagram, 2001), retold in our own words. Names, places
-// and events follow the original game and the Kingdom Under Fire Wiki.
+// and events follow the original game and the Kingdom Under Fire Wiki. Portraits: src/assets/sources.json.
 
 export const WORLD_NAME = 'Bersia';
 
@@ -42,8 +42,6 @@ const CharacterSchema = z.object({
   faction: z.enum(['human_alliance', 'dark_legion']),
   title: z.string().min(1),
   bio: z.string().min(1),
-  /** Article of the Kingdom Under Fire Wiki whose main picture is the portrait (see scripts/fetch-assets.mjs). */
-  wiki: z.string().min(1),
 });
 export type Character = z.infer<typeof CharacterSchema>;
 
@@ -54,7 +52,6 @@ const RAW_CHARACTERS = [
     faction: 'human_alliance',
     title: 'Messager de la paix',
     bio: 'Élevé par les moines de Hironeiden, il a vu les orcs raser Haven, le village de son enfance. Envoyé du roi auprès des elfes et des nains.',
-    wiki: 'Curian',
   },
   {
     id: 'russelaunt',
@@ -62,7 +59,6 @@ const RAW_CHARACTERS = [
     faction: 'human_alliance',
     title: 'Guerrier de Haven',
     bio: 'Originaire d’Azilla, chef spirituel du village de Haven. C’est lui qui a fait de Curian un combattant.',
-    wiki: 'Russelaunt',
   },
   {
     id: 'gernot',
@@ -70,7 +66,6 @@ const RAW_CHARACTERS = [
     faction: 'human_alliance',
     title: 'Roi d’Azilla, défenseur de Hironeiden',
     bio: 'Il a repoussé la première invasion orque et unit les royaumes humains, les elfes et les nains contre la Légion Noire.',
-    wiki: 'Gernot',
   },
   {
     id: 'moonlight',
@@ -78,7 +73,6 @@ const RAW_CHARACTERS = [
     faction: 'human_alliance',
     title: 'Archimage',
     bio: 'Héroïne de la Première Guerre des Héros : c’est elle qui ressuscita Rick Miner grâce au Cœur Ancien.',
-    wiki: 'Moonlight',
   },
   {
     id: 'demetrich',
@@ -86,7 +80,6 @@ const RAW_CHARACTERS = [
     faction: 'human_alliance',
     title: 'Roi d’Ecclesia',
     bio: 'Souverain d’Ecclesia, allié incertain dont la loyauté envers l’Alliance vacille.',
-    wiki: 'Lord Demetrich',
   },
   {
     id: 'rick_blood',
@@ -94,7 +87,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Empereur noir de la Légion',
     bio: 'Autrefois Rick Miner, Chevalier Xok ressuscité par le Cœur Ancien. Immortel, il veut rebâtir l’Autel de Destruction.',
-    wiki: 'Rick Blood',
   },
   {
     id: 'likuku',
@@ -102,7 +94,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Chef ogre de Hexter',
     bio: 'Commandant des hordes d’orcs et d’ogres de la Légion. Ses raids ont ravagé les villages du sud de Hironeiden.',
-    wiki: 'Likuku',
   },
   {
     id: 'lauriana',
@@ -110,7 +101,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Elfe noire, conseillère de Likuku',
     bio: 'Elle a appuyé l’assaut contre Haven et rallié les elfes noirs à la Légion.',
-    wiki: 'Lauriana',
   },
   {
     id: 'richter',
@@ -118,7 +108,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Seigneur vampire de Vellond',
     bio: 'Chef du plus grand clan vampire de Vellond, attiré par Rick Blood comme un papillon par la flamme.',
-    wiki: 'Richter Rosenheim',
   },
   {
     id: 'lily',
@@ -126,7 +115,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Succube',
     bio: 'Démone libérée des Ruines des Âmes Perdues, qui rêve de soumettre Rick Blood à ses charmes.',
-    wiki: 'Lily',
   },
   {
     id: 'amaruak',
@@ -134,7 +122,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Liche, bâtisseur de l’Autel',
     bio: 'Mort-vivant savant qui dresse les plans de l’Autel de Destruction. Ses véritables desseins restent obscurs.',
-    wiki: 'Amaruak the Lich',
   },
   {
     id: 'regnier',
@@ -142,7 +129,6 @@ const RAW_CHARACTERS = [
     faction: 'dark_legion',
     title: 'Le nom que portera Rick Blood',
     bio: 'Des années plus tard, Rick Blood deviendra Regnier, champion d’Encablossa, lors de la guerre des Croisés.',
-    wiki: 'Regnier',
   },
 ] as const;
 
