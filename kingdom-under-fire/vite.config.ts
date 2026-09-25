@@ -5,8 +5,11 @@ export default defineConfig({
   base: './',
   build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
   test: {
-    include: ['tests/unit/**/*.test.ts'],
-    benchmark: { include: ['tests/bench/**/*.bench.ts'] },
     environment: 'node',
+    projects: [
+      { extends: true, test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
+      // CPU benchmarks of the simulation (npm run bench): slow, printed tables, never part of `npm test`.
+      { extends: true, test: { name: 'bench', include: ['tests/bench/**/*.test.ts'], testTimeout: 600_000 } },
+    ],
   },
 });

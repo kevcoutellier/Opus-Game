@@ -23,6 +23,7 @@
   },
   "include": [
     "src",
-    "tests/unit"
+    "tests/unit",
+    "tests/bench"
   ]
 }

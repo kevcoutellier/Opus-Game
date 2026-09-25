@@ -26,6 +26,8 @@ export class AIController implements System {
   private readonly units: UnitManager;
   private next = 0;
   private lastPlan: TacticalPlan | null = null;
+  /** Disabled by the performance test, which drives both armies itself. */
+  enabled = true;
 
   constructor(
     world: World,
@@ -40,7 +42,7 @@ export class AIController implements System {
   }
 
   update(world: World): void {
-    if (world.time.elapsed < this.next) return;
+    if (!this.enabled || world.time.elapsed < this.next) return;
     this.next = world.time.elapsed + (this.options.thinkInterval ?? 1);
     this.knowledge.update();
 
