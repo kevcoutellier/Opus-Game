@@ -64,9 +64,12 @@ export class Director {
 
   // ------------------------------------------------------------- shots
 
-  /** Default battle view: behind the player's Pokémon, looking at the foe. */
+  /**
+   * Default battle view: high behind the player's Pokémon, looking at the foe.
+   * Aimed low so the player's Pokémon stays above the command panel.
+   */
   battleView(duration = 1.0) {
-    return this.moveTo(new THREE.Vector3(6.5, 4.6, FIELD_SPOT + 9.5), new THREE.Vector3(-0.6, 1.4, -2.5), duration);
+    return this.moveTo(new THREE.Vector3(7, 6.8, FIELD_SPOT + 10.3), new THREE.Vector3(-0.6, -1, -3.2), duration);
   }
 
   overview(duration = 1.2) {
