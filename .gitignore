@@ -1,0 +1,5 @@
+# Common ignores for every game of the repository (each game can add its own .gitignore).
+node_modules/
+dist/
+.DS_Store
+*.log

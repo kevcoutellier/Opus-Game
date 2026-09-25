@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.cache/
+# Assets téléchargés par `npm run assets` (propriété de Nintendo / Game Freak / The Pokémon Company)
+public/assets/
+*.log
