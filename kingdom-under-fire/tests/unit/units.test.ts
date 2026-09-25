@@ -9,7 +9,7 @@ import { UnitManager } from '../../src/units/UnitManager';
 describe('UnitFactory', () => {
   it('initialises every component from the unit definition', () => {
     const world = new World({ seed: 3 });
-    const type = unitIndex('spearman');
+    const type = unitIndex('human_spearman');
     const id = spawnUnit(world, type, 1, 10, 20, 0.5);
     const def = UNIT_DEFS[type];
     const c = world.c;

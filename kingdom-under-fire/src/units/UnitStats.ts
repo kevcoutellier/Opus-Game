@@ -10,7 +10,7 @@ export const UNIT_ROLES = ['infantry', 'spear', 'archer', 'cavalry', 'siege', 'h
 export type UnitRole = (typeof UNIT_ROLES)[number];
 
 /** Procedural 3D models available to the renderer. */
-export const UNIT_MODELS = ['swordsman', 'spearman'] as const;
+export const UNIT_MODELS = ['human_footman', 'human_spearman', 'orc_warrior', 'orc_spearman'] as const;
 export type UnitModel = (typeof UNIT_MODELS)[number];
 
 export const CostSchema = z
@@ -30,6 +30,8 @@ export const UnitDefSchema = z.object({
   description: z.string(),
   role: z.enum(UNIT_ROLES),
   model: z.enum(UNIT_MODELS),
+  /** Render scale of the model (orcs and ogres are bigger than men). */
+  scale: z.number().positive().default(1),
   health: z.number().positive(),
   attack: z.number().nonnegative(),
   defense: z.number().nonnegative(),

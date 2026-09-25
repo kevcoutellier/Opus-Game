@@ -3,7 +3,8 @@ import type { UnitModel } from '../units/UnitStats';
 import { merge, paint, tag } from './GeometryUtils';
 
 /**
- * Procedural low-poly soldiers (~1.8 m, facing +Z). Every vertex carries:
+ * Procedural low-poly soldiers of the Human Alliance and orcs of the Dark Legion (~1.8 m before the
+ * per-type scale, facing +Z). Every vertex carries:
  *  - `aBone`: 0 body, 1 left leg, 2 right leg, 3 weapon arm, 4 shield arm, 5 weapon (wrist-mounted),
  *    animated in the vertex shader;
  *  - `aTeam`: 1 where the faction colour replaces the painted colour (tabard, shield face, plume).
@@ -18,6 +19,11 @@ const LEATHER = 0x5e4630;
 const CLOTH = 0x3a332b;
 const WOOD = 0x6b4a2b;
 const TEAM = 0xffffff;
+const ORC_SKIN = 0x5d7a38;
+const TUSK = 0xe9e1c6;
+const IRON = 0x47443f;
+const FUR = 0x6b5640;
+const RAGS = 0x3b2f23;
 
 type Part = { geometry: THREE.BufferGeometry; color: number; bone: number; team?: boolean };
 
@@ -37,14 +43,14 @@ function build(parts: Part[]): THREE.BufferGeometry {
   return geometry;
 }
 
-function legs(): Part[] {
+function legs(cloth = CLOTH, boots = LEATHER, width = 0.15): Part[] {
   const parts: Part[] = [];
   for (const [side, bone] of [
     [-1, BONE.LeftLeg],
     [1, BONE.RightLeg],
   ] as const) {
-    parts.push({ geometry: box(0.15, 0.62, 0.17, side * 0.11, 0.62, 0), color: CLOTH, bone });
-    parts.push({ geometry: box(0.16, 0.3, 0.24, side * 0.11, 0.15, 0.03), color: LEATHER, bone });
+    parts.push({ geometry: box(width, 0.62, 0.17, side * 0.11, 0.62, 0), color: cloth, bone });
+    parts.push({ geometry: box(width + 0.01, 0.3, 0.24, side * 0.11, 0.15, 0.03), color: boots, bone });
   }
   return parts;
 }
@@ -60,11 +66,83 @@ function torso(tabardTeam: boolean, armour: number): Part[] {
   ];
 }
 
-function arm(side: -1 | 1, bone: number, colour: number): Part[] {
+function arm(side: -1 | 1, bone: number, colour: number, skin = SKIN, thickness = 0.11): Part[] {
   return [
-    { geometry: box(0.11, 0.48, 0.12, side * 0.29, 1.19, 0), color: colour, bone },
-    { geometry: box(0.1, 0.1, 0.1, side * 0.29, 0.93, 0.02), color: SKIN, bone },
+    { geometry: box(thickness, 0.48, thickness + 0.01, side * 0.29, 1.19, 0), color: colour, bone },
+    { geometry: box(0.1, 0.1, 0.1, side * 0.29, 0.93, 0.02), color: skin, bone },
   ];
+}
+
+/** Orc of Hexter: green hide, hunched tusked head, iron cap with horns, spiked pauldrons. */
+function orcBody(): Part[] {
+  const horn = (side: number) =>
+    new THREE.ConeGeometry(0.045, 0.22, 6).rotateZ(-side * 1.05).translate(side * 0.19, 1.8, 0.02);
+  const spike = (side: number) => new THREE.ConeGeometry(0.05, 0.16, 5).translate(side * 0.3, 1.58, 0);
+  return [
+    ...legs(RAGS, FUR, 0.17),
+    // Bare green chest under a faction-coloured war harness.
+    { geometry: box(0.5, 0.56, 0.3, 0, 1.2, 0), color: ORC_SKIN, bone: BONE.Body },
+    { geometry: box(0.52, 0.2, 0.32, 0, 1.08, 0), color: TEAM, bone: BONE.Body, team: true },
+    { geometry: box(0.08, 0.5, 0.33, 0.12, 1.25, 0), color: TEAM, bone: BONE.Body, team: true },
+    { geometry: box(0.54, 0.14, 0.33, 0, 0.93, 0), color: FUR, bone: BONE.Body },
+    { geometry: box(0.2, 0.14, 0.34, -0.3, 1.45, 0), color: IRON, bone: BONE.Body },
+    { geometry: box(0.2, 0.14, 0.34, 0.3, 1.45, 0), color: IRON, bone: BONE.Body },
+    { geometry: spike(-1), color: IRON, bone: BONE.Body },
+    { geometry: spike(1), color: IRON, bone: BONE.Body },
+    // Head thrust forward, heavy jaw and tusks.
+    { geometry: new THREE.IcosahedronGeometry(0.15, 1).scale(1, 0.95, 1.05).translate(0, 1.6, 0.07), color: ORC_SKIN, bone: BONE.Body },
+    { geometry: box(0.2, 0.08, 0.14, 0, 1.52, 0.13), color: ORC_SKIN, bone: BONE.Body },
+    { geometry: new THREE.ConeGeometry(0.018, 0.07, 4).translate(-0.06, 1.58, 0.2), color: TUSK, bone: BONE.Body },
+    { geometry: new THREE.ConeGeometry(0.018, 0.07, 4).translate(0.06, 1.58, 0.2), color: TUSK, bone: BONE.Body },
+    { geometry: new THREE.SphereGeometry(0.165, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.66, 0.05), color: IRON, bone: BONE.Body },
+    { geometry: horn(-1), color: TUSK, bone: BONE.Body },
+    { geometry: horn(1), color: TUSK, bone: BONE.Body },
+  ];
+}
+
+function orcWarrior(): THREE.BufferGeometry {
+  // War axe: haft along the swing direction, a broad bearded blade at its end.
+  const haft = new THREE.CylinderGeometry(0.025, 0.03, 0.95, 5).translate(0, 0.42, 0).rotateX(1.05).translate(0.29, 0.93, 0.05);
+  const head = new THREE.BoxGeometry(0.04, 0.3, 0.26).translate(0, 0.8, 0.1).rotateX(1.05).translate(0.29, 0.93, 0.05);
+  return build([
+    ...orcBody(),
+    ...arm(1, BONE.WeaponArm, ORC_SKIN, ORC_SKIN, 0.14),
+    { geometry: haft, color: WOOD, bone: BONE.Weapon },
+    { geometry: head, color: 0x8d8f93, bone: BONE.Weapon },
+    ...arm(-1, BONE.ShieldArm, ORC_SKIN, ORC_SKIN, 0.14),
+    // Rough plank shield with a painted face and an iron boss.
+    {
+      geometry: new THREE.CylinderGeometry(0.32, 0.32, 0.06, 9).rotateX(Math.PI / 2).translate(-0.35, 1.08, 0.21),
+      color: WOOD,
+      bone: BONE.ShieldArm,
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.24, 0.24, 0.02, 9).rotateX(Math.PI / 2).translate(-0.35, 1.08, 0.25),
+      color: TEAM,
+      bone: BONE.ShieldArm,
+      team: true,
+    },
+    { geometry: new THREE.ConeGeometry(0.07, 0.12, 6).rotateX(Math.PI / 2).translate(-0.35, 1.08, 0.3), color: IRON, bone: BONE.ShieldArm },
+  ]);
+}
+
+function orcSpearman(): THREE.BufferGeometry {
+  const tilt = -Math.PI / 2 + 0.24;
+  const shaft = new THREE.CylinderGeometry(0.026, 0.03, 2.8, 5).translate(0, 0.9, 0).rotateX(-tilt).translate(0.29, 0.95, 0.05);
+  // Barbed, crudely forged head.
+  const tip = new THREE.ConeGeometry(0.075, 0.38, 4).translate(0, 2.44, 0).rotateX(-tilt).translate(0.29, 0.95, 0.05);
+  const barb = new THREE.BoxGeometry(0.2, 0.04, 0.03).translate(0, 2.28, 0).rotateX(-tilt).translate(0.29, 0.95, 0.05);
+  return build([
+    ...orcBody(),
+    ...arm(1, BONE.WeaponArm, ORC_SKIN, ORC_SKIN, 0.14),
+    { geometry: shaft, color: 0x55391f, bone: BONE.Weapon },
+    { geometry: tip, color: 0x7d7f83, bone: BONE.Weapon },
+    { geometry: barb, color: 0x7d7f83, bone: BONE.Weapon },
+    ...arm(-1, BONE.ShieldArm, ORC_SKIN, ORC_SKIN, 0.14),
+    // Hide buckler stretched on a frame.
+    { geometry: box(0.36, 0.44, 0.05, -0.35, 1.1, 0.2), color: FUR, bone: BONE.ShieldArm },
+    { geometry: box(0.1, 0.36, 0.02, -0.35, 1.1, 0.235), color: TEAM, bone: BONE.ShieldArm, team: true },
+  ]);
 }
 
 function swordsman(): THREE.BufferGeometry {
@@ -120,12 +198,16 @@ function spearman(): THREE.BufferGeometry {
 
 export function createUnitGeometry(model: UnitModel): THREE.BufferGeometry {
   switch (model) {
-    case 'swordsman':
+    case 'human_footman':
       return swordsman();
-    case 'spearman':
+    case 'human_spearman':
       return spearman();
+    case 'orc_warrior':
+      return orcWarrior();
+    case 'orc_spearman':
+      return orcSpearman();
   }
 }
 
 /** Attack animation style per model: 0 = overhead swing, 1 = thrust. */
-export const ATTACK_STYLE: Record<UnitModel, number> = { swordsman: 0, spearman: 1 };
+export const ATTACK_STYLE: Record<UnitModel, number> = { human_footman: 0, human_spearman: 1, orc_warrior: 0, orc_spearman: 1 };

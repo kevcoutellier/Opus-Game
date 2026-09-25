@@ -68,16 +68,16 @@ export class PerformanceTestScene {
     const columns = Math.min(40, Math.max(10, Math.round(Math.sqrt(perSide * 4))));
     const half = Math.ceil(perSide / 2);
     const cx = size / 2;
-    const sword = unitIndex('swordsman');
-    const spear = unitIndex('spearman');
+    const humans = [unitIndex('human_footman'), unitIndex('human_spearman')];
+    const orcs = [unitIndex('orc_warrior'), unitIndex('orc_spearman')];
     const rowsDepth = Math.ceil(half / columns) * 1.65;
     const a = [
-      ...spawnBlock(world, sword, 0, half, columns, cx, size / 2 + 30, Math.PI, 1.65),
-      ...spawnBlock(world, spear, 0, perSide - half, columns, cx, size / 2 + 30 + rowsDepth + 1, Math.PI, 1.65),
+      ...spawnBlock(world, humans[0], 0, half, columns, cx, size / 2 + 30, Math.PI, 1.65),
+      ...spawnBlock(world, humans[1], 0, perSide - half, columns, cx, size / 2 + 30 + rowsDepth + 1, Math.PI, 1.65),
     ];
     const b = [
-      ...spawnBlock(world, sword, 1, half, columns, cx, size / 2 - 30, 0, 1.65),
-      ...spawnBlock(world, spear, 1, perSide - half, columns, cx, size / 2 - 30 - rowsDepth - 1, 0, 1.65),
+      ...spawnBlock(world, orcs[0], 1, half, columns, cx, size / 2 - 30, 0, 1.65),
+      ...spawnBlock(world, orcs[1], 1, perSide - half, columns, cx, size / 2 - 30 - rowsDepth - 1, 0, 1.65),
     ];
     world.commands.push({ kind: 'formationMove', team: 0, units: a, x: cx, z: size / 2 - 40, facing: null, width: null, formation: 'LINE', attackMove: true });
     world.commands.push({ kind: 'formationMove', team: 1, units: b, x: cx, z: size / 2 + 40, facing: null, width: null, formation: 'LINE', attackMove: true });

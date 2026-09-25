@@ -1,24 +1,25 @@
 import { parseFactionDefs, type FactionDef } from '../../factions/Faction';
 import { UNIT_INDEX } from '../units';
 
-// Original factions of « Bannières de Cendre ». Two are playable in the first prototype; two more
-// (sylvan mystics and an ash necropolis) are planned for the faction milestone.
+// The two sides of the Second War of Heroes in Bersia (Kingdom Under Fire: A War of Heroes).
 const RAW_FACTIONS = [
   {
-    id: 'valdrenne',
-    name: 'Royaume de Valdrenne',
-    description: 'Couronne des plaines du Sud. Infanterie disciplinée, chevaliers lourds, foi en la Flamme Blanche.',
+    id: 'human_alliance',
+    name: 'Alliance Humaine',
+    description:
+      'Hironeiden et Azilla sous le roi Gernot, rejoints par les elfes de la forêt d’Essex et les nains du Hall des Pierres. Infanterie disciplinée, chevaliers et mages.',
     color: '#2f5fa8',
     trim: '#c9ccd4',
-    units: ['swordsman', 'spearman'],
+    units: ['human_footman', 'human_spearman'],
   },
   {
-    id: 'vhorsk',
-    name: 'Clans de Vhorsk',
-    description: 'Clans des marches cendrées du Nord. Guerriers farouches, assauts brutaux, moral volatil.',
-    color: '#9c2a24',
-    trim: '#7a6a58',
-    units: ['swordsman', 'spearman'],
+    id: 'dark_legion',
+    name: 'Légion Noire',
+    description:
+      'Orcs et ogres de Hexter, vampires de Vellond, elfes noirs et morts-vivants, unis sous l’Empereur noir Rick Blood pour rebâtir l’Autel de Destruction.',
+    color: '#8e1f1b',
+    trim: '#2a2522',
+    units: ['orc_warrior', 'orc_spearman'],
   },
 ] as const;
 

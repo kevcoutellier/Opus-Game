@@ -148,6 +148,7 @@ export class UnitRenderer {
   private readonly materials = createMaterials(this.uniforms);
   private readonly pools: Pool[];
   private readonly modelOfType: number[];
+  private readonly scaleOfType: number[];
   private readonly walkPhase: Float32Array;
   private readonly walkAmount: Float32Array;
   private readonly frustum = new THREE.Frustum();
@@ -164,6 +165,7 @@ export class UnitRenderer {
     this.walkPhase = new Float32Array(capacity);
     this.walkAmount = new Float32Array(capacity);
     this.modelOfType = UNIT_DEFS.map((def) => UNIT_MODELS.indexOf(def.model));
+    this.scaleOfType = UNIT_DEFS.map((def) => def.scale);
     this.pools = UNIT_MODELS.map((model) => this.createPool(model, INITIAL_CAPACITY));
   }
 
@@ -223,7 +225,9 @@ export class UnitRenderer {
       this.walkPhase[id] = (this.walkPhase[id] + speed * frameSeconds * 3.3) % (Math.PI * 2000);
 
       const y = this.heightAt(x, z);
-      this.sphere.center.set(x, y + 1, z);
+      const scale = this.scaleOfType[c.unitType[id]];
+      this.sphere.center.set(x, y + scale, z);
+      this.sphere.radius = 1.6 * scale;
       if (!this.frustum.intersectsSphere(this.sphere)) continue;
 
       const poolIndex = this.modelOfType[c.unitType[id]];
@@ -237,12 +241,12 @@ export class UnitRenderer {
       if (delta > Math.PI) delta -= Math.PI * 2;
       if (delta < -Math.PI) delta += Math.PI * 2;
       rot = c.prevRot[id] + delta * alpha;
-      const sin = Math.sin(rot);
-      const cos = Math.cos(rot);
+      const sin = Math.sin(rot) * scale;
+      const cos = Math.cos(rot) * scale;
       const m = pool.mesh.instanceMatrix.array as Float32Array;
       const o = k * 16;
       m[o] = cos; m[o + 1] = 0; m[o + 2] = -sin; m[o + 3] = 0;
-      m[o + 4] = 0; m[o + 5] = 1; m[o + 6] = 0; m[o + 7] = 0;
+      m[o + 4] = 0; m[o + 5] = scale; m[o + 6] = 0; m[o + 7] = 0;
       m[o + 8] = sin; m[o + 9] = 0; m[o + 10] = cos; m[o + 11] = 0;
       m[o + 12] = x; m[o + 13] = y; m[o + 14] = z; m[o + 15] = 1;
 

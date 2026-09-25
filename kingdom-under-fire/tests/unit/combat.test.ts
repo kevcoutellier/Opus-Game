@@ -10,7 +10,7 @@ import { setupPrototypeBattle } from '../../src/scenes/BattleScene';
 import { CORPSE_SECONDS } from '../../src/units/Unit';
 import { spawnBlock, spawnUnit } from '../../src/units/UnitFactory';
 
-const SWORD = unitIndex('swordsman');
+const SWORD = unitIndex('human_footman');
 
 const average = (fn: (rng: Random) => number, n = 2000) => {
   const rng = new Random(1);
@@ -123,15 +123,35 @@ describe('combat and morale', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const world = new World({ seed });
       const { simulation } = createBattleSimulation(world);
-      const { player, enemy } = setupPrototypeBattle(world, 128);
+      const spear = unitIndex('human_spearman');
+      const a = [...spawnBlock(world, SWORD, 0, 10, 10, 64, 116, Math.PI), ...spawnBlock(world, spear, 0, 10, 10, 64, 119, Math.PI)];
+      const b = [...spawnBlock(world, SWORD, 1, 10, 10, 64, 12, 0), ...spawnBlock(world, spear, 1, 10, 10, 64, 9, 0)];
       const outcome = new BattleOutcome(0);
-      world.commands.push({ kind: 'formationMove', team: 0, units: player.units, x: 64, z: 16, facing: null, width: null, formation: 'LINE', attackMove: true });
-      world.commands.push({ kind: 'formationMove', team: 1, units: enemy.units, x: 64, z: 112, facing: null, width: null, formation: 'LINE', attackMove: true });
+      world.commands.push({ kind: 'formationMove', team: 0, units: a, x: 64, z: 16, facing: null, width: null, formation: 'LINE', attackMove: true });
+      world.commands.push({ kind: 'formationMove', team: 1, units: b, x: 64, z: 112, facing: null, width: null, formation: 'LINE', attackMove: true });
       for (let t = 0; t < 240 * 30 && !outcome.update(world); t++) simulation.step(world.time.dt);
       if (outcome.result === 'victory') firstWins++;
     }
     expect(firstWins).toBeGreaterThanOrEqual(3);
     expect(firstWins).toBeLessThanOrEqual(9);
+  });
+
+  it('balances the Human Alliance against the orcs of the Dark Legion (each side wins some battles)', () => {
+    // Measured over 40 seeds when tuned: humans 17 / orcs 23. Guards against a one-sided roster change.
+    let humans = 0;
+    const seeds = 12;
+    for (let seed = 1; seed <= seeds; seed++) {
+      const world = new World({ seed });
+      const { simulation } = createBattleSimulation(world);
+      const { player, enemy } = setupPrototypeBattle(world, 128);
+      const outcome = new BattleOutcome(0);
+      world.commands.push({ kind: 'formationMove', team: 0, units: player.units, x: 64, z: 16, facing: null, width: null, formation: 'LINE', attackMove: true });
+      world.commands.push({ kind: 'formationMove', team: 1, units: enemy.units, x: 64, z: 112, facing: null, width: null, formation: 'LINE', attackMove: true });
+      for (let t = 0; t < 240 * 30 && !outcome.update(world); t++) simulation.step(world.time.dt);
+      if (outcome.result === 'victory') humans++;
+    }
+    expect(humans).toBeGreaterThanOrEqual(2);
+    expect(humans).toBeLessThanOrEqual(seeds - 2);
   });
 
   it('replays identically from the same seed and orders', () => {

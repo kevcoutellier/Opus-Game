@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { World } from '../core/World';
+import { UNIT_DEFS } from '../data/units';
 import { Comp, UnitState } from '../entities/Components';
 
 const MAX_RINGS = 2048;
@@ -133,7 +134,8 @@ export class OverlayRenderer {
       if ((entities.mask[id] & Comp.Unit) === 0 || c.state[id] === UnitState.Dying) continue;
       if (c.lastHit[id] > BAR_SECONDS && !this.selectedSet.has(id)) continue;
       renderPosition(world, id, alpha, this.pos);
-      this.matrix.makeTranslation(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + 2.25, this.pos.z);
+      const top = 2.25 * UNIT_DEFS[c.unitType[id]].scale;
+      this.matrix.makeTranslation(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + top, this.pos.z);
       this.bars.setMatrixAt(n, this.matrix);
       const ratio = Math.max(0, c.hp[id] / c.maxHp[id]);
       fill[n] = ratio;

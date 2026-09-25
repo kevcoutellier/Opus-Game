@@ -33,7 +33,7 @@ import { World } from './World';
 const MAP_SIZE = 256;
 const CAMERA_MARGIN = 20;
 const SIM_HZ = 30;
-const TEAM_FACTIONS = ['valdrenne', 'vhorsk'];
+const TEAM_FACTIONS = ['human_alliance', 'dark_legion'];
 
 /** Browser orchestrator: owns the renderer, the loop, the input, the UI and the simulation. */
 export class Game {

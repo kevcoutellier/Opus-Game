@@ -136,7 +136,8 @@ describe('Simulation', () => {
 
 describe('data', () => {
   it('validates the unit and faction definitions', () => {
-    expect(UNIT_DEFS.map((u) => u.id)).toEqual(['swordsman', 'spearman']);
+    expect(UNIT_DEFS.map((u) => u.id)).toEqual(['human_footman', 'human_spearman', 'orc_warrior', 'orc_spearman']);
+    expect(FACTIONS.map((f) => f.id)).toEqual(['human_alliance', 'dark_legion']);
     expect(FACTIONS.length).toBeGreaterThanOrEqual(2);
   });
 
