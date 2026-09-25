@@ -1,19 +1,30 @@
 import { h, icon, keyboardNav, typeBadge } from './dom.js';
 import { battleScreen } from './battleScreen.js';
-import { menuScreen } from './menuScreen.js';
-import { LEVEL_MODES, pickThree } from '../game/teams.js';
+import { hubFor } from './hub.js';
+import { pickThree } from '../game/teams.js';
+import { defaultLevels, levelLabel, levelRange, levelsValid, levelTotal } from '../game/rules.js';
+import { currentRound } from '../game/runs.js';
+import { loadModel } from '../render/actor.js';
 
-export function pickScreen(game, { mine, foe, levelMode }) {
-  const { data } = game;
-  const level = LEVEL_MODES[levelMode];
+/** Stadium's "choose 3 of your 6", with the opponent's team revealed and level tuning. */
+export function pickScreen(game) {
+  const { data, run } = game;
+  const { rules } = run;
+  const foe = currentRound(run);
+  const mine = run.team;
   game.resetField();
   game.arena.setTheme(foe.theme);
   game.arena.setScoreboard({ title: foe.title.toUpperCase(), left: game.settings.playerName, right: foe.name.split(' ').pop().toUpperCase() });
   game.audio.playTheme('menu');
   game.director.startOrbit({ radius: 40, height: 20, speed: 0.03 });
+  // Warm the model cache so send-outs don't wait on the network.
+  for (const s of [...mine, ...foe.team]) loadModel(s.num);
 
   const picked = [];
+  let levels = [];
+  const adjustable = !rules.balanced && rules.min !== rules.max;
   const go = h('button.btn', { 'data-nav': true, onclick: () => start() }, 'Au combat !');
+  const levelPanel = h('div.level-panel');
 
   const card = (s, selectable) => {
     const c = h(
@@ -22,7 +33,7 @@ export function pickScreen(game, { mine, foe, levelMode }) {
       icon(s.num),
       h(
         'div',
-        h('div.pname', s.nameFr, ' ', h('span.hud-level', `N.${level.level(s)}`)),
+        h('div.pname', s.nameFr, ' ', h('span.hud-level', levelLabel(rules, s))),
         h('div', { style: { display: 'flex', gap: '4px', margin: '3px 0' } }, s.types.map((t) => typeBadge(data, t))),
         h('div.pmoves', s.rental.moves.map((m) => data.moves[m].nameFr).join(' · ')),
       ),
@@ -33,15 +44,16 @@ export function pickScreen(game, { mine, foe, levelMode }) {
   };
 
   const mineCards = mine.map((s) => card(s, true));
+  const progress = run.rounds.length > 1 ? h('div.bracket.small', run.rounds.map((r, i) => h(`div.round${i < run.round ? '.done' : i === run.round ? '.current' : ''}`, r.title))) : null;
   const el = h(
     'div.screen.pick-screen',
-    h('div.pick-header', h('h2', `${foe.title} · ${foe.name}`), h('div.hint', 'Choisis 3 Pokémon dans l\'ordre d\'entrée en combat.')),
+    h('div.pick-header', h('h2', `${foe.title} · ${foe.name}`), progress, h('div.hint', `${run.title} — choisis 3 Pokémon dans l'ordre d'entrée en combat.`)),
     h(
       'div.pick-columns',
-      h('div.panel.pick-team.mine', h('h3', `Équipe de ${game.settings.playerName}`), mineCards),
+      h('div.panel.pick-team.mine', h('h3', `Équipe de ${game.settings.playerName}`), mineCards, levelPanel),
       h('div.panel.pick-team.foe', h('h3', `Équipe de ${foe.name}`), foe.team.map((s) => card(s, false))),
     ),
-    h('div.pick-footer', h('button.btn.ghost', { 'data-nav': true, onclick: () => game.show(menuScreen) }, 'Abandonner'), go),
+    h('div.pick-footer', h('button.btn.ghost', { 'data-nav': true, onclick: () => game.show(hubFor(run)) }, 'Abandonner'), go),
   );
 
   function toggle(s) {
@@ -54,6 +66,16 @@ export function pickScreen(game, { mine, foe, levelMode }) {
       game.audio.sfx('select');
       game.audio.cry(s.num);
     }
+    levels = defaultLevels(rules, picked);
+    refresh();
+  }
+
+  function adjust(i, delta) {
+    const [min, max] = levelRange(rules, picked[i]);
+    const next = Math.max(min, Math.min(max, levels[i] + delta));
+    if (next === levels[i]) return;
+    levels[i] = next;
+    game.audio.sfx('cursor');
     refresh();
   }
 
@@ -63,22 +85,41 @@ export function pickScreen(game, { mine, foe, levelMode }) {
       c.classList.toggle('picked', i >= 0);
       c.querySelector('.pick-order').textContent = i >= 0 ? i + 1 : '';
     });
-    go.disabled = picked.length !== 3;
+    const valid = picked.length === 3 && levelsValid(rules, picked, levels);
+    if (adjustable && picked.length) {
+      const total = levelTotal(levels);
+      levelPanel.replaceChildren(
+        h('div.level-head', h('b', 'Niveaux'), h(`span${rules.total != null && total > rules.total ? '.over' : ''}`, rules.total != null ? `Total ${total} / ${rules.total}` : `Total ${total}`)),
+        ...picked.map((s, i) =>
+          h(
+            'div.level-row',
+            h('span', `${i + 1}. ${s.nameFr}`),
+            h('button.btn.small.ghost', { 'data-nav': true, onclick: () => adjust(i, -1) }, '−'),
+            h('b.hud-level', `N.${levels[i]}`),
+            h('button.btn.small.ghost', { 'data-nav': true, onclick: () => adjust(i, +1) }, '+'),
+          ),
+        ),
+      );
+    } else {
+      levelPanel.replaceChildren();
+    }
+    go.disabled = !valid;
     go.textContent = picked.length === 3 ? 'Au combat !' : `Au combat ! (${picked.length}/3)`;
   }
 
   function start() {
-    if (picked.length !== 3) return;
+    if (picked.length !== 3 || !levelsValid(rules, picked, levels)) return;
     game.audio.sfx('select');
+    const foePicks = pickThree(data, foe.team, mine);
+    const foeLevels = defaultLevels(rules, foePicks);
     game.show(battleScreen, {
-      mine: [...picked],
-      foe: { ...foe, team: pickThree(data, foe.team, mine) },
-      levelMode,
+      mine: picked.map((species, i) => ({ species, level: levels[i] })),
+      foe: { ...foe, team: foePicks.map((species, i) => ({ species, level: foeLevels[i] })) },
     });
   }
 
   refresh();
-  const nav = keyboardNav(el, { onBack: () => game.show(menuScreen) });
+  const nav = keyboardNav(el, { onBack: () => game.show(hubFor(run)) });
   nav.focus(0);
   return { el, destroy: () => nav.destroy() };
 }

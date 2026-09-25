@@ -2,9 +2,14 @@ import { h, keyboardNav } from './dom.js';
 import { rentalScreen } from './rentalScreen.js';
 import { dexScreen } from './dexScreen.js';
 import { titleScreen } from './titleScreen.js';
-import { CUP_BANNED, CUP_ROUNDS, LEVEL_MODES } from '../game/teams.js';
+import { stadiumScreen } from './stadiumScreen.js';
+import { castleScreen } from './castleScreen.js';
+import { trophyScreen } from './trophyScreen.js';
+import { FREE_RULES } from '../game/rules.js';
+import { freeRun } from '../game/runs.js';
+import { badgeCount } from '../game/progress.js';
 
-function segmented(options, value, onChange) {
+export function segmented(options, value, onChange) {
   const wrap = h('div.segmented');
   const render = (current) => {
     wrap.replaceChildren(
@@ -30,6 +35,7 @@ function segmented(options, value, onChange) {
 
 export function menuScreen(game, { page = 'main' } = {}) {
   game.resetField();
+  game.run = null;
   game.arena.setTheme('day');
   game.arena.setScoreboard({ title: 'POKéMON STADIUM', left: game.settings.playerName, right: '???' });
   game.audio.playTheme('menu');
@@ -38,16 +44,20 @@ export function menuScreen(game, { page = 'main' } = {}) {
   const card = h('div.panel.menu-card');
   const el = h('div.screen.menu-screen', card);
   let nav;
+  const trophies = Object.keys(game.progress.trophies).length;
+  const badges = badgeCount(game.progress);
 
   const pages = {
     main: () => [
       h('h2', 'Menu principal'),
-      h('p.sub', `Dresseur : ${game.settings.playerName}`),
+      h('p.sub', `Dresseur : ${game.settings.playerName} · ${trophies} trophée${trophies > 1 ? 's' : ''} · ${badges}/8 badges`),
       h(
         'div.menu-list',
-        h('button.btn', { 'data-nav': true, onclick: () => startCup() }, 'Coupe Poké', h('small', `${CUP_ROUNDS.length} dresseurs à battre · niveau 50 · Mew et Mewtwo interdits`)),
+        h('button.btn', { 'data-nav': true, onclick: () => game.show(stadiumScreen) }, 'Stadium', h('small', 'Coupes Petit, Pika, Poké et Prime, en 4 niveaux de difficulté')),
+        h('button.btn', { 'data-nav': true, onclick: () => game.show(castleScreen) }, 'Château des Champions', h('small', 'Les 8 Champions d\'Arène, le Conseil 4 et ton rival')),
         h('button.btn', { 'data-nav': true, onclick: () => open('free') }, 'Combat Libre', h('small', "Choisis tes règles et affronte l'IA")),
         h('button.btn.blue', { 'data-nav': true, onclick: () => game.show(dexScreen) }, 'Pokédex 3D', h('small', 'Les 151 Pokémon en 3D, avec leur cri')),
+        h('button.btn.blue', { 'data-nav': true, onclick: () => game.show(trophyScreen) }, 'Salle des Trophées', h('small', 'Trophées, badges et Panthéon de tes équipes')),
         h('button.btn.blue', { 'data-nav': true, onclick: () => open('options') }, 'Options', h('small', 'Son, commentateur, vitesse des combats')),
         h('button.btn.ghost', { 'data-nav': true, onclick: () => game.show(titleScreen) }, 'Écran titre'),
       ),
@@ -55,7 +65,7 @@ export function menuScreen(game, { page = 'main' } = {}) {
     free: () => [
       h('h2', 'Combat Libre'),
       h('p.sub', 'Loue 6 Pokémon, puis choisis-en 3 face à ton adversaire.'),
-      h('div.option-row', h('span', 'Niveaux'), segmented(Object.entries(LEVEL_MODES).map(([k, v]) => [k, v.label]), game.settings.levelMode, (v) => game.saveSettings({ levelMode: v }))),
+      h('div.option-row', h('span', 'Niveaux'), segmented(Object.values(FREE_RULES).map((r) => [r.id, r.name]), game.settings.freeRules, (v) => game.saveSettings({ freeRules: v }))),
       h('div.option-row', h('span', 'Adversaire'), segmented([[0, 'Débutant'], [1, 'Normal'], [2, 'Expert']], game.settings.difficulty, (v) => game.saveSettings({ difficulty: v }))),
       h(
         'div.menu-list',
@@ -95,16 +105,10 @@ export function menuScreen(game, { page = 'main' } = {}) {
     nav?.focus(0);
   }
 
-  function startCup() {
-    game.audio.sfx('select');
-    game.cup = { round: 0, rounds: CUP_ROUNDS, team: null };
-    game.show(rentalScreen, { mode: 'cup', banned: CUP_BANNED, levelMode: 'fixed50' });
-  }
-
   function startFree() {
     game.audio.sfx('select');
-    game.cup = null;
-    game.show(rentalScreen, { mode: 'free', banned: new Set(), levelMode: game.settings.levelMode });
+    game.run = freeRun(game.data, game.settings.freeRules, game.settings.difficulty);
+    game.show(rentalScreen);
   }
 
   card.replaceChildren(...pages[page]());

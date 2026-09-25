@@ -1,9 +1,8 @@
 import { Battle } from '../engine/battle.js';
 import { createPokemon } from '../engine/pokemon.js';
 import { chooseAction, chooseReplacement } from '../engine/ai.js';
-import { LEVEL_MODES } from '../game/teams.js';
 import { tween, wait } from '../render/tween.js';
-import { h, hpColor, icon, statusBadge } from './dom.js';
+import { h, hpColor, icon, keyboardNav, statusBadge } from './dom.js';
 import { commentary, describe, effectivenessText } from './messages.js';
 import { resultScreen } from './resultScreen.js';
 
@@ -69,9 +68,12 @@ function hudPanel(side) {
   };
 }
 
-export function battleScreen(game, { mine, foe, levelMode }) {
+/**
+ * @param {{species: object, level: number}[]} mine  the player's 3 Pokémon
+ * @param {object} foe  round info ({ name, title, ai, theme }) + team of 3 { species, level }
+ */
+export function battleScreen(game, { mine, foe }) {
   const { data, battleScene: scene, director, audio, arena } = game;
-  const level = LEVEL_MODES[levelMode];
   const playerName = game.settings.playerName;
   game.resetField();
   scene.setTrainersVisible(true);
@@ -82,8 +84,8 @@ export function battleScreen(game, { mine, foe, levelMode }) {
     data,
     seed: (Math.random() * 2 ** 32) >>> 0,
     sides: [
-      { name: playerName, pokemon: mine.map((s) => createPokemon(s, data, { level: level.level(s) })) },
-      { name: foe.name, pokemon: foe.team.map((s) => createPokemon(s, data, { level: level.level(s) })) },
+      { name: playerName, pokemon: mine.map((m) => createPokemon(m.species, data, { level: m.level })) },
+      { name: foe.name, pokemon: foe.team.map((m) => createPokemon(m.species, data, { level: m.level })) },
     ],
   });
   const ctx = { trainers: [playerName, foe.name] };
@@ -367,105 +369,127 @@ export function battleScreen(game, { mine, foe, levelMode }) {
     messageBox.style.display = '';
   }
 
-  function askSwitch(forced) {
+  /** Shows a command menu; `build(done)` returns its children. Arrow keys / gamepad move the focus. */
+  function commandMenu(build, { onBack, onKey } = {}) {
     return new Promise((resolve) => {
-      const req = battle.getRequest(0);
-      const team = battle.sides[0].pokemon;
-      const cards = team.map((p, index) => {
-        const available = req.switches.includes(index);
-        const r = p.hp / p.maxHp;
-        return h(
-          'button.switch-card',
-          { disabled: !available, onclick: () => resolve({ type: 'switch', index }) },
-          icon(p.num),
-          h(
-            'div',
-            h('div', { style: { fontWeight: 800 } }, p.name, ' ', statusBadge(p.status), index === battle.sides[0].active && !p.fainted ? ' (au combat)' : ''),
-            h('div.hp-bar', h('div.hp-fill', { style: { width: `${r * 100}%`, background: hpColor(r) } })),
-            h('div', { style: { fontSize: '12px', opacity: 0.8 } }, `${p.hp} / ${p.maxHp} PV`),
-          ),
-        );
-      });
+      let nav;
+      const done = (value) => {
+        nav.destroy();
+        hideCommand();
+        resolve(value);
+      };
       messageBox.style.display = 'none';
       command.style.display = '';
-      command.replaceChildren(
-        h('div.prompt', forced ? 'Quel Pokémon envoyer ?' : 'Changer de Pokémon ?'),
-        h('div.switch-list', cards),
-        forced ? h('div') : h('div.side-actions', h('button.btn.ghost.small', { onclick: () => resolve(null) }, 'Retour')),
-      );
-      const onKey = (e) => {
-        const n = Number(e.key);
-        if (n >= 1 && n <= team.length && req.switches.includes(n - 1)) resolve({ type: 'switch', index: n - 1 });
-        if (!forced && (e.key === 'Escape' || e.key === 'Backspace')) resolve(null);
-      };
-      window.addEventListener('keydown', onKey);
-      const done = resolve;
-      resolve = (v) => {
-        window.removeEventListener('keydown', onKey);
-        hideCommand();
-        done(v);
-      };
+      command.replaceChildren(...build(done));
+      nav = keyboardNav(command, { onBack: onBack && (() => onBack(done)), onKey: onKey && ((e) => onKey(e, done)) });
+      nav.focus(0);
     });
   }
 
-  function askAction() {
+  function askSwitch(forced) {
     const req = battle.getRequest(0);
-    if (req.kind === 'locked') return Promise.resolve({ type: 'locked' });
-    const mon = battle.active(0);
-    return new Promise((resolve) => {
-      const buttons = req.struggle
-        ? [h('button.move-btn', { style: { background: data.types.Normal.color }, onclick: () => finish({ type: 'move', index: -1 }) }, h('div.mname', 'Lutte'), h('div.mmeta', h('span', 'Plus aucun PP !')))]
-        : req.moves.map((m, i) => {
-            const move = data.moves[m.id];
-            const color = data.types[move.type].color;
+    const team = battle.sides[0].pokemon;
+    return commandMenu(
+      (done) => [
+        h('div.prompt', forced ? 'Quel Pokémon envoyer ?' : 'Changer de Pokémon ?'),
+        h(
+          'div.switch-list',
+          team.map((p, index) => {
+            const r = p.hp / p.maxHp;
             return h(
-              'button.move-btn',
-              {
-                disabled: !m.usable,
-                style: { background: `linear-gradient(135deg, ${color}, ${color}aa)` },
-                onclick: () => finish({ type: 'move', index: m.index }),
-                title: move.name,
-              },
-              h('span.key', i + 1),
-              h('div.mname', move.nameFr),
-              h('div.mmeta', h('span', `${data.types[move.type].fr} · ${move.category === 'Status' ? 'Statut' : move.category === 'Physical' ? 'Physique' : 'Spéciale'}`), h('span', m.disabled ? 'Bloquée' : `PP ${m.pp}/${m.maxPp}`)),
+              'button.switch-card',
+              { 'data-nav': true, disabled: !req.switches.includes(index), onclick: () => done({ type: 'switch', index }) },
+              icon(p.num),
+              h(
+                'div',
+                h('div', { style: { fontWeight: 800 } }, p.name, ' ', statusBadge(p.status), index === battle.sides[0].active && !p.fainted ? ' (au combat)' : ''),
+                h('div.hp-bar', h('div.hp-fill', { style: { width: `${r * 100}%`, background: hpColor(r) } })),
+                h('div', { style: { fontSize: '12px', opacity: 0.8 } }, `${p.hp} / ${p.maxHp} PV`),
+              ),
             );
-          });
-      const switchBtn = h('button.btn.blue', { disabled: !req.switches.length, onclick: () => openSwitch() }, 'Changer (S)');
-      const forfeit = h('button.btn.ghost.small', { onclick: () => confirmForfeit() }, 'Abandonner');
-      messageBox.style.display = 'none';
-      command.style.display = '';
-      command.replaceChildren(
-        h('div.prompt', `Que doit faire ${mon.name} ?`),
-        h('div.moves-grid', buttons),
-        h('div.side-actions', switchBtn, forfeit),
-      );
-      const onKey = (e) => {
-        const n = Number(e.key);
-        if (n >= 1 && n <= 4 && buttons[n - 1] && !buttons[n - 1].disabled) buttons[n - 1].click();
-        if (e.key === 's' || e.key === 'S') switchBtn.click();
-      };
-      window.addEventListener('keydown', onKey);
-      function finish(action) {
-        window.removeEventListener('keydown', onKey);
-        hideCommand();
-        audio.sfx('select');
-        resolve(action);
-      }
-      async function openSwitch() {
-        window.removeEventListener('keydown', onKey);
-        const choice = await askSwitch(false);
-        if (choice) return resolve(choice);
-        resolve(askAction());
-      }
-      function confirmForfeit() {
-        if (window.confirm('Abandonner le combat ?')) {
-          window.removeEventListener('keydown', onKey);
-          hideCommand();
-          resolve({ type: 'forfeit' });
-        }
-      }
-    });
+          }),
+        ),
+        forced ? h('div') : h('div.side-actions', h('button.btn.ghost.small', { 'data-nav': true, onclick: () => done(null) }, 'Retour')),
+      ],
+      {
+        onBack: forced ? null : (done) => done(null),
+        onKey: (e, done) => {
+          const n = Number(e.key);
+          if (n >= 1 && n <= team.length && req.switches.includes(n - 1)) {
+            done({ type: 'switch', index: n - 1 });
+            return true;
+          }
+          return false;
+        },
+      },
+    );
+  }
+
+  function confirmForfeit() {
+    return commandMenu((done) => [
+      h('div.prompt', 'Abandonner le combat ? Il sera compté comme une défaite.'),
+      h('div.side-actions', { style: { flexDirection: 'row' } },
+        h('button.btn.ghost', { 'data-nav': true, onclick: () => done(false) }, 'Non, continuer'),
+        h('button.btn', { 'data-nav': true, onclick: () => done(true) }, 'Oui, abandonner'),
+      ),
+    ], { onBack: (done) => done(false) });
+  }
+
+  async function askAction() {
+    const req = battle.getRequest(0);
+    if (req.kind === 'locked') return { type: 'locked' };
+    const mon = battle.active(0);
+    const choice = await commandMenu(
+      (done) => {
+        const buttons = req.struggle
+          ? [h('button.move-btn', { 'data-nav': true, style: { background: data.types.Normal.color }, onclick: () => done({ type: 'move', index: -1 }) }, h('div.mname', 'Lutte'), h('div.mmeta', h('span', 'Plus aucun PP !')))]
+          : req.moves.map((m, i) => {
+              const move = data.moves[m.id];
+              const color = data.types[move.type].color;
+              return h(
+                'button.move-btn',
+                {
+                  'data-nav': true,
+                  disabled: !m.usable,
+                  style: { background: `linear-gradient(135deg, ${color}, ${color}aa)` },
+                  onclick: () => done({ type: 'move', index: m.index }),
+                  title: move.name,
+                },
+                h('span.key', i + 1),
+                h('div.mname', move.nameFr),
+                h('div.mmeta', h('span', `${data.types[move.type].fr} · ${move.category === 'Status' ? 'Statut' : move.category === 'Physical' ? 'Physique' : 'Spéciale'}`), h('span', m.disabled ? 'Bloquée' : `PP ${m.pp}/${m.maxPp}`)),
+              );
+            });
+        return [
+          h('div.prompt', `Que doit faire ${mon.name} ?`),
+          h('div.moves-grid', buttons),
+          h(
+            'div.side-actions',
+            h('button.btn.blue', { 'data-nav': true, disabled: !req.switches.length, onclick: () => done('switch') }, 'Changer (S)'),
+            h('button.btn.ghost.small', { 'data-nav': true, onclick: () => done('forfeit') }, 'Abandonner'),
+          ),
+        ];
+      },
+      {
+        onKey: (e, done) => {
+          const n = Number(e.key);
+          const usable = req.moves?.[n - 1]?.usable;
+          if (n >= 1 && n <= 4 && (usable || (req.struggle && n === 1))) {
+            done({ type: 'move', index: req.struggle ? -1 : n - 1 });
+            return true;
+          }
+          if ((e.key === 's' || e.key === 'S') && req.switches.length) {
+            done('switch');
+            return true;
+          }
+          return false;
+        },
+      },
+    );
+    if (choice === 'switch') return (await askSwitch(false)) || askAction();
+    if (choice === 'forfeit') return (await confirmForfeit()) ? { type: 'forfeit' } : askAction();
+    audio.sfx('select');
+    return choice;
   }
 
   // ------------------------------------------------------------- main loop
@@ -507,7 +531,13 @@ export function battleScreen(game, { mine, foe, levelMode }) {
     arena.cheer(1, 3);
     audio.sfx('crowd', { dur: 2.5, gain: 0.25 });
     await wait(1.2);
-    game.show(resultScreen, { won, foe, turns: battle.turn, survivors: battle.sides[0].pokemon.filter((p) => !p.fainted).length, levelMode });
+    game.show(resultScreen, {
+      won,
+      foe,
+      turns: battle.turn,
+      survivors: battle.sides[0].pokemon.filter((p) => !p.fainted).length,
+      team: mine.map((m) => ({ num: m.species.num, level: m.level })),
+    });
   }
 
   run().catch((err) => {

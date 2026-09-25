@@ -6,6 +6,7 @@ import { BattleScene } from './render/battleScene.js';
 import { Showcase } from './render/showcase.js';
 import { setTweenSpeed } from './render/tween.js';
 import { Audio } from './audio/audio.js';
+import { loadProgress, saveProgress } from './game/progress.js';
 
 const SETTINGS_KEY = 'opus-stadium-settings';
 const DEFAULT_SETTINGS = {
@@ -14,7 +15,7 @@ const DEFAULT_SETTINGS = {
   sfx: true,
   voice: true,
   speed: 1,
-  levelMode: 'fixed50',
+  freeRules: 'fixed50',
   difficulty: 1,
 };
 
@@ -43,7 +44,12 @@ export class Game {
     this.audio = new Audio();
     this.applySettings();
     this.screen = null;
-    this.cup = null;
+    this.run = null;
+    this.progress = loadProgress();
+  }
+
+  saveProgress() {
+    saveProgress(this.progress);
   }
 
   saveSettings(patch) {

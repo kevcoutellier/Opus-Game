@@ -1,11 +1,14 @@
 import { h, icon, keyboardNav, toast } from './dom.js';
 import { speciesCard } from './speciesCard.js';
-import { menuScreen } from './menuScreen.js';
+import { hubFor } from './hub.js';
 import { pickScreen } from './pickScreen.js';
-import { FREE_OPPONENTS, LEVEL_MODES, buildTeam, randomTeam } from '../game/teams.js';
+import { randomTeam } from '../game/teams.js';
+import { allowed, levelLabel } from '../game/rules.js';
 
-export function rentalScreen(game, { mode, banned, levelMode }) {
-  const { data } = game;
+/** Pick the 6 rental Pokémon of the current run (cup, gym, free battle). */
+export function rentalScreen(game) {
+  const { data, run } = game;
+  const { rules } = run;
   game.resetField();
   game.arena.setTheme('day');
   game.audio.playTheme('menu');
@@ -21,15 +24,14 @@ export function rentalScreen(game, { mode, banned, levelMode }) {
   const info = h('div');
   const slots = h('div.team-slots');
   const confirm = h('button.btn', { 'data-nav': true, onclick: () => validate() }, 'Valider');
-  const level = LEVEL_MODES[levelMode];
 
   for (const s of data.species) {
-    const isBanned = banned.has(s.num);
+    const isBanned = !allowed(rules, s);
     const cell = h(
       `div.mon-cell${isBanned ? '.banned' : ''}`,
       {
         'data-nav': isBanned ? null : true,
-        title: `${s.nameFr}${isBanned ? ' (interdit en Coupe Poké)' : ''}`,
+        title: `${s.nameFr}${isBanned ? ' (interdit par le règlement)' : ''}`,
         onclick: () => !isBanned && toggle(s),
         onmouseenter: () => preview(s),
         onnavfocus: () => preview(s, 0),
@@ -57,7 +59,7 @@ export function rentalScreen(game, { mode, banned, levelMode }) {
       if (current === s) return;
       current = s;
       for (const [num, cell] of cells) cell.classList.toggle('current', num === s.num);
-      info.replaceChildren(speciesCard(data, s, { level: level.level(s) }));
+      info.replaceChildren(speciesCard(data, s, { level: levelLabel(rules, s) }));
       game.showcase.show(s, { radiusScale: 1.15 });
     }, delay);
   }
@@ -96,7 +98,7 @@ export function rentalScreen(game, { mode, banned, levelMode }) {
   }
 
   function randomize() {
-    chosen.splice(0, chosen.length, ...randomTeam(data, { banned }));
+    chosen.splice(0, chosen.length, ...randomTeam(data, { rules }));
     game.audio.sfx('select');
     refresh();
     preview(chosen[0], 0);
@@ -105,30 +107,16 @@ export function rentalScreen(game, { mode, banned, levelMode }) {
   function validate() {
     if (chosen.length !== 6) return;
     game.audio.sfx('select');
-    if (mode === 'cup') {
-      game.cup.team = [...chosen];
-      const round = game.cup.rounds[game.cup.round];
-      game.show(pickScreen, {
-        mine: game.cup.team,
-        foe: { name: round.name, ai: round.ai, team: buildTeam(data, { types: round.types, tier: round.tier }), theme: round.theme, title: round.title },
-        levelMode,
-      });
-    } else {
-      const foeName = FREE_OPPONENTS[Math.floor(Math.random() * FREE_OPPONENTS.length)];
-      game.show(pickScreen, {
-        mine: [...chosen],
-        foe: { name: foeName, ai: game.settings.difficulty, team: randomTeam(data, { banned }), theme: 'day', title: 'Combat Libre' },
-        levelMode,
-      });
-    }
+    run.team = [...chosen];
+    game.show(pickScreen);
   }
 
   const el = h(
     'div.screen.rental-screen',
     h(
       'div.panel.rental-grid-panel',
-      h('h2', mode === 'cup' ? 'Coupe Poké · Location' : 'Combat Libre · Location'),
-      h('div.hint', { style: { marginBottom: '8px' } }, `Choisis 6 Pokémon de location (${level.label}).`),
+      h('h2', `${run.title} · Location`),
+      h('div.hint', { style: { marginBottom: '8px' } }, `Choisis 6 Pokémon de location. ${rules.blurb || rules.name}`),
       h('div.rental-tools', search, h('button.btn.small.blue', { 'data-nav': true, onclick: randomize }, 'Aléatoire')),
       grid,
     ),
@@ -138,15 +126,15 @@ export function rentalScreen(game, { mode, banned, levelMode }) {
       info,
       h('h2', { style: { marginTop: '6px' } }, 'Ton équipe'),
       slots,
-      h('div.bottom-actions', h('button.btn.ghost.small', { 'data-nav': true, onclick: () => game.show(menuScreen) }, 'Retour'), confirm),
+      h('div.bottom-actions', h('button.btn.ghost.small', { 'data-nav': true, onclick: () => game.show(hubFor(run)) }, 'Retour'), confirm),
     ),
   );
 
   refresh();
-  const firstAllowed = data.species.find((s) => !banned.has(s.num) && s.num === 25) || data.species[0];
+  const firstAllowed = data.species.find((s) => allowed(rules, s) && s.num === 25) || data.species.find((s) => allowed(rules, s));
   preview(firstAllowed, 0);
   const nav = keyboardNav(el, {
-    onBack: () => game.show(menuScreen),
+    onBack: () => game.show(hubFor(run)),
     onKey: (e) => {
       if (e.key === 'r' && !(e.target instanceof HTMLInputElement)) {
         randomize();

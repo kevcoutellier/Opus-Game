@@ -2,7 +2,7 @@
 
 Remake fan, non officiel, de **Pokémon Stadium** dans le navigateur, en **Three.js**. On y trouve les
 151 Pokémon de la Gen 1 en 3D, la location de Pokémon, le choix de 3 Pokémon sur 6, des combats
-cinématiques avec commentateur et la **Coupe Poké**.
+cinématiques avec commentateur, les **4 coupes du Stadium** et le **Château des Champions**.
 
 ## Fonctionnalités
 
@@ -25,14 +25,30 @@ cinématiques avec commentateur et la **Coupe Poké**.
   - Clause Sommeil et Clause Gel, comme dans les coupes de Stadium.
 - **IA à 3 niveaux** : estimation déterministe des dégâts, valeur des capacités de statut, changements de Pokémon.
 - **Modes** :
-  - **Coupe Poké** : 5 dresseurs à thème (Insecte/Normal, Eau, Poison/Combat, Psy/Spectre, puis le Maître),
-    niveau 50, Mew et Mewtwo interdits (règle de Stadium) ;
+  - **Stadium** : les 4 coupes et leurs règles. Chacune se joue en 4 difficultés (Poké Ball, Super Ball,
+    Hyper Ball, Master Ball) ; une difficulté se débloque en remportant la précédente. Un tournoi compte
+    6 dresseurs à la suite, et l'IA comme la force des équipes adverses augmentent à chaque tour.
+
+    | Coupe | Niveaux | Total des 3 | Restrictions |
+    | --- | --- | --- | --- |
+    | Petit | 25–30 | ≤ 80 | non évolués, 2 m et 20 kg max., Mew/Mewtwo interdits |
+    | Pika | 15–20 | ≤ 50 | Mew/Mewtwo interdits |
+    | Poké | 50–55 | ≤ 155 | Mew/Mewtwo interdits |
+    | Prime | 100 | — | aucune |
+
+    Comme dans Stadium, on ajuste le niveau de ses 3 Pokémon avant chaque combat, dans la limite du total.
+    Simplification : un Pokémon de location garde le même set de capacités quel que soit son niveau.
+  - **Château des Champions** : les 8 arènes de Kanto (un disciple puis le Champion : Pierre, Ondine,
+    Major Bob, Érika, Koga, Morgane, Auguste, Giovanni), puis le Conseil 4 (Olga, Aldo, Agatha, Peter)
+    et le rival Blue d'affilée, avec les règles de la Coupe Poké. Les équipes des Champions sont construites
+    autour de leur type avec des Pokémon de la Gen 1 ; ce ne sont pas les équipes exactes du jeu N64.
   - **Combat Libre** : niveau 50, 100 ou « niveaux équilibrés » (niveaux des sets aléatoires de Showdown), 3 difficultés ;
-  - **Pokédex 3D** : les 151 modèles en rotation, avec stats, cri et animations disponibles.
+  - **Pokédex 3D** : les 151 modèles en rotation, avec stats, cri et animations disponibles ;
+  - **Salle des Trophées** : 16 trophées, 8 badges, Conseil 4 et Panthéon des équipes gagnantes (sauvegarde locale).
 - **Interface en français** : noms officiels FR (Dracaufeu, Tonnerre, Ultralaser…), textes de combat,
   commentateur écrit et **vocal** (Web Speech API, voix FR).
 - **Audio** : cris Gen 1 (PokeAPI), bruitages et musiques chiptune originales synthétisées en WebAudio.
-- Contrôles clavier et souris, interface responsive.
+- Clavier, souris et **manette** (API Gamepad), interface responsive.
 
 ## Démarrage
 
@@ -49,7 +65,7 @@ Autres commandes :
 
 | Commande | Rôle |
 | --- | --- |
-| `npm test` | tests du moteur de combat (`node --test`) |
+| `npm test` | tests du moteur, des règles de coupe et de la progression (`node --test`) |
 | `npm run build` | build statique dans `dist/` (chemins relatifs, compatible GitHub Pages) |
 | `npm run data` | régénère `src/data/gen1.json` depuis Showdown et PokeAPI |
 | `npm run assets -- --only=models --from=1 --to=9` | téléchargement partiel |
@@ -59,13 +75,15 @@ Raccourcis d'URL : `#dex/150` ouvre le Pokédex sur un Pokémon, `#battle` lance
 
 ### Contrôles
 
-| Action | Clavier | Souris |
-| --- | --- | --- |
-| Naviguer dans les menus | Flèches, Entrée, Échap | clic |
-| Choisir une capacité | `1`–`4` | clic |
-| Changer de Pokémon | `S`, puis `1`–`3` | bouton « Changer » |
-| Passer un message | Entrée / Espace | clic |
-| Location aléatoire | `R` | bouton « Aléatoire » |
+| Action | Clavier | Manette | Souris |
+| --- | --- | --- | --- |
+| Naviguer (menus et combat) | Flèches | Croix / stick | survol |
+| Valider | Entrée | A / Start | clic |
+| Retour | Échap | B | bouton « Retour » |
+| Choisir une capacité | `1`–`4` ou flèches + Entrée | croix + A | clic |
+| Changer de Pokémon | `S`, puis `1`–`3` | X | bouton « Changer » |
+| Passer un message | Entrée / Espace | A | clic |
+| Location aléatoire | `R` | Y | bouton « Aléatoire » |
 
 ## Assets : sources
 
@@ -110,7 +128,9 @@ src/
     battleScene.js  chorégraphie des capacités, Poké Balls, dresseurs
     effects.js   particules, rayons, éclairs, ondes de choc, rochers
     director.js  caméra cinématique
-  ui/            écrans (titre, menu, location, choix 3/6, combat, résultats, Pokédex)
+  game/          règles des coupes, tournois, Château des Champions, runs, sauvegarde
+  ui/            écrans (titre, menu, Stadium, Château, location, choix 3/6, combat, résultats,
+                 Pokédex, trophées) et manette
   audio/         cris, bruitages et musiques synthétisés, commentateur vocal
   data/gen1.json données générées par scripts/build-data.mjs
 scripts/

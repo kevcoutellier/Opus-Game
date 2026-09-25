@@ -1,17 +1,6 @@
-// Rental teams, Poké Cup opponents and level rules.
+// Rental teams and opponents (cup tournaments, free battles).
 
-// Pokémon Stadium's Poké Cup forbids Mew and Mewtwo.
-export const CUP_BANNED = new Set([150, 151]);
-
-export const CUP_ROUNDS = [
-  { name: 'Gamin Théo', title: 'Huitième de finale', types: ['Bug', 'Normal'], ai: 0, tier: 0.25, theme: 'day' },
-  { name: 'Pêcheur Marcel', title: 'Quart de finale', types: ['Water'], ai: 1, tier: 0.45, theme: 'day' },
-  { name: 'Motard Rémi', title: 'Demi-finale', types: ['Poison', 'Fighting', 'Ground'], ai: 1, tier: 0.65, theme: 'sunset' },
-  { name: 'Médium Élise', title: 'Finale', types: ['Psychic', 'Ghost'], ai: 2, tier: 0.85, theme: 'sunset' },
-  { name: 'Maître Régis', title: 'Grande finale', types: null, ai: 2, tier: 1, theme: 'night' },
-];
-
-export const FREE_OPPONENTS = ['Rival Blue', 'Dresseuse Aurore', 'Scientifique Lucas', 'Karatéka Kenji', 'Topdresseur Nils'];
+import { allowed, RANKS } from './rules.js';
 
 export function bst(species) {
   const b = species.base;
@@ -27,14 +16,12 @@ function sample(list, n) {
 
 /**
  * Six Pokémon for an opponent: themed by type when possible and drawn from a
- * strength window (tier 0 = weakest rentals, 1 = strongest).
+ * strength window (tier 0 = weakest eligible rentals, 1 = strongest).
  */
-export function buildTeam(data, { types = null, tier = 0.5, banned = CUP_BANNED, size = 6 } = {}) {
-  const sorted = data.species
-    .filter((s) => !banned.has(s.num))
-    .sort((a, b) => bst(a) - bst(b));
-  const windowSize = Math.floor(sorted.length * 0.35);
-  const start = Math.min(sorted.length - windowSize, Math.floor((sorted.length - windowSize) * tier));
+export function buildTeam(data, { types = null, tier = 0.5, rules, size = 6 } = {}) {
+  const sorted = data.species.filter((s) => !rules || allowed(rules, s)).sort((a, b) => bst(a) - bst(b));
+  const windowSize = Math.max(size + 4, Math.floor(sorted.length * 0.35));
+  const start = Math.max(0, Math.min(sorted.length - windowSize, Math.floor((sorted.length - windowSize) * tier)));
   const window = sorted.slice(start, start + windowSize);
   const themed = types ? window.filter((s) => s.types.some((t) => types.includes(t))) : [];
   const team = sample(themed, Math.min(4, themed.length));
@@ -43,17 +30,18 @@ export function buildTeam(data, { types = null, tier = 0.5, banned = CUP_BANNED,
   return team;
 }
 
-export function randomTeam(data, { banned = new Set(), size = 6 } = {}) {
-  const pool = data.species.filter((s) => !banned.has(s.num) && bst(s) > 300);
-  return sample(pool, size);
+export function randomTeam(data, { rules, size = 6 } = {}) {
+  const eligible = data.species.filter((s) => !rules || allowed(rules, s));
+  const decent = eligible.filter((s) => bst(s) > 300);
+  return sample(decent.length >= size ? decent : eligible, size);
 }
 
 /** The opponent keeps its 3 best Pokémon against the player's 6. */
-export function pickThree(battleData, team, foeTeam) {
+export function pickThree(data, team, foeTeam) {
   const typeScore = (mon) =>
     foeTeam.reduce((acc, foe) => {
-      const attack = Math.max(...mon.types.map((t) => foe.types.reduce((m, ft) => m * (battleData.typeChart[t]?.[ft] ?? 1), 1)));
-      const defend = Math.max(...foe.types.map((t) => mon.types.reduce((m, mt) => m * (battleData.typeChart[t]?.[mt] ?? 1), 1)));
+      const attack = Math.max(...mon.types.map((t) => foe.types.reduce((m, ft) => m * (data.typeChart[t]?.[ft] ?? 1), 1)));
+      const defend = Math.max(...foe.types.map((t) => mon.types.reduce((m, mt) => m * (data.typeChart[t]?.[mt] ?? 1), 1)));
       return acc + attack - defend * 0.8;
     }, 0);
   return [...team]
@@ -63,8 +51,45 @@ export function pickThree(battleData, team, foeTeam) {
     .map((x) => x.s);
 }
 
-export const LEVEL_MODES = {
-  fixed50: { label: 'Niveau 50', level: () => 50 },
-  balanced: { label: 'Niveaux équilibrés', level: (s) => s.rental.level },
-  fixed100: { label: 'Niveau 100', level: () => 100 },
-};
+// Gen 1 French trainer classes, with the types they like.
+const CLASSES = [
+  ['Gamin', ['Normal', 'Bug']],
+  ['Fillette', ['Normal', 'Grass']],
+  ['Scout', ['Bug', 'Grass']],
+  ['Pêcheur', ['Water']],
+  ['Nageuse', ['Water', 'Ice']],
+  ['Montagnard', ['Rock', 'Ground']],
+  ['Karatéka', ['Fighting']],
+  ['Motard', ['Poison']],
+  ['Ornithologue', ['Flying', 'Normal']],
+  ['Scientifique', ['Electric', 'Poison']],
+  ['Médium', ['Ghost', 'Psychic']],
+  ['Jongleur', ['Psychic', 'Normal']],
+  ['Dompteur', ['Fire', 'Normal']],
+  ['Canon', ['Water', 'Grass', 'Normal']],
+];
+const NAMES = ['Théo', 'Léa', 'Hugo', 'Manon', 'Lucas', 'Chloé', 'Nathan', 'Inès', 'Enzo', 'Jade', 'Louis', 'Emma', 'Jules', 'Lina', 'Rémi', 'Zoé', 'Marcel', 'Élise', 'Kenji', 'Aurore', 'Nils', 'Sacha', 'Clément', 'Maëlle'];
+const ROUND_TITLES = ['1er tour', '2e tour', '3e tour', 'Quart de finale', 'Demi-finale', 'Finale'];
+
+export const FREE_OPPONENTS = ['Rival Blue', 'Dresseuse Aurore', 'Scientifique Lucas', 'Karatéka Kenji', 'Topdresseur Nils'];
+
+/** The six opponents of a cup at a given rank; difficulty ramps up each round. */
+export function buildTournament(data, cup, rankIndex) {
+  const rank = RANKS[rankIndex];
+  const classes = sample(CLASSES, ROUND_TITLES.length - 1);
+  const names = sample(NAMES, ROUND_TITLES.length);
+  return ROUND_TITLES.map((title, i) => {
+    const k = i / (ROUND_TITLES.length - 1);
+    const last = i === ROUND_TITLES.length - 1;
+    const [cls, types] = last ? ['Topdresseur', null] : classes[i];
+    const ai = Math.round(rank.ai[0] + (rank.ai[1] - rank.ai[0]) * k);
+    const tier = rank.tier[0] + (rank.tier[1] - rank.tier[0]) * k;
+    return {
+      name: `${cls} ${names[i]}`,
+      title,
+      ai,
+      theme: last ? 'night' : k > 0.5 ? 'sunset' : cup.theme,
+      team: buildTeam(data, { types, tier, rules: cup }),
+    };
+  });
+}

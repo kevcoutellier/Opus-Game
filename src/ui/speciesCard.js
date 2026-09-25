@@ -23,7 +23,7 @@ export function speciesCard(data, species, { moves = species.rental.moves, level
       'div.mon-title',
       h('span.name', species.nameFr),
       h('span.dex', `N°${String(species.num).padStart(3, '0')}`),
-      level ? h('span.hud-level', `N.${level}`) : null,
+      level ? h('span.hud-level', typeof level === 'number' ? `N.${level}` : level) : null,
     ),
     h('div.genus', `${species.genusFr} · ${species.heightm} m · ${species.weightkg} kg`),
     h('div', { style: { display: 'flex', gap: '6px' } }, species.types.map((t) => typeBadge(data, t))),
