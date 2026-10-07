@@ -158,8 +158,50 @@ class Model:
 
         self._part(build, mat, bone, smooth)
 
-    def slab(self, outline, depth, at, mat, bone, rot=(0, 0, 0), smooth=False, bevel=0.0):
-        """A flat convex shape (outline in the local x, y plane), `depth` thick along local z."""
+    def shell(self, sections, arc, mat, bone, cols=8, thickness=0.02, wave=0.0, waves=3, smooth=True):
+        """
+        A curved sheet `thickness` thick (cape, tabard panel, plate over a limb): the arc (a0, a1) of the
+        elliptic sections (y, cx, cz, rx, rz) of `loft` (angle 0 = front, pi = back). `wave` ripples it into
+        `waves` folds across.
+        """
+        m = self._matrix((0, 0, 0), (0, 0, 0), (1, 1, 1))
+        a0, a1 = arc
+
+        def build():
+            outer, inner = [], []
+            for y, cx, cz, rx, rz in sections:
+                o_row, i_row = [], []
+                for k in range(cols + 1):
+                    t = k / cols
+                    a = a0 + (a1 - a0) * t
+                    f = 1 + wave * math.sin(t * waves * 2 * math.pi)
+                    s, c = math.sin(a), math.cos(a)
+                    o_row.append(self.bm.verts.new(m @ Vector((cx + rx * f * s, y, cz + rz * f * c))))
+                    i_row.append(self.bm.verts.new(m @ Vector((cx + (rx * f - thickness) * s, y, cz + (rz * f - thickness) * c))))
+                outer.append(o_row)
+                inner.append(i_row)
+            new = self.bm.faces.new
+            last = len(sections) - 1
+            for r in range(last):
+                for k in range(cols):
+                    new((outer[r][k], outer[r][k + 1], outer[r + 1][k + 1], outer[r + 1][k]))
+                    new((inner[r][k + 1], inner[r][k], inner[r + 1][k], inner[r + 1][k + 1]))
+                new((outer[r + 1][0], outer[r][0], inner[r][0], inner[r + 1][0]))
+                new((outer[r][cols], outer[r + 1][cols], inner[r + 1][cols], inner[r][cols]))
+            for k in range(cols):
+                new((outer[0][k + 1], outer[0][k], inner[0][k], inner[0][k + 1]))
+                new((outer[last][k], outer[last][k + 1], inner[last][k + 1], inner[last][k]))
+
+        self._part(build, mat, bone, smooth)
+
+    def slab(self, outline, depth, at, mat, bone, rot=(0, 0, 0), smooth=False, bevel=0.0, scale=(1, 1)):
+        """
+        A flat shape (outline in the local x, y plane, convex or not but never crossing itself), `depth`
+        thick along local z.
+        """
+        outline = [(x * scale[0], y * scale[1]) for x, y in outline]
+        if not simple_polygon(outline):
+            raise ValueError("slab: the outline crosses itself")
         m = self._matrix(at, rot, (1, 1, 1))
 
         def build():
@@ -217,6 +259,24 @@ class Model:
     @property
     def triangles(self) -> int:
         return sum(len(f.verts) - 2 for f in self.bm.faces)
+
+
+def simple_polygon(points) -> bool:
+    """True when no two non-adjacent edges of the closed outline cross."""
+
+    def side(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    n = len(points)
+    for i in range(n):
+        p1, p2 = points[i], points[(i + 1) % n]
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1:
+                continue
+            p3, p4 = points[j], points[(j + 1) % n]
+            if side(p1, p2, p3) * side(p1, p2, p4) < 0 and side(p3, p4, p1) * side(p3, p4, p2) < 0:
+                return False
+    return True
 
 
 def export_glb(objects, path: str) -> None:
