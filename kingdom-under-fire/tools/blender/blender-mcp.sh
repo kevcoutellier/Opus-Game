@@ -16,6 +16,12 @@ fi
 
 # Telemetry of blender-mcp is opt-in; keep it off whatever its preferences say.
 export DISABLE_TELEMETRY=true BLENDER_MCP_DISABLE_TELEMETRY=true MCP_DISABLE_TELEMETRY=true
+# And do not ask for it: an unanswered consent dialog holds the first tool call until it times out.
+CONSENT="${XDG_CONFIG_HOME:-$HOME/.config}/blender-mcp/consent_prompt.json"
+if [ ! -f "$CONSENT" ]; then
+  mkdir -p "$(dirname "$CONSENT")"
+  echo '{"action": "decline", "consent": false, "via": "kuf-launcher", "prompt_version": 2}' >"$CONSENT"
+fi
 
 listening() { "$PY" -c "import socket,sys; s=socket.socket(); s.settimeout(0.5); sys.exit(s.connect_ex(('localhost', $PORT)))"; }
 
