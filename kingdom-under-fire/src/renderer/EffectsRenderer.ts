@@ -29,9 +29,11 @@ export class EffectsRenderer {
   private readonly tint = new THREE.Color();
   private readonly seedColor = new THREE.Color();
   private rand = 12345;
+  /** Flames owed to the burning cells (fractions carried over between frames). */
+  private flameBudget = 0;
 
   constructor(
-    world: World,
+    private readonly world: World,
     private readonly heightAt: (x: number, z: number) => number,
   ) {
     const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
@@ -91,6 +93,15 @@ export class EffectsRenderer {
       }
     });
     world.events.on('heroDodged', ({ id }) => this.dust(world.c.x[id], world.c.z[id], 10, 0.8));
+    // A trap blows up: a burst of fire and dust.
+    world.events.on('trapSprung', ({ x, z, radius }) => {
+      this.ring(x, z, radius, 0xff8a3a);
+      this.dust(x, z, 30, 2.2);
+      const y = this.heightAt(x, z) + 0.4;
+      for (let i = 0; i < 26; i++) {
+        this.spawn(x, y, z, this.r(-5, 5), this.r(3, 8), this.r(-5, 5), this.r(0.4, 0.9), this.r(0.08, 0.16), i % 2 ? 0xff7a20 : 0xffd060, 1.2);
+      }
+    });
     // The hero's great moves: a shockwave for the Smash, a gust for the whirls, sparks for a counter.
     world.events.on('heroMove', ({ hero, move, x, z }) => {
       if (move === 'smash') {
@@ -179,7 +190,27 @@ export class EffectsRenderer {
     this.color[i * 3 + 2] = this.seedColor.b;
   }
 
+  /** Flames and smoke rising from the burning cells of the forest. */
+  private flames(dt: number): void {
+    const fire = this.world.fire;
+    if (!fire.active.size || dt <= 0) return;
+    this.flameBudget = Math.min(260, this.flameBudget + fire.active.size * 14 * dt);
+    const chance = Math.min(1, this.flameBudget / fire.active.size);
+    for (const cell of fire.active) {
+      if (this.flameBudget < 1) break;
+      if (this.r(0, 1) > chance) continue;
+      this.flameBudget--;
+      const x = fire.centreX(cell) + this.r(-1.8, 1.8);
+      const z = fire.centreZ(cell) + this.r(-1.8, 1.8);
+      const y = this.heightAt(x, z) + this.r(0.2, 2.5);
+      const smoke = this.r(0, 1) < 0.3;
+      if (smoke) this.spawn(x, y + 2, z, this.r(-0.3, 0.3), this.r(1.5, 2.5), this.r(-0.3, 0.3), this.r(1.5, 2.6), this.r(0.35, 0.6), 0x3a3430, 2.5);
+      else this.spawn(x, y, z, this.r(-0.4, 0.4), this.r(1.8, 3.4), this.r(-0.4, 0.4), this.r(0.45, 0.9), this.r(0.3, 0.55), this.r(0, 1) < 0.5 ? 0xff7a1a : 0xffc04a, 2.5);
+    }
+  }
+
   update(dt: number): void {
+    this.flames(dt);
     let n = 0;
     for (let i = 0; i < MAX_PARTICLES; i++) {
       if (this.life[i] <= 0) continue;

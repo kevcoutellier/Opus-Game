@@ -1,5 +1,7 @@
 import type { Attack, FlankId } from '../combat/DamageSystem';
+import { FireGrid } from '../combat/FireSystem';
 import { ProjectilePool } from '../combat/Projectiles';
+import type { Trap } from '../combat/TrapSystem';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { Comp, Components } from '../entities/Components';
 import { EntityManager } from '../entities/EntityManager';
@@ -32,6 +34,12 @@ export interface SimEvents extends EventMap {
   heroDodged: { id: number };
   /** A hero's move in action mode landed (`hits` enemies struck). */
   heroMove: { hero: number; move: MoveId; x: number; z: number; hits: number };
+  /** A fire cell (FireGrid) caught fire or burnt out. */
+  fireCell: { cell: number; burning: boolean };
+  trapLaid: { id: number; team: number; x: number; z: number };
+  trapSprung: { id: number; team: number; x: number; z: number; radius: number };
+  /** A troop started using one of its skills. */
+  troopSkillStarted: { troop: number; team: number; skill: string; x: number; z: number };
   /** An officer joined the troop of a hero (`slot` 0 or 1, `officer` its definition). */
   officerJoined: { hero: number; unit: number; slot: number; officer: string };
   /** An officer performed his assist attack. */
@@ -70,6 +78,12 @@ export class World {
   readonly paths: Pathfinding;
   readonly spatial: SpatialHashGrid;
   readonly projectiles = new ProjectilePool();
+  /** What can burn and what burns (forest fires). */
+  readonly fire: FireGrid;
+  /** Traps laid by sappers, waiting for an enemy. */
+  readonly traps: Trap[] = [];
+  /** Next id given to a trap. */
+  nextTrap = 1;
   readonly perf?: PerformanceMonitor;
 
   constructor(options: WorldOptions) {
@@ -83,6 +97,7 @@ export class World {
     this.nav = NavGrid.fromTerrain(this.terrain);
     this.paths = new Pathfinding(this.nav, options.perf);
     this.spatial = new SpatialHashGrid(this.terrain.size, this.terrain.size, SPATIAL_CELL, capacity);
+    this.fire = new FireGrid(this.terrain);
   }
 
   get size(): number {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FIRE_CELL } from '../combat/FireSystem';
 import { hash2 } from '../core/Random';
 import { fbm, smoothstep } from '../maps/Noise';
 import type { Terrain } from '../maps/Terrain';
@@ -19,6 +20,8 @@ const ASH = new THREE.Color(0x9c9a94);
 export class TerrainRenderer {
   readonly group = new THREE.Group();
   readonly mesh: THREE.Mesh;
+  /** Trees of each fire cell (FireGrid), to show them burning. */
+  private readonly treesByCell = new Map<number, { mesh: THREE.InstancedMesh; index: number }[]>();
 
   constructor(readonly terrain: Terrain) {
     this.mesh = this.createGround();
@@ -91,6 +94,10 @@ export class TerrainRenderer {
     for (let i = 0; i < t.treeCount; i++) {
       const [x, z, scale, rot, variant] = t.trees.subarray(i * 5, i * 5 + 5);
       const mesh = meshes[variant];
+      const cell = Math.floor(z / FIRE_CELL) * Math.ceil(t.size / FIRE_CELL) + Math.floor(x / FIRE_CELL);
+      const list = this.treesByCell.get(cell) ?? [];
+      list.push({ mesh, index: mesh.count });
+      this.treesByCell.set(cell, list);
       p.set(x, t.heightAt(x, z) - 0.15, z);
       q.setFromAxisAngle(up, rot);
       s.set(scale, scale * (0.9 + hash2(i, 3) * 0.25), scale);
@@ -107,6 +114,17 @@ export class TerrainRenderer {
       mesh.computeBoundingSphere();
     }
     return meshes;
+  }
+
+  /** The trees of a fire cell glow while it burns, then stand charred. */
+  burnCell(cell: number, burning: boolean): void {
+    const tint = burning ? new THREE.Color(1.6, 0.55, 0.16) : new THREE.Color(0.13, 0.12, 0.11);
+    const touched = new Set<THREE.InstancedMesh>();
+    for (const { mesh, index } of this.treesByCell.get(cell) ?? []) {
+      mesh.setColorAt(index, tint);
+      touched.add(mesh);
+    }
+    for (const mesh of touched) if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
   private createRocks(): THREE.InstancedMesh {

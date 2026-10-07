@@ -548,8 +548,8 @@ export class HeroSystem implements System {
     world.events.emit('abilityCast', { hero: h.id, ability: a.id, x, z, color: a.color });
   }
 
-  /** One effect of an ability or an assist cast by `id` (a hero or an officer) of `team`. */
-  private applyEffect(world: World, id: number, team: number, source: string, e: Effect, x: number, z: number, power: number): void {
+  /** One effect of an ability, a troop skill or an assist, cast by `id` (a hero, a leader, an officer) of `team`. */
+  applyEffect(world: World, id: number, team: number, source: string, e: Effect, x: number, z: number, power: number): void {
     const { c } = world;
     switch (e.kind) {
       case 'damage':
@@ -626,6 +626,15 @@ export class HeroSystem implements System {
           if (c.team[u] !== team || (troop !== NO_ENTITY && c.troop[u] !== troop)) return;
           c.hp[u] = Math.min(c.maxHp[u], c.hp[u] + c.maxHp[u] * e.amount);
         });
+        break;
+      }
+      case 'ignite':
+        world.fire.ignite(x, z, e.radius);
+        break;
+      case 'trap': {
+        const trap = { id: world.nextTrap++, team, x, z, radius: e.radius, damage: e.damage * power, damageType: e.damageType, stun: e.stun, source };
+        world.traps.push(trap);
+        world.events.emit('trapLaid', { id: trap.id, team, x, z });
         break;
       }
     }

@@ -143,6 +143,8 @@ export const UnitDefSchema = z.object({
   ranged: RangedSchema.optional(),
   charge: ChargeSchema.optional(),
   hero: HeroSchema.optional(),
+  /** Flies (Storm Riders): out of reach of blades and spears, only missiles, magic and flyers touch it. */
+  flying: z.boolean().default(false),
   /** Skills of a troop of these soldiers (ability ids), paid with the troop's SP. */
   skills: z.array(z.string()).max(4).default([]),
   /** Kingdom the unit belongs to in The Crusaders (none for the older rosters). */

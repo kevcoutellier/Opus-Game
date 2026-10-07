@@ -128,8 +128,10 @@ export class Game {
     this.overlay = new OverlayRenderer(heightAt);
     this.effects = new EffectsRenderer(this.world, heightAt);
     this.missiles = new ProjectileRenderer(this.world);
+    const terrainRenderer = new TerrainRenderer(this.terrain);
+    this.world.events.on('fireCell', ({ cell, burning }) => terrainRenderer.burnCell(cell, burning));
     this.scenes.scene.add(
-      new TerrainRenderer(this.terrain).group,
+      terrainRenderer.group,
       this.unitRenderer.group,
       this.overlay.group,
       this.effects.group,
@@ -168,6 +170,7 @@ export class Game {
       onSelect: (troop, focus) => {
         if (focus) this.lookBehind(troop);
       },
+      preview: (target) => this.overlay.target(target),
     });
     this.heroCamera = new HeroCamera(heightAt);
     this.heroInput = new HeroInput({
@@ -371,6 +374,7 @@ export class Game {
     this.scenes.update(this.rtsCamera.camera);
     this.unitRenderer.update(this.world, alpha, dt, this.rtsCamera.camera, this.time);
     this.overlay.update(this.world, alpha, dt, chosen?.members ?? [], PLAYER_TEAM);
+    this.overlay.traps(this.world.traps, PLAYER_TEAM);
     this.effects.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.missiles.update(this.world, alpha, this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.hud.update(this.perfTest.current === null ? this.outcome.update(this.world) : null, direct >= 0 ? 'action' : 'tactic', chosen?.name ?? null);

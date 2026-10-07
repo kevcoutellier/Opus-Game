@@ -65,6 +65,15 @@ test('the player commands troops: Q / E choose one, right click marches, Shift a
   )) as number[];
   await page.mouse.click(archer[0], archer[1]);
   await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[2]);
+  // 1: Fire Arrow, aimed at the ground then loosed (20 SP).
+  await expect(page.locator('.troop-skill')).toHaveCount(1);
+  const sp = (await game(page, 'g.deployed.player[2].sp')) as number;
+  await page.keyboard.press('Digit1');
+  await expect.poll(() => game(page, 'g.troopInput.targeting?.slot ?? -1')).toBe(0);
+  const spot = (await game(page, `(() => { const p = g.projector.project(128, g.terrain.heightAt(128, 160), 160); return [p.x, p.y]; })()`)) as number[];
+  await page.mouse.click(spot[0], spot[1]);
+  await expect.poll(() => game(page, 'g.deployed.player[2].sp')).toBe(sp - 20);
+  await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[2]);
 
   // Right click ahead: the archers march.
   const startZ = (await game(page, 'g.world.c.z[g.deployed.player[2].leader]')) as number;

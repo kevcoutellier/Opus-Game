@@ -43,6 +43,8 @@ export class OverlayRenderer {
   private readonly markerMesh: THREE.InstancedMesh;
   private readonly markers: Marker[] = [];
   private readonly previewMesh: THREE.InstancedMesh;
+  /** The player's own traps (hidden from the enemy). */
+  private readonly trapMesh: THREE.InstancedMesh;
   /** Aiming an ability: its area under the cursor and the reach of the hero. */
   private readonly area: THREE.Mesh;
   private readonly areaFill: THREE.Mesh;
@@ -84,6 +86,16 @@ export class OverlayRenderer {
     this.previewMesh.renderOrder = 3;
     this.previewMesh.count = 0;
     this.group.add(this.previewMesh);
+
+    this.trapMesh = new THREE.InstancedMesh(
+      new THREE.RingGeometry(0.6, 0.85, 4).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.8, depthWrite: false, fog: false }),
+      64,
+    );
+    this.trapMesh.frustumCulled = false;
+    this.trapMesh.renderOrder = 3;
+    this.trapMesh.count = 0;
+    this.group.add(this.trapMesh);
 
     const aim = (inner: number, segments: number, opacity: number) => {
       const mesh = new THREE.Mesh(
@@ -213,6 +225,18 @@ export class OverlayRenderer {
     this.reach.position.set(t.heroX, this.heightAt(t.heroX, t.heroZ) + 0.15, t.heroZ);
     this.reach.scale.set(t.range, 1, t.range);
     this.reach.visible = t.range > 0;
+  }
+
+  /** The traps of `ownTeam` are marked on the ground; the enemy's stay hidden. */
+  traps(traps: readonly { team: number; x: number; z: number }[], ownTeam: number): void {
+    let n = 0;
+    for (const t of traps) {
+      if (t.team !== ownTeam || n >= 64) continue;
+      this.matrix.makeRotationY(Math.PI / 4).setPosition(t.x, this.heightAt(t.x, t.z) + 0.08, t.z);
+      this.trapMesh.setMatrixAt(n++, this.matrix);
+    }
+    this.trapMesh.count = n;
+    this.trapMesh.instanceMatrix.needsUpdate = true;
   }
 
   marker(x: number, z: number, attack: boolean): void {

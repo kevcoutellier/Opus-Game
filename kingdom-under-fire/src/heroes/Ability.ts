@@ -61,6 +61,19 @@ export const EffectSchema = z.discriminatedUnion('kind', [
     amount: z.number().positive().max(1),
     scope: z.enum(['troop', 'allies']).default('troop'),
   }),
+  /** The trees within `radius` of the point catch fire (fire arrows, sappers). */
+  z.object({
+    kind: z.literal('ignite'),
+    radius: z.number().positive(),
+  }),
+  /** A hidden trap is laid at the point: it blows up under the first enemy to walk over it. */
+  z.object({
+    kind: z.literal('trap'),
+    radius: z.number().positive(),
+    damage: z.number().positive(),
+    damageType: z.enum(DAMAGE_TYPES),
+    stun: z.number().nonnegative().default(0),
+  }),
 ]);
 export type Effect = z.infer<typeof EffectSchema>;
 

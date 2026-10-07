@@ -177,6 +177,8 @@ export class Components {
   readonly leader: Uint8Array;
   /** Officer of a hero's troop: slot + 1 (1 or 2), 0 for everyone else. */
   readonly officer: Uint8Array;
+  /** 1 for a unit in the air (only missiles, magic and other flyers reach it). */
+  readonly flying: Uint8Array;
 
   // Unit
   readonly unitType: Uint16Array;
@@ -253,6 +255,7 @@ export class Components {
     this.troop = new Int32Array(capacity).fill(NO_ENTITY);
     this.leader = new Uint8Array(capacity);
     this.officer = new Uint8Array(capacity);
+    this.flying = new Uint8Array(capacity);
     this.unitType = new Uint16Array(capacity);
     this.state = new Uint8Array(capacity);
     this.stateTime = f32();

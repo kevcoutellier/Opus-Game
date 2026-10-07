@@ -66,6 +66,11 @@ export function chooseCast(world: World, heroes: HeroSystem, h: HeroState): Cast
         let shaken = 0;
         for (const u of allies) if (c.morale[u] < 55 && Math.hypot(c.x[u] - hx, c.z[u] - hz) <= e.radius) shaken++;
         if (threat >= 3) option = { slot, x: hx, z: hz, score: shaken * (e.allies / 20) + threat * (e.enemies / 30) };
+      } else if (e.kind === 'heal') {
+        // Worth it when enough soldiers around are badly wounded.
+        let wounded = 0;
+        for (const u of [id, ...allies]) if (c.hp[u] < c.maxHp[u] * 0.6 && Math.hypot(c.x[u] - hx, c.z[u] - hz) <= e.radius) wounded++;
+        option = { slot, x: hx, z: hz, score: wounded };
       }
       if (option && (!choice || option.score > choice.score)) choice = option;
     }

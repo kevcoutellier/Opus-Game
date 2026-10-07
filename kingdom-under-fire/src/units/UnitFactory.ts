@@ -68,6 +68,7 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.troop[id] = NO_ENTITY;
   c.leader[id] = 0;
   c.officer[id] = 0;
+  c.flying[id] = def.flying ? 1 : 0;
   c.unitType[id] = type;
   c.state[id] = UnitState.Idle;
   c.stateTime[id] = 0;

@@ -1,11 +1,14 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
+import { ability } from '../data/abilities';
 import { officer } from '../data/officers';
 import { UNIT_DEFS, unitIndex } from '../data/units';
 import { Comp, MoraleState, NO_ENTITY, Order, UnitState } from '../entities/Components';
 import type { Formation } from '../formations/Formation';
 import type { FormationManager } from '../formations/FormationManager';
 import type { FormationType } from '../formations/FormationType';
+import type { AbilityDef } from '../heroes/Ability';
+import type { HeroSystem } from '../heroes/HeroSystem';
 import { spawnBlock, spawnUnit } from '../units/UnitFactory';
 
 export type TroopStatus = 'idle' | 'moving' | 'fighting' | 'routing' | 'defeated';
@@ -31,7 +34,18 @@ export interface Troop {
   status: TroopStatus;
   /** Seconds since the troop began to flee (routing). */
   routTime: number;
+  /** Special points of the troop, earned by fighting (a hero's troop uses its hero's). */
+  sp: number;
+  readonly maxSp: number;
+  /** Skills of its soldiers (none for a hero's troop: they are the hero's abilities). */
+  readonly skills: readonly AbilityDef[];
+  /** Seconds before each skill can be used again. */
+  readonly cooldowns: number[];
+  /** Skill being prepared. */
+  casting: { slot: number; x: number; z: number; remaining: number } | null;
 }
+
+export type SkillBlock = 'none' | 'broken' | 'casting' | 'cooldown' | 'sp' | null;
 
 export interface TroopSpec {
   team: number;
@@ -63,6 +77,12 @@ const TROOP_GAP = 16;
 const WAYPOINT_RADIUS = 4;
 /** How far behind the hero his troop marches when he is steered by the player. */
 const ESCORT_DISTANCE = 3.5;
+/** SP of a troop: its gauge, what it starts with, and what its soldiers earn by fighting. */
+const TROOP_SP = 1000;
+const TROOP_SP_START = 100;
+const SP_PER_HIT = 1;
+const SP_PER_KILL = 5;
+const SP_PER_LEADER = 25;
 
 /**
  * Troops: creation (soldiers around a leader, one formation), orders (march with waypoints, attack an enemy
@@ -75,6 +95,8 @@ export class TroopSystem implements System {
   private readonly troops = new Map<number, Troop>();
   private nextId = 1;
   private readonly neighbours = new Int32Array(64);
+  /** Heroes of the battle: a hero's troop earns and spends its hero's SP (set by the factory). */
+  heroes: HeroSystem | null = null;
 
   constructor(
     private readonly world: World,
@@ -111,6 +133,24 @@ export class TroopSystem implements System {
       if (f) this.formations.setType(f, cmd.formation);
     });
     q.on('troopsMoveAll', (cmd) => this.moveAll(cmd.team, cmd.x, cmd.z));
+    q.on('troopSkill', (cmd) => {
+      const t = this.commandable(cmd.team, cmd.troop);
+      if (t) this.useSkill(t, cmd.slot, cmd.x, cmd.z);
+    });
+    // SP come from the fight: every blow or arrow that lands, more for a kill, much more for a leader.
+    world.events.on('unitHit', ({ attack, killed }) => {
+      const a = attack.attacker;
+      const t = a >= 0 ? this.troops.get(world.c.troop[a]) : undefined;
+      if (!t) return;
+      const gain = SP_PER_HIT + (killed ? (world.c.leader[attack.target] ? SP_PER_LEADER : SP_PER_KILL) : 0);
+      if (!t.hero) {
+        t.sp = Math.min(t.maxSp, t.sp + gain);
+        return;
+      }
+      // The hero's soldiers fill his gauge (his own blows are counted by the HeroSystem).
+      const h = a !== t.leader ? this.heroes?.get(t.leader) : undefined;
+      if (h?.alive) h.sp = Math.min(h.maxSp, h.sp + gain);
+    });
     world.events.on('unitDied', ({ id }) => {
       const t = this.troops.get(world.c.troop[id]);
       if (t && t.leader === id && t.status !== 'routing' && t.status !== 'defeated') this.rout(t);
@@ -191,6 +231,11 @@ export class TroopSystem implements System {
       waypoints: [],
       status: 'idle',
       routTime: 0,
+      sp: TROOP_SP_START,
+      maxSp: TROOP_SP,
+      skills: heroDef ? [] : UNIT_DEFS[type].skills.map(ability),
+      cooldowns: heroDef ? [] : UNIT_DEFS[type].skills.map(() => 0),
+      casting: null,
     };
     for (const id of troop.members) c.troop[id] = troop.id;
     c.leader[leader] = 1;
@@ -216,9 +261,12 @@ export class TroopSystem implements System {
         continue;
       }
       if (t.status === 'routing') {
+        t.casting = null;
         this.flee(world, t, dt);
         continue;
       }
+      for (let k = 0; k < t.cooldowns.length; k++) t.cooldowns[k] = Math.max(0, t.cooldowns[k] - dt);
+      if (t.casting && (t.casting.remaining -= dt) <= 0) this.release(world, t);
       const f = this.formationOf(t);
       const leader = t.leader;
       if (t.hero && this.alive(leader) && c.order[leader] === Order.Direct && f) {
@@ -237,6 +285,59 @@ export class TroopSystem implements System {
       }
       t.status = fighting ? 'fighting' : f?.moving ? 'moving' : 'idle';
     }
+  }
+
+  /** SP the troop can spend (its hero's for a hero's troop). */
+  spOf(t: Troop): number {
+    return t.hero ? (this.heroes?.get(t.leader)?.sp ?? 0) : t.sp;
+  }
+
+  /** Why the troop cannot use skill `slot` now, or null when it can. */
+  skillBlocked(t: Troop, slot: number): SkillBlock {
+    const a = t.skills[slot];
+    if (!a) return 'none';
+    if (t.status === 'routing' || t.status === 'defeated') return 'broken';
+    if (t.casting) return 'casting';
+    if (t.cooldowns[slot] > 0) return 'cooldown';
+    if (t.sp < a.spCost) return 'sp';
+    return null;
+  }
+
+  /** The troop prepares a skill (aimed skills: at the ground point, within its range of the leader). */
+  private useSkill(t: Troop, slot: number, x: number, z: number): void {
+    if (this.skillBlocked(t, slot)) return;
+    const { c, events } = this.world;
+    const a = t.skills[slot];
+    const lx = c.x[t.leader];
+    const lz = c.z[t.leader];
+    if (a.targeting === 'point') {
+      const d = Math.hypot(x - lx, z - lz);
+      if (d > a.range) {
+        x = lx + ((x - lx) / d) * a.range;
+        z = lz + ((z - lz) / d) * a.range;
+      }
+    } else {
+      x = lx;
+      z = lz;
+    }
+    t.sp -= a.spCost;
+    t.cooldowns[slot] = a.cooldown;
+    t.casting = { slot, x, z, remaining: a.castTime };
+    events.emit('troopSkillStarted', { troop: t.id, team: t.team, skill: a.id, x, z });
+  }
+
+  /** The skill takes effect, cast by the leader (or by a soldier when he is gone). */
+  private release(world: World, t: Troop): void {
+    const cast = t.casting!;
+    t.casting = null;
+    const caster = this.alive(t.leader) ? t.leader : t.members.find((id) => this.alive(id));
+    if (caster === undefined || !this.heroes) return;
+    const a = t.skills[cast.slot];
+    const { c } = world;
+    const x = a.targeting === 'self' ? c.x[caster] : cast.x;
+    const z = a.targeting === 'self' ? c.z[caster] : cast.z;
+    for (const e of a.effects) this.heroes.applyEffect(world, caster, t.team, a.id, e, x, z, 1);
+    world.events.emit('abilityCast', { hero: caster, ability: a.id, x, z, color: a.color });
   }
 
   private alive(id: number): boolean {

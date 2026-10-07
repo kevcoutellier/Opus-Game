@@ -38,5 +38,7 @@ export type GameCommand =
   | { kind: 'troopAttack'; team: number; troop: number; target: number }
   | { kind: 'troopHold'; team: number; troop: number }
   | { kind: 'troopFormation'; team: number; troop: number; formation: FormationType }
+  /** A troop uses its skill `slot` (0–3), at the ground point (x, z) for an aimed skill. */
+  | { kind: 'troopSkill'; team: number; troop: number; slot: number; x: number; z: number }
   /** Every troop of the team marches to (x, z), side by side. */
   | { kind: 'troopsMoveAll'; team: number; x: number; z: number };

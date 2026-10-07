@@ -131,6 +131,15 @@ export class Minimap {
     const ctx = this.ctx;
     const k = SIZE / world.size;
     ctx.drawImage(this.background, 0, 0);
+    // Burnt woods, and the fire.
+    const fire = world.fire;
+    const cell = (k * world.size) / fire.cols;
+    ctx.fillStyle = 'rgba(30, 26, 22, 0.75)';
+    for (let i = 0; i < fire.burnt.length; i++) {
+      if (fire.burnt[i]) ctx.fillRect((i % fire.cols) * cell, Math.floor(i / fire.cols) * cell, cell, cell);
+    }
+    ctx.fillStyle = 'rgba(255, 120, 30, 0.85)';
+    for (const i of fire.active) ctx.fillRect((i % fire.cols) * cell, Math.floor(i / fire.cols) * cell, cell, cell);
 
     // Enemies: those in sight, and where the others were last seen.
     for (const [, s] of this.knowledge.enemies) {

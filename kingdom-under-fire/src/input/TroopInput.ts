@@ -21,7 +21,11 @@ export interface TroopInputDeps {
   marker(x: number, z: number, attack: boolean): void;
   /** A troop was chosen; `focus`: the camera should move behind it. */
   onSelect(troop: Troop, focus: boolean): void;
+  /** Area of the skill being aimed and the reach of the troop, or null. */
+  preview(target: { x: number; z: number; radius: number; heroX: number; heroZ: number; range: number } | null): void;
 }
+
+const SKILL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4'] as const;
 
 /**
  * The player's orders to his troops, in tactic mode (The Crusaders: one troop is chosen at a time and
@@ -30,17 +34,36 @@ export interface TroopInputDeps {
  *  - left click on one of his soldiers: chooses that soldier's troop;
  *  - right click: the troop marches there, on an enemy it attacks the enemy's troop;
  *    Shift + right click: adds a waypoint; Ctrl + right click: the whole army marches there;
- *  - F (Shift + F): next (previous) formation, H: hold the position.
+ *  - F (Shift + F): next (previous) formation, H: hold the position;
+ *  - 1–4: the skills of the troop (an aimed skill shows its area under the cursor: left click uses it,
+ *    right click or Escape cancels).
  */
 export class TroopInput {
   /** Troop receiving the orders, -1 when none. */
   selected = -1;
   /** When it returns true (the hero controls own the mouse), the mouse gives no order. */
   blocked: () => boolean = () => false;
+  /** Skill of the chosen troop being aimed at the ground. */
+  targeting: { troop: number; slot: number } | null = null;
+  /** The rest of a click that used or cancelled a skill must not select or order anything. */
+  private swallow = false;
 
   constructor(private readonly d: TroopInputDeps) {
     d.mouse.listen({
+      down: (button, x, y) => {
+        if (!this.targeting || this.blocked()) return;
+        this.swallow = true;
+        if (button === MouseButton.Left) {
+          const p = d.pickGround(x, y);
+          if (p) this.useSkill(this.targeting.troop, this.targeting.slot, p.x, p.z);
+        }
+        this.cancelTargeting();
+      },
       up: (button, x, y, drag) => {
+        if (this.swallow) {
+          this.swallow = false;
+          return;
+        }
         if (this.blocked() || drag.moved) return;
         if (button === MouseButton.Left) {
           const unit = d.pickUnit(x, y, 'own');
@@ -65,6 +88,7 @@ export class TroopInput {
   }
 
   select(troop: Troop, focus: boolean): void {
+    if (this.targeting && this.targeting.troop !== troop.id) this.cancelTargeting();
     this.selected = troop.id;
     this.d.onSelect(troop, focus);
   }
@@ -79,7 +103,7 @@ export class TroopInput {
     else this.select(next, true);
   }
 
-  /** Per frame (tactic mode): hotkeys; a chosen troop that broke is replaced by the next one. */
+  /** Per frame (tactic mode): hotkeys, the area of a skill being aimed; a broken troop is replaced. */
   update(): void {
     const { keys } = this.d;
     if (!this.troop()) {
@@ -91,7 +115,55 @@ export class TroopInput {
       else if (code === 'KeyE') this.cycle(1);
       else if (code === 'KeyF') this.cycleFormation(keys.shift ? -1 : 1);
       else if (code === 'KeyH') this.hold();
+      else if (code === 'Escape' && this.targeting) this.cancelTargeting();
+      else {
+        const slot = SKILL_KEYS.indexOf(code as (typeof SKILL_KEYS)[number]);
+        if (slot >= 0) this.skill(slot);
+      }
     }
+    if (this.targeting) this.aim();
+  }
+
+  /** Skill `slot` of the chosen troop: used at once (around the troop) or aimed at the ground. */
+  skill(slot: number): void {
+    const t = this.troop();
+    if (!t || this.d.troops.skillBlocked(t, slot)) return;
+    if (t.skills[slot].targeting === 'self') this.useSkill(t.id, slot, 0, 0);
+    else this.targeting = { troop: t.id, slot };
+  }
+
+  cancelTargeting(): void {
+    this.targeting = null;
+    this.d.preview(null);
+  }
+
+  private useSkill(troop: number, slot: number, x: number, z: number): void {
+    this.d.world.commands.push({ kind: 'troopSkill', team: this.d.team, troop, slot, x, z });
+  }
+
+  /** Shows where the aimed skill would land: within its range of the leader, like the command. */
+  private aim(): void {
+    const { troops, world, mouse } = this.d;
+    const t = troops.get(this.targeting!.troop);
+    const a = t?.skills[this.targeting!.slot];
+    if (!t || !a || t.status === 'routing' || t.status === 'defeated') {
+      this.cancelTargeting();
+      return;
+    }
+    const p = this.d.pickGround(mouse.x, mouse.y);
+    if (!p) return;
+    const lx = world.c.x[t.leader];
+    const lz = world.c.z[t.leader];
+    let x = p.x;
+    let z = p.z;
+    const d = Math.hypot(x - lx, z - lz);
+    if (d > a.range) {
+      x = lx + ((x - lx) / d) * a.range;
+      z = lz + ((z - lz) / d) * a.range;
+    }
+    let radius = 1;
+    for (const e of a.effects) if ('radius' in e) radius = Math.max(radius, e.radius);
+    this.d.preview({ x, z, radius, heroX: lx, heroZ: lz, range: a.range });
   }
 
   /** Order at a screen position: attack the troop of the enemy under it, else march there. */

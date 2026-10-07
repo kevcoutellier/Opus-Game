@@ -14,6 +14,7 @@ const HELP = [
   ['Maj + clic droit', 'ajouter un point de passage · Ctrl + clic droit : toute l’armée'],
   ['Minicarte', 'clic : regarder · clic droit : ordre de marche (Maj : point de passage, Ctrl : toute l’armée)'],
   ['F / H', 'formation suivante · tenir la position'],
+  ['1–4', 'compétences de la troupe choisie (Flèche de feu, Piège, Incendie, Curatio…) : clic pour viser, clic droit pour annuler · SP gagnés en combattant'],
   ['WASD (ZQSD) / bords', 'déplacer la caméra · clic molette glissé : rotation · molette : zoom · Origine : revenir à la troupe'],
   ['Z X C V (W X C V)', 'capacités du héros (clic : viser, clic droit : annuler)'],
   ['Mode action', 'WASD : marcher · souris : regarder · 1–4 : capacités'],
