@@ -33,8 +33,8 @@ l'architecture réellement en place et le journal des phases.
 | `@types/three`, `@types/node` | types |
 
 Non ajoutés pour l'instant : `pathfinding` (A* seul, alors que le mouvement de masse repose sur des flow
-fields maison), `howler` (l'audio arrive en phase 14), `stats.js` et `lil-gui` (le panneau F1 maison
-suffit).
+fields maison), `howler` (l'`AudioManager` maison sur Web Audio suffit), `stats.js` et `lil-gui` (le panneau
+F1 maison suffit).
 
 ## Journal des phases
 
@@ -52,6 +52,15 @@ suffit).
 | Mesure | `DebugManager` (F1 : FPS, frame, GPU via `EXT_disjoint_timer_query_webgl2`, draw calls, triangles, entités, unités visibles, animations, temps par système, pathfinding, IA, formations, mémoire), `PerformanceTestScene` (F2 : 100 → 1000 unités, moyenne sur 8 s après 2 s de chauffe), benchmark CPU `npm run bench`, tests Playwright du parcours joueur | ✅ |
 | Univers KUF | factions Alliance Humaine / Légion Noire, 4 unités (orcs modélisés à part, échelle par type), équilibre réglé par balayage de paramètres (17/40), lore et 12 personnages validés par Zod, bataille « Les plaines de Hironeiden » avec écran de briefing | ✅ |
 | Assets officiels | `scripts/fetch-assets.mjs` (Kingdom Under Fire Wiki via API MediaWiki, page Steam, musique et sons de l'utilisateur classés par nom ; `public/assets/` jamais versionné), `AssetManager` (manifeste, repli à null), `AudioManager` (playlist, sons de combat atténués par la distance), testés contre un faux serveur | ✅ |
+| P2.1 Unités | 6 unités par faction (archers, cavalerie, templiers, ogres, héros) ; schéma enrichi (`scale`, `cleave`, `shield`, `brace`, `ranged`, `charge`, `hero`) ; squelette de monture (5 os de plus, cavaliers marqués par sommet), animation d'arc, galop, chute montée ; scène `#showcase` | ✅ |
+| P2.2 Projectiles | `ProjectilePool` (structure de tableaux, liste libre, 2048) sur le `World`, `ProjectileSystem` (parabole, résolution à l'atterrissage, impacts simultanés), tir avec anticipation et dispersion, `SpatialHashGrid.nearest` (recherche par anneaux pour la portée de 45 m), `ProjectileRenderer` (flèches orientées, flèches plantées, orbes, rochers) | ✅ |
+| P2.3 Flancs et moral | `flankOf` (face ±60°, côté, dos) : dégâts ×1 / ×1,25 / ×1,5, choc moral ×1 / ×1,6 / ×2,5 ; boucliers contre les flèches de face ; encerclement ; aura des héros ; chute d'un héros | ✅ |
+| P2.4 Charge | `ChargeSystem` : READY → PREPARE → ACCELERATE → CHARGE → IMPACT → DISENGAGE → RECOVER, `speedBoost` lu par le mouvement, élan, piétinement, renversement, terreur ; lances en arrêt (`brace`) ; balayage des ogres | ✅ |
+| P2.5 Héros | `HeroSystem` (mana, temps d'incantation, recharges, interruption, buffs, gel et étourdissement, expérience et niveaux), 8 capacités en données Zod (dégâts de zone, ruée, projectiles magiques, buffs, moral), `HeroAI`, barre du héros, visée au sol | ✅ |
+| P2.6 Contrôle direct | commandes `heroControl` / `heroSteer` / `heroStrike` / `heroDodge`, ordre `Direct` (ni slot ni combat automatique), coups libres en arc, esquive invulnérable, `HeroCamera` (troisième personne, transitions), `HeroInput` (pointer lock, 1–4 au viseur) | ✅ |
+| P2.7 Ressources | `ResourceManager` (or, bois, vivres, pierre, mana ; `canAfford` / `spend` / `refund`, revenus), barre de ressources | ✅ |
+| P2.8 Bâtiments | 7 bâtiments par faction en données Zod, `BuildingSystem` (règles de placement, construction, revenus, files de production, ralliement, destruction), emprise bloquant la `NavGrid` et invalidant les flow fields, cibles pour la mêlée, les flèches et les sorts (`Footprint`), modèles procéduraux humains et orcs, menu « Bâtir », panneau de production | ✅ |
+| P2.9 Scénario et IA | `StrategicAI` (ordre de construction, recrutement interarmes, vagues), IA en deux groupes (vague et garnison), bataille avec bases (clairières aplanies, victoire à la chute du QG), choix de la bataille au briefing ; caméra qui s'élève au-dessus des crêtes | ✅ |
 
 ### Équité de la simulation
 
@@ -63,11 +72,36 @@ sont collectés puis appliqués ensemble. Résultat mesuré : 32 victoires sur 6
 avec ordre de création et côté de la carte inversés. Un test de non-régression le vérifie
 (`tests/unit/combat.test.ts`).
 
+### Choix du deuxième prototype
+
+- **Projectiles hors ECS.** Les flèches vivent dans un pool à part (`ProjectilePool`), pas dans l'`EntityManager` :
+  elles n'ont ni moral ni formation, naissent et meurent par centaines, et le renderer les lit directement. Un
+  coup se résout à l'atterrissage contre le corps le plus proche du point d'impact : la précision et la
+  densité de la cible décident ensemble du taux de touche (≈ 85 % contre un bloc serré, moins contre des
+  tirailleurs).
+- **Bâtiments hors de la grille spatiale.** Ils sont quelques dizaines au plus : un registre `world.buildings`
+  parcouru linéairement suffit pour le ciblage, sans filtrer les bâtiments dans chaque requête de voisinage des
+  unités. Leur emprise est un rectangle (demi-dimensions `halfW` / `halfD`) : la mêlée et le mouvement visent le
+  point le plus proche de l'emprise (`entities/Footprint.ts`), donc une caserne se frappe de tous les côtés.
+- **Invalidation des chemins.** La `NavGrid` porte un numéro de version, incrémenté quand un bâtiment bloque ou
+  libère des cellules ; `Pathfinding` vide son cache quand la version change. Les flow fields sont recalculés
+  à la demande, un par destination.
+- **Le héros est une unité.** Curian et Likuku sont des entités ordinaires avec quelques composants en plus
+  (aura, mana dans `HeroSystem`). En contrôle direct, leur ordre devient `Direct` : la formation, le combat
+  automatique et la charge les ignorent, et le joueur les dirige par des commandes. Un replay rejoue aussi le
+  contrôle direct.
+- **IA en couches.** `StrategicAI` (économie, production, vagues) → `AIController` (deux groupes, vague et
+  garnison, chacun avec son plan) → `TacticalAI` / `HeroAI` → `CombatSystem` (cibles de chaque soldat). L'IA
+  ne lit que ce que voient ses soldats et ses bâtiments (`AIKnowledge`), plus la carte (où est la base
+  ennemie). Une première version gardait toute l'armée en une formation : les recrues sorties de la caserne
+  l'étiraient sur 100 m et la cohésion la freinait. D'où les deux groupes.
+
 ## Mesures et goulets
 
-- **Simulation** (`npm run bench`) : 1000 unités en mêlée (humains contre orcs) = 3,1 ms/tick en moyenne
-  (p95 4,1 ms), dont mouvement 1,05 ms, combat 1,1 ms et moral 0,5 ms. Le coût croît un peu plus vite que linéairement (densité
-  des voisins dans une mêlée compacte), mais reste à ~10 % du budget à 30 Hz. **Les Web Workers ne sont pas
+- **Simulation** (`npm run bench`, armées interarmes) : 1000 unités = 3,0 ms/tick en moyenne (p95 3,7 ms),
+  dont combat 0,9 ms, mouvement 0,85 ms et moral 0,4 ms. Projectiles (≈ 80 tirs/s), charges et héros coûtent
+  moins de 0,05 ms ensemble. Le coût croît un peu plus vite que linéairement (densité des voisins dans une
+  mêlée compacte), mais reste à ~9 % du budget à 30 Hz. **Les Web Workers ne sont pas
   justifiés à ce stade** : ils le deviendront avec le pathfinding de nombreuses formations et l'IA
   stratégique. Les flow fields coûtent ~1–3 ms chacun, calculés une fois par ordre et mis en cache.
 - **Rendu** : 12 draw calls pour toute la scène, quel que soit le nombre de soldats. Un soldat compte 350 à
@@ -80,9 +114,8 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
 
 ## Architecture cible (non encore implémentée)
 
-- Couches d'IA : `StrategicAI` (économie, production, expansion) → `OperationalAI` (attaque, défense,
-  renforts) → `TacticalAI` (existante : engagement ; à venir : flancs, contre-unités, retraite) → UnitAI
-  (acquisition de cibles, dans `CombatSystem`).
+- Couche d'IA opérationnelle entre `StrategicAI` et `TacticalAI` : plusieurs groupes, attaques de flanc,
+  contre-unités (lanciers contre cavalerie, cavalerie contre archers), retraite et renforts.
 - Workers (`pathfinding.worker.ts`, `ai.worker.ts`, `formation.worker.ts`) avec objets transférables, dès
   qu'une mesure le justifie. La simulation n'accède à aucune API du DOM, elle peut donc déjà y être déplacée.
 - Multijoueur : lockstep sur la file de commandes existante. Il faudra remplacer `Math.sin/cos/atan2` dans
