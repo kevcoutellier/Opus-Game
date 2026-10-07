@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "blender": {
+      "type": "stdio",
+      "command": "bash",
+      "args": ["kingdom-under-fire/tools/blender/blender-mcp.sh"],
+      "env": {}
+    }
+  }
+}
