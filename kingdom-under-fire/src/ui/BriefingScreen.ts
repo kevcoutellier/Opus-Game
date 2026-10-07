@@ -10,8 +10,6 @@ export interface BriefingOptions {
   artwork: string | null;
   /** Sources of the installed official assets (credits line), empty when none. */
   credits: string[];
-  /** Battles to choose from (URL hash of each); choosing another one reloads the page. */
-  scenarios?: { label: string; hash: string; active: boolean }[];
   onStart(): void;
 }
 
@@ -34,13 +32,6 @@ export class BriefingScreen {
     if (options.artwork) this.el.style.setProperty('--artwork', `url("${options.artwork}")`);
     this.el.innerHTML = `
       <div class="briefing-card panel">
-        ${
-          options.scenarios
-            ? `<nav class="scenario-tabs">${options.scenarios
-                .map((s) => `<button type="button" data-hash="${escape(s.hash)}" class="${s.active ? 'active' : ''}">${escape(s.label)}</button>`)
-                .join('')}</nav>`
-            : ''
-        }
         <header>
           <div class="briefing-game title">Kingdom Under Fire</div>
           <div class="briefing-subtitle">La Guerre des Héros · ${escape(story.era)}</div>
@@ -70,12 +61,6 @@ export class BriefingScreen {
         } Kingdom Under Fire © Blueside / Phantagram — projet de fan non commercial.</div>
       </div>`;
     this.el.querySelector<HTMLButtonElement>('.briefing-start')!.onclick = () => this.start();
-    this.el.querySelectorAll<HTMLButtonElement>('.scenario-tabs button:not(.active)').forEach((button) => {
-      button.onclick = () => {
-        location.hash = button.dataset.hash ?? '';
-        location.reload();
-      };
-    });
     root.appendChild(this.el);
     window.addEventListener('keydown', this.keyHandler);
   }

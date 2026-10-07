@@ -6,8 +6,6 @@ import { Comp, UnitState } from '../entities/Components';
 const VISION_CELL = 8;
 /** Seconds after which an enemy not seen again is forgotten. */
 const MEMORY_SECONDS = 45;
-/** Buildings watch the ground around them this far (m). */
-const BUILDING_SIGHT = 24;
 
 export interface Sighting {
   x: number;
@@ -21,16 +19,13 @@ export interface Sighting {
 /**
  * What an AI team knows: only the enemies inside the sight of its own soldiers (rasterised on a coarse
  * visibility grid), plus the last known position of those it lost sight of, forgotten after a while or
- * when that spot is seen empty. Its buildings watch their surroundings too; the enemy buildings it has
- * seen are remembered until it sees them fall. The AI never reads the enemy positions directly.
+ * when that spot is seen empty. The AI never reads the enemy positions directly.
  */
 export class AIKnowledge {
   readonly cols: number;
   readonly rows: number;
   private readonly visible: Uint8Array;
   readonly enemies = new Map<number, Sighting>();
-  /** Enemy buildings seen so far (they do not move). */
-  readonly structures = new Map<number, Sighting>();
 
   constructor(
     private readonly world: World,
@@ -55,15 +50,6 @@ export class AIKnowledge {
       const id = entities.dense[i];
       if ((entities.mask[id] & Comp.Unit) === 0 || c.team[id] !== this.team || c.state[id] === UnitState.Dying) continue;
       this.reveal(c.x[id], c.z[id], UNIT_DEFS[c.unitType[id]].sight);
-    }
-    for (const b of this.world.buildings) if (c.team[b] === this.team) this.reveal(c.x[b], c.z[b], BUILDING_SIGHT);
-    for (const b of this.world.buildings) {
-      if (c.team[b] !== this.team && this.isVisible(c.x[b], c.z[b])) this.structures.set(b, { x: c.x[b], z: c.z[b], seen: time.elapsed, visible: true });
-    }
-    for (const [b, s] of this.structures) {
-      s.visible = this.isVisible(s.x, s.z);
-      // Seen in ruins (or its entity already freed).
-      if (s.visible && (!entities.isAlive(b) || c.state[b] === UnitState.Dying || !this.world.buildings.includes(b))) this.structures.delete(b);
     }
     for (const sighting of this.enemies.values()) sighting.visible = false;
     for (let i = 0; i < entities.count; i++) {

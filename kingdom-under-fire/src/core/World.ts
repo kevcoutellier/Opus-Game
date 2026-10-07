@@ -1,6 +1,5 @@
 import type { Attack, FlankId } from '../combat/DamageSystem';
 import { ProjectilePool } from '../combat/Projectiles';
-import { ResourceManager } from '../economy/Resources';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { Comp, Components } from '../entities/Components';
 import { EntityManager } from '../entities/EntityManager';
@@ -30,10 +29,6 @@ export interface SimEvents extends EventMap {
   heroLevelUp: { id: number; level: number };
   heroControl: { id: number; direct: boolean };
   heroDodged: { id: number };
-  buildingPlaced: { id: number; team: number; type: number };
-  buildingCompleted: { id: number; team: number };
-  buildingDestroyed: { id: number; team: number; x: number; z: number; killer: number };
-  unitTrained: { id: number; building: number };
 }
 
 export interface WorldOptions {
@@ -64,9 +59,6 @@ export class World {
   readonly paths: Pathfinding;
   readonly spatial: SpatialHashGrid;
   readonly projectiles = new ProjectilePool();
-  readonly resources = new ResourceManager(2);
-  /** Standing buildings (entity ids), maintained by the BuildingSystem: few, scanned linearly. */
-  readonly buildings: number[] = [];
   readonly perf?: PerformanceMonitor;
 
   constructor(options: WorldOptions) {

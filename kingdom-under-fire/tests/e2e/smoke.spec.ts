@@ -27,7 +27,7 @@ async function waitFrames(page: Page, count: number): Promise<void> {
 test('the battle scene boots behind the briefing, renders and logs no error', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await expect(page.getByText('Le camp de Likuku').first()).toBeVisible();
+  await expect(page.getByText('Les plaines de Hironeiden').first()).toBeVisible();
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   // The simulation waits for the player.
   expect(await game(page, 'g.world.time.tick')).toBe(0);
@@ -38,20 +38,6 @@ test('the battle scene boots behind the briefing, renders and logs no error', as
   expect(stats.triangles).toBeGreaterThan(1000);
   expect(await game(page, 'g.units.countActive(0) + g.units.countActive(1)')).toBe(await game(page, 'g.armies.player.units.length + g.armies.enemy.units.length'));
   expect(await game(page, 'g.heroes.list().length')).toBe(2);
-  // Four buildings per base (the AI may already have laid the foundations of another).
-  expect(await game(page, 'g.buildings.list(0).length')).toBe(4);
-  expect(await game(page, 'g.buildings.list(1).length')).toBeGreaterThanOrEqual(4);
-  expect(errors).toEqual([]);
-});
-
-test('the pitched battle (#field) boots with both armies and no base', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('/#field');
-  await expect(page.getByText('Les plaines de Hironeiden').first()).toBeVisible();
-  await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
-  expect(await game(page, 'g.scenario')).toBe('field');
-  expect(await game(page, 'g.units.countActive(0) + g.units.countActive(1)')).toBe(91);
-  expect(await game(page, 'g.buildings.list().length')).toBe(0);
   expect(errors).toEqual([]);
 });
 
@@ -60,8 +46,7 @@ test('the player selects the army with a drag, draws a front and the formation m
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
-  const centre = (await game(page, 'g.units.centroid(g.armies.player.units)')) as { x: number; z: number };
-  await game(page, `g.rtsCamera.focus(${centre.x}, ${centre.z}, 45, true)`);
+  await game(page, 'g.rtsCamera.focus(134, 176, 75, true)');
   await waitFrames(page, 2);
   // Screen bounding box of the player's army.
   const box = (await game(
@@ -84,11 +69,8 @@ test('the player selects the army with a drag, draws a front and the formation m
   await expect
     .poll(() => game(page, `new Set(g.armies.player.units.map((id) => g.world.c.formation[id])).size === 1 && g.world.c.formation[g.armies.player.units[0]] >= 0`))
     .toBe(true);
-  const first = (await game(page, 'g.armies.player.units[0]')) as number;
-  const start = (await game(page, `[g.world.c.x[${first}], g.world.c.z[${first}]]`)) as number[];
-  await expect
-    .poll(() => game(page, `Math.hypot(g.world.c.x[${first}] - ${start[0]}, g.world.c.z[${first}] - ${start[1]})`), { timeout: 60_000 })
-    .toBeGreaterThan(3);
+  const startZ = (await game(page, 'g.world.c.z[0]')) as number;
+  await expect.poll(() => game(page, 'g.world.c.z[0]'), { timeout: 60_000 }).toBeLessThan(startZ - 3);
   expect(errors).toEqual([]);
 });
 
@@ -113,40 +95,6 @@ test('the hero: an ability is aimed then cancelled, direct control is taken and 
   await page.keyboard.press('Tab');
   await expect.poll(() => game(page, 'g.heroInput.direct')).toBe(-1);
   await expect.poll(() => game(page, `g.world.c.order[${hero}]`), { timeout: 60_000 }).not.toBe(5);
-  expect(errors).toEqual([]);
-});
-
-test('the base: a farm is laid from the build menu and a footman is trained at the barracks', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('/');
-  await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.resource-bar')).toContainText('450');
-  // Choose the farm in the build menu, then a free spot for it near the keep.
-  await page.getByRole('button', { name: /Ferme/ }).click();
-  const type = (await game(page, 'g.buildingInput.placing.type')) as number;
-  const spot = (await game(
-    page,
-    `(() => { for (let r = 18; r < 36; r += 2) for (let a = 0; a < 6.28; a += 0.3) { const x = Math.round((128 + Math.sin(a) * r) / 2) * 2, z = Math.round((212 + Math.cos(a) * r) / 2) * 2; if (g.buildings.placementError(0, ${type}, x, z, Math.PI) === null) return { x, z }; } return null; })()`,
-  )) as { x: number; z: number };
-  expect(spot).not.toBeNull();
-  await game(page, `g.rtsCamera.focus(${spot.x}, ${spot.z}, 40, true)`);
-  await waitFrames(page, 2);
-  const screen = (await game(page, `g.projector.project(${spot.x}, g.terrain.heightAt(${spot.x}, ${spot.z}), ${spot.z})`)) as { x: number; y: number };
-  await page.mouse.move(screen.x, screen.y);
-  await waitFrames(page, 2);
-  await page.mouse.click(screen.x, screen.y);
-  await expect.poll(() => game(page, `g.buildings.list(0).some((b) => b.def.id === 'human_farm' && !b.complete)`), { timeout: 60_000 }).toBe(true);
-
-  // The barracks: select it with a click, queue a footman.
-  const barracks = (await game(page, `g.buildings.list(0).find((b) => b.def.id === 'human_barracks').id`)) as number;
-  await game(page, `g.rtsCamera.focus(g.world.c.x[${barracks}], g.world.c.z[${barracks}], 40, true)`);
-  await waitFrames(page, 2);
-  const b = (await game(page, `g.projector.project(g.world.c.x[${barracks}], g.terrain.heightAt(g.world.c.x[${barracks}], g.world.c.z[${barracks}]) + 2, g.world.c.z[${barracks}])`)) as { x: number; y: number };
-  await page.mouse.click(b.x, b.y);
-  await expect(page.locator('.production-panel')).toBeVisible();
-  await page.locator('.production-panel [data-train="human_footman"]').click();
-  await expect.poll(() => game(page, `g.buildings.get(${barracks}).queue.length`)).toBe(1);
   expect(errors).toEqual([]);
 });
 

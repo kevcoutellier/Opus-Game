@@ -102,11 +102,6 @@ export class EffectsRenderer {
     });
   }
 
-  /** A puff of dark smoke rising from a burning building. */
-  smoke(x: number, y: number, z: number): void {
-    this.spawn(x, y, z, this.r(-0.4, 0.4), this.r(3, 4.5), this.r(-0.4, 0.4), this.r(2, 3.2), this.r(0.4, 0.7), 0x2e2a26, 2.2);
-  }
-
   /** A ring of light racing outwards over `radius` metres, with sparks rising from it. */
   private ring(x: number, z: number, radius: number, color: number): void {
     const y = this.heightAt(x, z) + 0.3;

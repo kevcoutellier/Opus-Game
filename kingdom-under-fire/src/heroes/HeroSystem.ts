@@ -8,7 +8,6 @@ import { UNIT_DEFS } from '../data/units';
 import { Comp, NO_ENTITY, Order, SwingKind, UnitState } from '../entities/Components';
 import type { FormationManager } from '../formations/FormationManager';
 import { IMPACT_FRACTION } from '../units/Unit';
-import { distanceToEdge } from '../entities/Footprint';
 import type { AbilityDef, Effect } from './Ability';
 
 export const MAX_LEVEL = 10;
@@ -66,7 +65,6 @@ export class HeroSystem implements System {
   private readonly buffed = new Set<number>();
   private readonly neighbours = new Int32Array(256);
   private readonly hits: Attack[] = [];
-  private readonly point = { x: 0, z: 0 };
 
   constructor(
     world: World,
@@ -333,10 +331,6 @@ export class HeroSystem implements System {
       const u = this.neighbours[k];
       if (!(entities.mask[u] & Comp.Unit) || c.state[u] === UnitState.Dying) continue;
       if (Math.hypot(c.x[u] - x, c.z[u] - z) - c.radius[u] <= radius) fn(u);
-    }
-    // Buildings too (blasts and missiles batter their walls; buffs and cries leave them cold).
-    for (const b of [...world.buildings]) {
-      if (c.state[b] !== UnitState.Dying && distanceToEdge(c, b, x, z, this.point) <= radius) fn(b);
     }
   }
 

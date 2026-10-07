@@ -14,7 +14,7 @@ import { PerformanceTestScene } from '../../src/scenes/PerformanceTestScene';
 it('simulation tick cost from 100 to 1000 units', () => {
   const terrain = Terrain.generate({ size: 256, seed: 20260925 });
   const rows: string[] = [];
-  const systems = ['spatial', 'buildings', 'formations', 'heroes', 'combat', 'projectiles', 'charge', 'morale', 'movement', 'ai', 'lifecycle'];
+  const systems = ['spatial', 'formations', 'heroes', 'combat', 'projectiles', 'charge', 'morale', 'movement', 'ai', 'lifecycle'];
   rows.push(`| Unités | tick moyen | p95 | max | ${systems.join(' | ')} | pathfinding |`);
   rows.push(`|${' --- |'.repeat(5 + systems.length)}`);
   for (const units of [100, 200, 300, 500, 1000]) {

@@ -6,18 +6,12 @@ export type Outcome = 'victory' | 'defeat' | null;
 /** Seconds an army must stay broken (dead or routing) before the battle is decided. */
 const BROKEN_SECONDS = 4;
 
-/**
- * Decides the battle. In a field battle an army is beaten when none of its soldiers still fights; in a
- * battle with bases (`headquarters` given), a side is beaten when its headquarters falls.
- */
+/** Decides the battle: an army is beaten when none of its soldiers still fights. */
 export class BattleOutcome {
   private brokenSince = [Infinity, Infinity];
   result: Outcome = null;
 
-  constructor(
-    private readonly playerTeam: number,
-    private readonly headquarters: ((team: number) => boolean) | null = null,
-  ) {}
+  constructor(private readonly playerTeam: number) {}
 
   /** Soldiers of a team still able to fight (alive, not routing). */
   static fighting(world: World, team: number): number {
@@ -33,11 +27,6 @@ export class BattleOutcome {
 
   update(world: World): Outcome {
     if (this.result) return this.result;
-    if (this.headquarters) {
-      if (!this.headquarters(1 - this.playerTeam)) this.result = 'victory';
-      else if (!this.headquarters(this.playerTeam)) this.result = 'defeat';
-      return this.result;
-    }
     const now = world.time.elapsed;
     for (const team of [0, 1]) {
       if (BattleOutcome.fighting(world, team) > 0) this.brokenSince[team] = Infinity;

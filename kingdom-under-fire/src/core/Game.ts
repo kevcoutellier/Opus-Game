@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { AIController } from '../ai/AIController';
-import { StrategicAI } from '../ai/StrategicAI';
 import type { AssetManager } from '../assets/AssetManager';
 import { AudioManager } from '../audio/AudioManager';
-import type { BuildingSystem } from '../buildings/BuildingSystem';
 import { HeroCamera } from '../camera/HeroCamera';
 import { RTSCamera } from '../camera/RTSCamera';
 import { faction } from '../data/factions';
@@ -11,13 +9,10 @@ import { DebugManager } from '../debug/DebugManager';
 import { GpuTimer } from '../debug/GpuTimer';
 import { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import type { HeroSystem } from '../heroes/HeroSystem';
-import { BuildingInput } from '../input/BuildingInput';
 import { HeroInput } from '../input/HeroInput';
 import { InputManager } from '../input/InputManager';
 import { OrderInput } from '../input/OrderInput';
 import { Terrain } from '../maps/Terrain';
-import { buildingHeight } from '../renderer/BuildingMeshes';
-import { BuildingRenderer } from '../renderer/BuildingRenderer';
 import { EffectsRenderer } from '../renderer/EffectsRenderer';
 import { ProjectileRenderer } from '../renderer/ProjectileRenderer';
 import { OverlayRenderer } from '../renderer/OverlayRenderer';
@@ -28,18 +23,15 @@ import { TerrainPicker } from '../renderer/TerrainPicker';
 import { TerrainRenderer } from '../renderer/TerrainRenderer';
 import { UnitRenderer } from '../renderer/UnitRenderer';
 import { BattleOutcome } from '../scenes/BattleOutcome';
-import { BASE_AI, BASE_SITES, PLAYER_TEAM, setupBaseBattle, setupFieldBattle, type Army } from '../scenes/BattleScene';
+import { PLAYER_TEAM, setupFieldBattle, type Army } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
 import { setupShowcase } from '../scenes/ShowcaseScene';
 import { SelectionInput } from '../selection/SelectionInput';
 import { SelectionManager } from '../selection/SelectionManager';
-import { BASE_BATTLE, PROTOTYPE_BATTLE, type BattleStory } from '../data/story/battles';
+import { PROTOTYPE_BATTLE } from '../data/story/battles';
 import { BriefingScreen } from '../ui/BriefingScreen';
-import { BuildMenu } from '../ui/BuildMenu';
 import { HeroBar } from '../ui/HeroBar';
 import { HUD } from '../ui/HUD';
-import { ProductionPanel } from '../ui/ProductionPanel';
-import { ResourceBar } from '../ui/ResourceBar';
 import { UnitManager } from '../units/UnitManager';
 import type { FormationManager } from '../formations/FormationManager';
 import { FORMATION_LABELS, FORMATION_TYPES } from '../formations/FormationType';
@@ -53,10 +45,6 @@ const CAMERA_MARGIN = 20;
 const SIM_HZ = 30;
 const TEAM_FACTIONS = ['human_alliance', 'dark_legion'];
 
-/** `bases`: the battle with bases (default); `field`: the pitched battle (`#field`, also for `#showcase` and `#perf`). */
-export type Scenario = 'bases' | 'field';
-const scenarioOf = (hash: string): Scenario => (/^#(field|showcase|perf=)/.test(hash) ? 'field' : 'bases');
-
 /** Browser orchestrator: owns the renderer, the loop, the input, the UI and the simulation. */
 export class Game {
   readonly perf = new PerformanceMonitor();
@@ -67,9 +55,6 @@ export class Game {
   readonly simulation: Simulation;
   readonly formations: FormationManager;
   readonly heroes: HeroSystem;
-  readonly buildings: BuildingSystem;
-  readonly scenario: Scenario;
-  readonly story: BattleStory;
   readonly ai: AIController;
   /** Units deployed at the start of the battle. */
   readonly armies: { player: Army; enemy: Army };
@@ -77,10 +62,7 @@ export class Game {
   readonly rtsCamera: RTSCamera;
   readonly heroCamera: HeroCamera;
   readonly heroInput: HeroInput;
-  readonly buildingInput: BuildingInput;
   private readonly heroBar: HeroBar;
-  private readonly economyUI: { update(): void }[] = [];
-  private readonly buildingRenderer: BuildingRenderer;
   readonly input: InputManager;
   readonly projector: ScreenProjector;
   readonly selection: SelectionManager;
@@ -93,7 +75,7 @@ export class Game {
   private readonly overlay: OverlayRenderer;
   private readonly effects: EffectsRenderer;
   private readonly missiles: ProjectileRenderer;
-  readonly outcome: BattleOutcome;
+  readonly outcome = new BattleOutcome(PLAYER_TEAM);
   readonly debug: DebugManager;
   readonly perfTest = new PerformanceTestScene();
   private readonly gpu: GpuTimer;
@@ -110,27 +92,18 @@ export class Game {
     readonly assets: AssetManager,
   ) {
     this.renderer = new Renderer(canvas);
-    this.scenario = scenarioOf(location.hash);
-    const bases = this.scenario === 'bases';
-    this.story = bases ? BASE_BATTLE : PROTOTYPE_BATTLE;
-    this.terrain = Terrain.generate({ size: MAP_SIZE, seed: 20260925, sites: bases ? BASE_SITES : [] });
+    this.terrain = Terrain.generate({ size: MAP_SIZE, seed: 20260925 });
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
 
     this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
-    const field = bases ? null : setupFieldBattle(this.world, MAP_SIZE);
-    this.ai = new AIController(this.world, field?.ai ?? BASE_AI);
+    const setup = setupFieldBattle(this.world, MAP_SIZE);
+    this.armies = { player: setup.player, enemy: setup.enemy };
+    this.ai = new AIController(this.world, setup.ai);
     const battle = createBattleSimulation(this.world, [this.ai], this.perf);
     this.simulation = battle.simulation;
     this.formations = battle.formations;
     this.heroes = battle.heroes;
-    this.buildings = battle.buildings;
     this.ai.heroes = battle.heroes;
-    // The bases need the BuildingSystem: they are laid once the simulation exists.
-    const baseSetup = bases ? setupBaseBattle(this.world, battle.buildings) : null;
-    const setup = field ?? baseSetup!;
-    if (baseSetup) this.ai.strategy = new StrategicAI(battle.buildings, baseSetup.strategy);
-    this.armies = { player: setup.player, enemy: setup.enemy };
-    this.outcome = new BattleOutcome(PLAYER_TEAM, bases ? (team) => this.buildings.hasHeadquarters(team) : null);
     this.units = new UnitManager(this.world);
 
     const teamColors = TEAM_FACTIONS.map((id) => new THREE.Color(faction(id).color));
@@ -138,14 +111,8 @@ export class Game {
     this.overlay = new OverlayRenderer(heightAt);
     this.effects = new EffectsRenderer(this.world, heightAt);
     this.missiles = new ProjectileRenderer(this.world);
-    this.buildingRenderer = new BuildingRenderer(this.buildings, teamColors, heightAt, this.effects);
-    this.overlay.buildingTop = (id) => {
-      const b = this.buildings.get(id);
-      return b ? buildingHeight(b.def) + 1 : 8;
-    };
     this.scenes.scene.add(
       new TerrainRenderer(this.terrain).group,
-      this.buildingRenderer.group,
       this.unitRenderer.group,
       this.overlay.group,
       this.effects.group,
@@ -158,8 +125,7 @@ export class Game {
       minZ: CAMERA_MARGIN,
       maxZ: MAP_SIZE - CAMERA_MARGIN,
     });
-    if (bases) this.rtsCamera.focus(BASE_SITES[0].x, BASE_SITES[0].z - 22, 75, true);
-    else this.rtsCamera.focus(MAP_SIZE / 2, MAP_SIZE / 2 + 70, 70, true);
+    this.rtsCamera.focus(MAP_SIZE / 2, MAP_SIZE / 2 + 70, 70, true);
     this.projector = new ScreenProjector(this.rtsCamera.camera);
     this.picker = new TerrainPicker(this.terrain, this.rtsCamera.camera);
     this.input = new InputManager(canvas);
@@ -172,7 +138,7 @@ export class Game {
       kind: (id) => world.c.unitType[id],
       isAlive: (id) => this.units.isActive(id),
     });
-    this.hud = new HUD(ui, world, this.selection, this.units, TEAM_FACTIONS, this.story, assets);
+    this.hud = new HUD(ui, world, this.selection, this.units, TEAM_FACTIONS, PROTOTYPE_BATTLE, assets);
     this.audio = new AudioManager(assets);
     this.audio.attach(world, () => this.rtsCamera.target);
     this.selectionInput = new SelectionInput(this.selection, this.input.mouse, this.input.keys, this.hud.box, (ids) => {
@@ -213,30 +179,8 @@ export class Game {
       onDirect: (hero) => this.directControl(hero),
     });
     this.heroBar = new HeroBar(ui, world, this.heroes, this.heroInput, (id) => this.assets.portrait(id));
-    this.buildingInput = new BuildingInput({
-      world,
-      buildings: this.buildings,
-      selection: this.selection,
-      mouse: this.input.mouse,
-      keys: this.input.keys,
-      team: PLAYER_TEAM,
-      pickGround: (x, y) => this.picker.pick(x, y, this.projector.width, this.projector.height),
-      ghost: (g) => (g ? this.buildingRenderer.showGhost(g.type, g.x, g.z, g.rot, g.valid) : this.buildingRenderer.hideGhost()),
-      marker: (x, z) => {
-        this.overlay.marker(x, z, false);
-        this.audio.play('ack', 0.9);
-      },
-    });
-    if (bases) {
-      const top = ui.querySelector<HTMLElement>('.top-bar') ?? ui;
-      this.economyUI.push(
-        new ResourceBar(top, world, PLAYER_TEAM),
-        new BuildMenu(ui, world, this.buildings, this.buildingInput, TEAM_FACTIONS[PLAYER_TEAM], PLAYER_TEAM),
-        new ProductionPanel(ui, world, this.buildings, this.buildingInput, PLAYER_TEAM),
-      );
-    }
-    this.selectionInput.blocked = () => this.orderInput.attackMoveArmed || this.heroInput.busy || this.buildingInput.busy;
-    this.orderInput.blocked = () => this.heroInput.busy || this.buildingInput.busy;
+    this.selectionInput.blocked = () => this.orderInput.attackMoveArmed || this.heroInput.busy;
+    this.orderInput.blocked = () => this.heroInput.busy;
     const orders = this.orderInput;
     this.hud.panel.setActions([
       ...FORMATION_TYPES.map((type) => ({
@@ -284,11 +228,7 @@ export class Game {
     // The battle waits for the player to read the briefing (the scene keeps rendering behind it).
     this.loop.paused = true;
     new BriefingScreen(this.ui, {
-      story: this.story,
-      scenarios: [
-        { label: 'Bataille avec bases', hash: '', active: this.scenario === 'bases' },
-        { label: 'Bataille rangée', hash: '#field', active: this.scenario === 'field' },
-      ],
+      story: PROTOTYPE_BATTLE,
       portrait: (id) => this.assets.portrait(id),
       artwork: this.assets.artwork(),
       credits: this.assets.credits(),
@@ -338,7 +278,6 @@ export class Game {
       if (code === 'KeyM') this.audio.toggleMute();
     }
     this.heroInput.update();
-    this.buildingInput.update();
     const direct = this.heroInput.direct;
     const camera = this.rtsCamera.camera;
     if (direct >= 0) {
@@ -361,16 +300,11 @@ export class Game {
     this.scenes.lighting.follow(t.x, t.y, t.z);
     this.scenes.update(this.rtsCamera.camera);
     this.unitRenderer.update(this.world, alpha, dt, this.rtsCamera.camera, this.time);
-    const building = this.buildingInput.selected;
-    this.overlay.update(this.world, alpha, dt, building >= 0 ? [...this.selection.ids, building] : this.selection.ids, PLAYER_TEAM);
-    const c = this.world.c;
-    this.overlay.outline(building >= 0 ? { x: c.x[building], z: c.z[building], halfW: c.halfW[building], halfD: c.halfD[building], own: c.team[building] === PLAYER_TEAM } : null);
-    this.buildingRenderer.update(this.world, this.loop.paused ? 0 : dt * this.loop.timeScale);
+    this.overlay.update(this.world, alpha, dt, this.selection.ids, PLAYER_TEAM);
     this.effects.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.missiles.update(this.world, alpha, this.loop.paused ? 0 : dt * this.loop.timeScale);
     this.hud.update(this.perfTest.current === null ? this.outcome.update(this.world) : null);
     this.heroBar.update();
-    for (const panel of this.economyUI) panel.update();
     const cpuMs = performance.now() - start;
     this.gpu.begin();
     this.renderer.render(this.scenes.scene, this.rtsCamera.camera);
