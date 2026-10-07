@@ -12,6 +12,7 @@ export class Pathfinding {
   private readonly cache = new Map<number, FlowField>();
   /** Number of fields computed since the start (debug). */
   computed = 0;
+  private version = 0;
 
   constructor(
     readonly grid: NavGrid,
@@ -24,6 +25,11 @@ export class Pathfinding {
   }
 
   fieldForCell(cell: number): FlowField {
+    // A building went up or came down: every cached field may lead through it or around nothing.
+    if (this.version !== this.grid.version) {
+      this.cache.clear();
+      this.version = this.grid.version;
+    }
     let field = this.cache.get(cell);
     if (field) {
       // Refresh its LRU position.

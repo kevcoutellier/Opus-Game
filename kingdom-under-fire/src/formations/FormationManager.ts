@@ -34,7 +34,7 @@ export class FormationManager implements System {
       this.moveTo(f, cmd.x, cmd.z, cmd.facing, cmd.attackMove ? Order.AttackMove : Order.Move);
     });
     q.on('attack', (cmd) => {
-      if (!this.isActiveUnit(cmd.target) || world.c.team[cmd.target] === cmd.team) return;
+      if (!this.isTarget(cmd.target) || world.c.team[cmd.target] === cmd.team) return;
       const f = this.gather(cmd.team, cmd.units, null);
       if (!f) return;
       for (const id of f.members) world.c.target[id] = cmd.target;
@@ -79,6 +79,12 @@ export class FormationManager implements System {
       type = f.type;
     }
     return type;
+  }
+
+  /** A soldier or a building still standing (what an Attack order can aim at). */
+  private isTarget(id: number): boolean {
+    const { entities, c } = this.world;
+    return (entities.mask[id] & (Comp.Unit | Comp.Building)) !== 0 && c.state[id] !== UnitState.Dying;
   }
 
   private isActiveUnit(id: number): boolean {
@@ -240,7 +246,7 @@ export class FormationManager implements System {
   private chase(f: Formation): void {
     const { c } = this.world;
     const t = f.targetUnit;
-    if (t < 0 || !this.isActiveUnit(t)) {
+    if (t < 0 || !this.isTarget(t)) {
       f.targetUnit = -1;
       this.setOrder(f, Order.AttackMove);
       return;

@@ -18,6 +18,8 @@ const HELP = [
   ['PgUp / PgDn', 'inclinaison · L : caméra libre · Origine : recentrer'],
   ['Z X C V (W X C V)', 'capacités du héros (clic : viser, clic droit : annuler)'],
   ['Tab', 'contrôle direct du héros : WASD, souris, clics : frapper, Espace : esquive, 1–4 : capacités'],
+  ['Bâtir (en bas à droite)', 'poser un bâtiment près des vôtres · R : tourner · Maj : en poser plusieurs'],
+  ['Clic sur un bâtiment', 'production : recruter, annuler (remboursé) · clic droit : point de ralliement'],
   ['P / M', 'pause · couper le son'],
   ['F1 / F2', 'panneau développeur · test de performance'],
 ];

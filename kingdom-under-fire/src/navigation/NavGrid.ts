@@ -14,6 +14,8 @@ export class NavGrid {
   readonly blocked: Uint8Array;
   readonly cost: Float32Array;
   readonly speed: Float32Array;
+  /** Incremented whenever cells are blocked or freed at runtime (buildings): cached paths are stale. */
+  version = 0;
 
   constructor(
     readonly width: number,
@@ -64,6 +66,33 @@ export class NavGrid {
       grid.forEachCellInDisc(x, z, radius, (i) => (grid.blocked[i] = 1));
     }
     return grid;
+  }
+
+  /**
+   * Cells whose area overlaps the axis-aligned rectangle centred on (x, z), `width` along x and `depth`
+   * along z (a building footprint).
+   */
+  cellsInRect(x: number, z: number, width: number, depth: number): number[] {
+    const cells: number[] = [];
+    const e = 1e-3;
+    for (let cz = this.cellZ(z - depth / 2 + e); cz <= this.cellZ(z + depth / 2 - e); cz++) {
+      for (let cx = this.cellX(x - width / 2 + e); cx <= this.cellX(x + width / 2 - e); cx++) cells.push(cz * this.cols + cx);
+    }
+    return cells;
+  }
+
+  /** Blocks free cells (a building is raised); returns those it blocked, to be freed with `release`. */
+  occupy(cells: readonly number[]): number[] {
+    const taken = cells.filter((i) => !this.blocked[i]);
+    for (const i of taken) this.blocked[i] = 1;
+    if (taken.length) this.version++;
+    return taken;
+  }
+
+  /** Frees cells blocked by `occupy` (the building is destroyed). */
+  release(cells: readonly number[]): void {
+    for (const i of cells) this.blocked[i] = 0;
+    if (cells.length) this.version++;
   }
 
   get cellCount(): number {

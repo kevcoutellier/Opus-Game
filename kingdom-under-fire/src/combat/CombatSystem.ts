@@ -4,6 +4,7 @@ import { Comp, MoraleState, NO_ENTITY, Order, SwingKind, UnitState, type SwingKi
 import type { FormationManager } from '../formations/FormationManager';
 import { IMPACT_FRACTION } from '../units/Unit';
 import { DAMAGE_TYPES } from '../units/UnitStats';
+import { closestPoint, contactRadius, distanceToEdge } from '../entities/Footprint';
 import { DamageSystem, type Attack } from './DamageSystem';
 import { launchProjectile } from './Projectiles';
 
@@ -32,6 +33,7 @@ export class CombatSystem implements System {
   private attackers: Uint8Array = new Uint8Array(0);
   /** Blows landing this tick, applied together at the end: no side strikes first by iteration order. */
   private readonly impacts: Attack[] = [];
+  private readonly point = { x: 0, z: 0 };
   /** Unit of the current `nearest` search (avoids a closure per call). */
   private seeker = NO_ENTITY;
   private world: World | null = null;
@@ -98,8 +100,10 @@ export class CombatSystem implements System {
       }
 
       if (target >= 0) {
-        const dist = Math.hypot(c.x[target] - c.x[id], c.z[target] - c.z[id]);
-        const contact = c.radius[id] + c.radius[target];
+        // Measured to the nearest point of the target: its centre, or the edge of a building.
+        closestPoint(c, target, c.x[id], c.z[id], this.point);
+        const dist = Math.hypot(this.point.x - c.x[id], this.point.z - c.z[id]);
+        const contact = c.radius[id] + contactRadius(c, target);
         const range = c.range[id];
         if (dist - contact <= c.reach[id] + 0.05) {
           c.state[id] = UnitState.Attacking;
@@ -129,9 +133,26 @@ export class CombatSystem implements System {
     this.impacts.length = 0;
   }
 
+  /** An enemy soldier or building still standing. */
   private isEnemy(world: World, id: number, other: number): boolean {
     const { c, entities } = world;
-    return entities.has(other, Comp.Unit) && c.state[other] !== UnitState.Dying && c.team[other] !== c.team[id];
+    return (entities.mask[other] & (Comp.Unit | Comp.Building)) !== 0 && c.state[other] !== UnitState.Dying && c.team[other] !== c.team[id];
+  }
+
+  /** Nearest enemy building whose edge is within `radius` of the unit (and within `leash` of its slot). */
+  private nearestBuilding(world: World, id: number, radius: number, leash: number): number {
+    const { c } = world;
+    let best = NO_ENTITY;
+    let bestDistance = radius;
+    for (const b of world.buildings) {
+      if (!this.isEnemy(world, id, b)) continue;
+      const d = distanceToEdge(c, b, c.x[id], c.z[id], this.point);
+      if (d > bestDistance) continue;
+      if (leash < Infinity && distanceToEdge(c, b, c.slotX[id], c.slotZ[id], this.point) > leash) continue;
+      bestDistance = d;
+      best = b;
+    }
+    return best;
   }
 
   private dropTarget(world: World, id: number): void {
@@ -186,10 +207,11 @@ export class CombatSystem implements System {
     const close = this.acquireMelee(world, id, current, Order.Hold, false);
     if (close >= 0) return close;
     if (current >= 0 && this.isEnemy(world, id, current)) {
-      if (order === Order.Attack || Math.hypot(c.x[current] - c.x[id], c.z[current] - c.z[id]) <= c.range[id]) return current;
+      if (order === Order.Attack || distanceToEdge(c, current, c.x[id], c.z[id], this.point) <= c.range[id]) return current;
     }
     this.seeker = id;
-    return spatial.nearest(c.x[id], c.z[id], c.range[id], c.x, c.z, this.enemyOfSeeker);
+    const soldier = spatial.nearest(c.x[id], c.z[id], c.range[id], c.x, c.z, this.enemyOfSeeker);
+    return soldier >= 0 ? soldier : this.nearestBuilding(world, id, c.range[id], Infinity);
   }
 
   /** Nearest reachable enemy, penalised when crowded; keeps the current one unless another is clearly better. */
@@ -218,6 +240,8 @@ export class CombatSystem implements System {
         best = e;
       }
     }
+    // No soldier to fight: the buildings of the enemy.
+    if (best < 0 && !panicked) best = this.nearestBuilding(world, id, radius, leashed ? LEASH : Infinity);
     return best;
   }
 
@@ -237,11 +261,12 @@ export class CombatSystem implements System {
     } else if (swing < windup && next >= windup && kind !== SwingKind.Cast) {
       const t = c.target[id];
       if (t >= 0 && this.isEnemy(world, id, t)) {
-        const dist = Math.hypot(c.x[t] - c.x[id], c.z[t] - c.z[id]);
+        closestPoint(c, t, c.x[id], c.z[id], this.point);
+        const dist = Math.hypot(this.point.x - c.x[id], this.point.z - c.z[id]);
         const shaken = c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1;
         if (kind === SwingKind.Shot) {
           if (dist <= c.range[id] * 1.15) launchProjectile(world, id, t, c.rangedAttack[id] * c.damageMul[id] * shaken);
-        } else if (dist - c.radius[id] - c.radius[t] <= c.reach[id] + 0.6) {
+        } else if (dist - c.radius[id] - contactRadius(c, t) <= c.reach[id] + 0.6) {
           const damage = c.attack[id] * c.damageMul[id] * shaken;
           this.strike(world, id, t, damage);
           if (c.cleave[id] > 0) this.cleave(world, id, t, damage * CLEAVE_DAMAGE);

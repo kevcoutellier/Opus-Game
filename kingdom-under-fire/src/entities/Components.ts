@@ -13,6 +13,8 @@ export const Comp = {
   Faction: 1 << 6,
   Unit: 1 << 7,
   Selectable: 1 << 8,
+  /** A building (BuildingSystem): a static target with a footprint blocking the navigation grid. */
+  Building: 1 << 9,
 } as const;
 
 /** Behaviour state of a unit, driven by the simulation systems. */
@@ -78,6 +80,9 @@ export class Components {
   readonly maxSpeed: Float32Array;
   readonly radius: Float32Array;
   readonly mass: Float32Array;
+  /** Half extents (m) of a building's footprint along x and z; 0 for units (a disc of `radius`). */
+  readonly halfW: Float32Array;
+  readonly halfD: Float32Array;
 
   // Health
   readonly hp: Float32Array;
@@ -185,6 +190,8 @@ export class Components {
     this.maxSpeed = f32();
     this.radius = f32();
     this.mass = f32();
+    this.halfW = f32();
+    this.halfD = f32();
     this.hp = f32();
     this.maxHp = f32();
     this.attack = f32();

@@ -136,10 +136,17 @@ export class RTSCamera {
       this.target.y + Math.sin(pitch) * d,
       this.target.z + Math.cos(this.yaw) * Math.cos(pitch) * d,
     );
-    // Never sink below the ground (hills between the camera and the target).
+    // Never sink below the ground, and rise until no hill (or the mountains of the border, when the
+    // camera looks at the edge of the map from beyond it) hides the target.
     const ground = this.heightAt(cam.position.x, cam.position.z) + 2.5;
     if (cam.position.y < ground) cam.position.y = ground;
-    cam.lookAt(this.target.x, this.target.y + 1, this.target.z);
+    const ty = this.target.y + 1;
+    for (let k = 1; k <= 24; k++) {
+      const f = k / 24;
+      const h = this.heightAt(this.target.x + (cam.position.x - this.target.x) * f, this.target.z + (cam.position.z - this.target.z) * f) + 1.5;
+      if (h > ty + (cam.position.y - ty) * f) cam.position.y = ty + (h - ty) / f;
+    }
+    cam.lookAt(this.target.x, ty, this.target.z);
   }
 
   setAspect(aspect: number): void {

@@ -29,7 +29,7 @@ const RAW_UNITS = [
     morale: 70,
     discipline: 0.55,
     shield: 0.5,
-    cost: { gold: 50, food: 20 },
+    cost: { gold: 30, food: 30 },
     trainTime: 12,
   },
   {
@@ -56,7 +56,7 @@ const RAW_UNITS = [
     discipline: 0.6,
     shield: 0.35,
     brace: 2.5,
-    cost: { gold: 45, wood: 10, food: 20 },
+    cost: { gold: 25, wood: 20, food: 25 },
     trainTime: 12,
   },
   {
@@ -83,7 +83,7 @@ const RAW_UNITS = [
     morale: 66,
     discipline: 0.38,
     shield: 0.35,
-    cost: { gold: 45, food: 25 },
+    cost: { gold: 30, food: 35 },
     trainTime: 11,
   },
   {
@@ -111,7 +111,7 @@ const RAW_UNITS = [
     discipline: 0.42,
     shield: 0.2,
     brace: 2.2,
-    cost: { gold: 40, wood: 10, food: 25 },
+    cost: { gold: 25, wood: 20, food: 30 },
     trainTime: 11,
   },
   {
@@ -137,7 +137,7 @@ const RAW_UNITS = [
     morale: 55,
     discipline: 0.45,
     ranged: { range: 42, damage: 13, damageType: 'PIERCING', projectile: 'arrow', speed: 34, accuracy: 0.82, period: 2.4, windup: 0.9 },
-    cost: { gold: 55, wood: 20, food: 20 },
+    cost: { gold: 30, wood: 35, food: 20 },
     trainTime: 14,
   },
   {
@@ -164,7 +164,7 @@ const RAW_UNITS = [
     discipline: 0.65,
     shield: 0.3,
     charge: { speed: 1.5, damage: 46, cooldown: 9 },
-    cost: { gold: 110, food: 40 },
+    cost: { gold: 70, wood: 20, food: 45 },
     trainTime: 22,
   },
   {
@@ -191,7 +191,7 @@ const RAW_UNITS = [
     morale: 88,
     discipline: 0.8,
     shield: 0.55,
-    cost: { gold: 90, food: 25 },
+    cost: { gold: 55, food: 30, mana: 15 },
     trainTime: 18,
   },
   {
@@ -250,7 +250,7 @@ const RAW_UNITS = [
     morale: 58,
     discipline: 0.5,
     ranged: { range: 46, damage: 12, damageType: 'PIERCING', projectile: 'arrow', speed: 38, accuracy: 0.86, period: 2.1, windup: 0.75 },
-    cost: { gold: 60, wood: 20, food: 20 },
+    cost: { gold: 35, wood: 30, food: 20 },
     trainTime: 14,
   },
   {
@@ -276,7 +276,7 @@ const RAW_UNITS = [
     morale: 70,
     discipline: 0.55,
     charge: { speed: 1.45, damage: 38, cooldown: 8 },
-    cost: { gold: 100, food: 35 },
+    cost: { gold: 65, wood: 20, food: 40 },
     trainTime: 20,
   },
   {
@@ -303,7 +303,7 @@ const RAW_UNITS = [
     morale: 75,
     discipline: 0.5,
     cleave: 2,
-    cost: { gold: 140, food: 60 },
+    cost: { gold: 90, food: 60, mana: 20 },
     trainTime: 26,
   },
   {

@@ -3,6 +3,7 @@ import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
 import { Comp, UnitState } from '../entities/Components';
 import { DAMAGE_TYPES, PROJECTILE_TYPES, type DamageType, type ProjectileType } from '../units/UnitStats';
+import { distanceToEdge } from '../entities/Footprint';
 import type { Attack, DamageSystem } from './DamageSystem';
 
 /** Height (m above the ground) where a missile leaves the bow and where it strikes a body. */
@@ -188,6 +189,7 @@ export class ProjectileSystem implements System {
   readonly name = 'projectiles';
   private readonly neighbours = new Int32Array(64);
   private readonly hits: Attack[] = [];
+  private readonly point = { x: 0, z: 0 };
 
   constructor(private readonly damage: DamageSystem) {}
 
@@ -221,6 +223,8 @@ export class ProjectileSystem implements System {
           struck = e;
         }
       }
+      // No body under it: a wall of an enemy building?
+      if (struck < 0) struck = this.buildingAt(world, x, z, team, 0.4);
       if (struck >= 0) {
         // Knockback and sparks come from the direction of flight.
         const dx = x - pool.sx[i];
@@ -256,10 +260,16 @@ export class ProjectileSystem implements System {
     const attacker = pool.attacker[i];
     let hit = false;
     const n = spatial.query(x, z, radius + 1, c.x, c.z, this.neighbours);
+    const victims: number[] = [];
     for (let k = 0; k < n; k++) {
       const e = this.neighbours[k];
       if (!(entities.mask[e] & Comp.Unit) || c.team[e] === pool.team[i] || c.state[e] === UnitState.Dying) continue;
-      if (Math.hypot(c.x[e] - x, c.z[e] - z) - c.radius[e] > radius) continue;
+      if (Math.hypot(c.x[e] - x, c.z[e] - z) - c.radius[e] <= radius) victims.push(e);
+    }
+    for (const b of world.buildings) {
+      if (c.team[b] !== pool.team[i] && c.state[b] !== UnitState.Dying && distanceToEdge(c, b, x, z, this.point) <= radius) victims.push(b);
+    }
+    for (const e of victims) {
       hit = true;
       this.hits.push({
         attacker: entities.isAlive(attacker) ? attacker : -1,
@@ -275,5 +285,15 @@ export class ProjectileSystem implements System {
       });
     }
     return hit;
+  }
+
+  /** Enemy building (of a team other than `team`) whose footprint, grown by `margin`, contains (x, z). */
+  private buildingAt(world: World, x: number, z: number, team: number, margin: number): number {
+    const { c } = world;
+    for (const b of world.buildings) {
+      if (c.team[b] === team || c.state[b] === UnitState.Dying) continue;
+      if (Math.abs(x - c.x[b]) <= c.halfW[b] + margin && Math.abs(z - c.z[b]) <= c.halfD[b] + margin) return b;
+    }
+    return -1;
   }
 }

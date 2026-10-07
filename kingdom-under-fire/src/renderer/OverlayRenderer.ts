@@ -47,6 +47,10 @@ export class OverlayRenderer {
   private readonly bars: THREE.InstancedMesh;
   private readonly barFill: THREE.InstancedBufferAttribute;
   private readonly barColor: THREE.InstancedBufferAttribute;
+  private readonly barWidth: THREE.InstancedBufferAttribute;
+  private readonly outlineMesh: THREE.Mesh;
+  /** Height (m) of the health bar over a building (set by the game, which knows the models). */
+  buildingTop: (id: number) => number = () => 8;
   private readonly selectedSet = new Set<number>();
   private readonly tint = new THREE.Color();
   private readonly pos = { x: 0, z: 0 };
@@ -99,22 +103,26 @@ export class OverlayRenderer {
     const barGeometry = new THREE.PlaneGeometry(0.95, 0.12);
     this.barFill = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS), 1);
     this.barColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS * 3), 3);
+    this.barWidth = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS).fill(1), 1);
     this.barFill.setUsage(THREE.DynamicDrawUsage);
     this.barColor.setUsage(THREE.DynamicDrawUsage);
+    this.barWidth.setUsage(THREE.DynamicDrawUsage);
     barGeometry.setAttribute('iFill', this.barFill);
     barGeometry.setAttribute('iColor', this.barColor);
+    barGeometry.setAttribute('iWidth', this.barWidth);
     const barMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
       vertexShader: /* glsl */ `
         attribute float iFill;
         attribute vec3 iColor;
+        attribute float iWidth;
         varying float vFill;
         varying vec3 vColor;
         varying vec2 vUv;
         void main() {
           vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-          mv.xy += position.xy;
+          mv.xy += position.xy * vec2(iWidth, iWidth > 1.5 ? 1.6 : 1.0);
           gl_Position = projectionMatrix * mv;
           vFill = iFill;
           vColor = iColor;
@@ -137,22 +145,44 @@ export class OverlayRenderer {
     this.bars.renderOrder = 4;
     this.bars.count = 0;
     this.group.add(this.bars);
+
+    // Outline of the selected building: a square ring (4 segments) stretched to its footprint.
+    this.outlineMesh = new THREE.Mesh(
+      new THREE.RingGeometry(Math.SQRT2 * 0.93, Math.SQRT2, 4, 1, Math.PI / 4).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: OWN, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false, fog: false }),
+    );
+    this.outlineMesh.renderOrder = 5;
+    this.outlineMesh.visible = false;
+    this.group.add(this.outlineMesh);
   }
 
-  /** Bars over selected units and over units hit in the last seconds. */
+  /** Outlines the footprint of the selected building, or hides the outline (null). */
+  outline(rect: { x: number; z: number; halfW: number; halfD: number; own: boolean } | null): void {
+    this.outlineMesh.visible = rect !== null;
+    if (!rect) return;
+    this.outlineMesh.position.set(rect.x, this.heightAt(rect.x, rect.z) + 0.3, rect.z);
+    this.outlineMesh.scale.set(rect.halfW + 0.8, 1, rect.halfD + 0.8);
+    (this.outlineMesh.material as THREE.MeshBasicMaterial).color.copy(rect.own ? OWN : ENEMY);
+  }
+
+  /** Bars over selected units and buildings, and over those hit in the last seconds. */
   private updateBars(world: World, alpha: number, selected: readonly number[], ownTeam: number): void {
     const { entities, c } = world;
     this.selectedSet.clear();
     for (const id of selected) this.selectedSet.add(id);
     const fill = this.barFill.array as Float32Array;
     const color = this.barColor.array as Float32Array;
+    const width = this.barWidth.array as Float32Array;
     let n = 0;
     for (let i = 0; i < entities.count && n < MAX_BARS; i++) {
       const id = entities.dense[i];
-      if ((entities.mask[id] & Comp.Unit) === 0 || c.state[id] === UnitState.Dying) continue;
+      const mask = entities.mask[id];
+      if ((mask & (Comp.Unit | Comp.Building)) === 0 || c.state[id] === UnitState.Dying) continue;
       if (c.lastHit[id] > BAR_SECONDS && !this.selectedSet.has(id)) continue;
+      const building = (mask & Comp.Building) !== 0;
       renderPosition(world, id, alpha, this.pos);
-      const top = 2.25 * UNIT_DEFS[c.unitType[id]].scale;
+      const top = building ? this.buildingTop(id) : 2.25 * UNIT_DEFS[c.unitType[id]].scale;
+      width[n] = building ? 4 : 1;
       this.matrix.makeTranslation(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + top, this.pos.z);
       this.bars.setMatrixAt(n, this.matrix);
       const ratio = Math.max(0, c.hp[id] / c.maxHp[id]);
@@ -168,6 +198,7 @@ export class OverlayRenderer {
     this.bars.instanceMatrix.needsUpdate = true;
     this.barFill.needsUpdate = true;
     this.barColor.needsUpdate = true;
+    this.barWidth.needsUpdate = true;
   }
 
   /** Ghost slots of the formation being drawn with a right-drag (null hides them). */
@@ -225,7 +256,8 @@ export class OverlayRenderer {
     this.updateBars(world, alpha, selected, ownTeam);
     let n = 0;
     for (const id of selected) {
-      if (n >= MAX_RINGS || !world.entities.isAlive(id)) continue;
+      // Rings under soldiers only: a selected building is outlined instead.
+      if (n >= MAX_RINGS || !world.entities.has(id, Comp.Unit)) continue;
       renderPosition(world, id, alpha, this.pos);
       const r = world.c.radius[id] / 0.42;
       this.matrix.makeScale(r, 1, r).setPosition(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + 0.06, this.pos.z);

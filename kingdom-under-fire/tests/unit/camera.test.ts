@@ -21,6 +21,22 @@ describe('RTSCamera', () => {
     expect(cam.target.x).toBeGreaterThanOrEqual(bounds.minX - 1e-3);
   });
 
+  it('rises above a ridge that would hide the target (the mountains of the border seen from beyond it)', () => {
+    // A steep 30 m ridge rising from z = 234, between the camera (yaw 0: north of its target) and a target
+    // at z = 225 (terrain heights are continuous: bilinear samples of a 1 m heightmap).
+    const heightAt = (_x: number, z: number) => Math.min(30, Math.max(0, (z - 234) * 6));
+    const cam = new RTSCamera(heightAt, { minX: 10, maxX: 246, minZ: 10, maxZ: 246 });
+    cam.focus(128, 225, 40, true);
+    cam.apply();
+    const p = cam.camera.position;
+    for (let k = 1; k < 40; k++) {
+      const f = k / 40;
+      const x = cam.target.x + (p.x - cam.target.x) * f;
+      const z = cam.target.z + (p.z - cam.target.z) * f;
+      expect(cam.target.y + 1 + (p.y - cam.target.y - 1) * f).toBeGreaterThanOrEqual(heightAt(x, z));
+    }
+  });
+
   it('scrolls when the pointer touches a screen edge', () => {
     const cam = new RTSCamera(() => 0, bounds);
     cam.focus(128, 128, 60, true);

@@ -19,7 +19,14 @@ export class TerrainPicker {
     this.raycaster.setFromCamera(this.ndc, this.camera);
     const { origin, direction } = this.raycaster.ray;
     const t = this.terrain;
-    const above = (d: number) => origin.y + direction.y * d - t.heightAt(origin.x + direction.x * d, origin.z + direction.z * d);
+    // Beyond the map there is no ground: a camera looking at the border from outside must not hit the
+    // border height that heightAt() extends outwards.
+    const above = (d: number) => {
+      const x = origin.x + direction.x * d;
+      const z = origin.z + direction.z * d;
+      if (x < 0 || z < 0 || x > t.size || z > t.size) return Infinity;
+      return origin.y + direction.y * d - t.heightAt(x, z);
+    };
     let prev = 0;
     for (let d = 1; d < 1500; d += 1) {
       if (above(d) <= 0) {

@@ -27,4 +27,12 @@ export type GameCommand =
   /** Direct control: a blow in the aim direction, heavy or quick. */
   | { kind: 'heroStrike'; team: number; hero: number; heavy: boolean }
   /** Direct control: a dodge roll in the direction (x, z). */
-  | { kind: 'heroDodge'; team: number; hero: number; x: number; z: number };
+  | { kind: 'heroDodge'; team: number; hero: number; x: number; z: number }
+  /** Lays the foundations of building `building` (definition id) centred on (x, z), turned by `rot`. */
+  | { kind: 'build'; team: number; building: string; x: number; z: number; rot: number }
+  /** Queues unit `unit` (definition id) in building entity `building`. */
+  | { kind: 'train'; team: number; building: number; unit: string }
+  /** Removes entry `index` of a building's queue, refunded in full. */
+  | { kind: 'cancelTrain'; team: number; building: number; index: number }
+  /** Where the units trained by a building gather. */
+  | { kind: 'rally'; team: number; building: number; x: number; z: number };

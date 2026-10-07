@@ -1,6 +1,7 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
 import { Comp, MoraleState, Order, SwingKind, UnitState } from '../entities/Components';
+import { closestPoint } from '../entities/Footprint';
 import { IMPACT_FRACTION } from './Unit';
 
 const NEIGHBOUR_RADIUS = 1.8;
@@ -30,6 +31,7 @@ export class MovementSystem implements System {
   // others (a measurable bias of the battle outcome towards the higher entity ids).
   private nx = new Float32Array(0);
   private nz = new Float32Array(0);
+  private readonly goal = { x: 0, z: 0 };
   private nvx = new Float32Array(0);
   private nvz = new Float32Array(0);
   private moved = new Uint8Array(0);
@@ -64,8 +66,10 @@ export class MovementSystem implements System {
       let gz: number;
       let stop: number;
       if (engaging) {
-        gx = c.x[target];
-        gz = c.z[target];
+        // The enemy, or the nearest point of the building being attacked.
+        closestPoint(c, target, x, z, this.goal);
+        gx = this.goal.x;
+        gz = this.goal.z;
         stop = c.engageDist[id];
       } else {
         gx = c.slotX[id];

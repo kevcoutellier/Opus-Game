@@ -1,3 +1,4 @@
+import { BuildingSystem } from '../buildings/BuildingSystem';
 import { ChargeSystem } from '../combat/ChargeSystem';
 import { CombatSystem } from '../combat/CombatSystem';
 import { MoraleSystem } from '../combat/MoraleSystem';
@@ -16,23 +17,27 @@ export interface BattleSimulation {
   formations: FormationManager;
   combat: CombatSystem;
   heroes: HeroSystem;
+  buildings: BuildingSystem;
 }
 
 /**
- * The battle pipeline, in order: neighbour grid → formations (anchors, slots) → heroes (abilities,
- * statuses, direct control) → combat (targets, blows, shots) → missiles in flight → cavalry charges →
- * morale (states, flight points) → movement (steering) → lifecycle (corpses). `extra` systems (AI) run
- * first, so their commands are applied at the next tick like a player's.
+ * The battle pipeline, in order: neighbour grid → buildings (construction, income, production) →
+ * formations (anchors, slots) → heroes (abilities, statuses, direct control) → combat (targets, blows,
+ * shots) → missiles in flight → cavalry charges → morale (states, flight points) → movement (steering)
+ * → lifecycle (corpses). `extra` systems (AI) run first, so their commands are applied at the next tick
+ * like a player's.
  */
 export function createBattleSimulation(world: World, extra: System[] = [], perf?: PerformanceMonitor): BattleSimulation {
   const formations = new FormationManager(world);
   const combat = new CombatSystem(formations);
   const heroes = new HeroSystem(world, combat.damage, combat, formations);
+  const buildings = new BuildingSystem(world);
   const simulation = new Simulation(
     world,
     [
       ...extra,
       new SpatialSystem(),
+      buildings,
       formations,
       heroes,
       combat,
@@ -44,5 +49,5 @@ export function createBattleSimulation(world: World, extra: System[] = [], perf?
     ],
     perf,
   );
-  return { simulation, formations, combat, heroes };
+  return { simulation, formations, combat, heroes, buildings };
 }

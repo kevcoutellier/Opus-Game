@@ -1,6 +1,6 @@
 import type { Random } from '../core/Random';
 import type { World } from '../core/World';
-import { NO_ENTITY, UnitState } from '../entities/Components';
+import { Comp, NO_ENTITY, UnitState } from '../entities/Components';
 import { ARMOR_TYPES, DAMAGE_TYPES, type ArmorType, type DamageType } from '../units/UnitStats';
 
 /** One blow, spell or projectile hit, as it reaches the damage resolution. */
@@ -122,7 +122,8 @@ export function kill(world: World, id: number, killer: number): void {
   c.swing[id] = -1;
   c.vx[id] = 0;
   c.vz[id] = 0;
-  world.events.emit('unitDied', { id, team: c.team[id], x: c.x[id], z: c.z[id], killer });
+  if (world.entities.mask[id] & Comp.Building) world.events.emit('buildingDestroyed', { id, team: c.team[id], x: c.x[id], z: c.z[id], killer });
+  else world.events.emit('unitDied', { id, team: c.team[id], x: c.x[id], z: c.z[id], killer });
 }
 
 export const DAMAGE_TYPE_OF = (index: number): DamageType => DAMAGE_TYPES[index];

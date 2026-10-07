@@ -19,6 +19,7 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.maxSpeed[id] = def.speed;
   c.radius[id] = def.radius;
   c.mass[id] = def.mass;
+  c.halfW[id] = c.halfD[id] = 0;
   c.hp[id] = c.maxHp[id] = def.health;
   c.attack[id] = def.attack;
   c.defense[id] = def.defense;

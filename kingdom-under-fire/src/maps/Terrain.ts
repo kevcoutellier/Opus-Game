@@ -5,6 +5,8 @@ export interface TerrainOptions {
   /** Side of the square map in metres. */
   size: number;
   seed: number;
+  /** Clearings for bases: flattened, without trees or rocks. */
+  sites?: readonly { x: number; z: number; radius: number }[];
 }
 
 /**
@@ -94,14 +96,20 @@ export class Terrain {
    * Battlefield: an open plain in the middle (where the armies meet), rolling hills around it, forests and
    * rock outcrops on the sides, a mountain rim along the borders.
    */
-  static generate({ size, seed }: TerrainOptions): Terrain {
+  static generate({ size, seed, sites = [] }: TerrainOptions): Terrain {
     const res = size + 1;
     const heights = new Float32Array(res * res);
+    /** 1 inside a base clearing, fading to 0 around it. */
+    const siteAt = (x: number, z: number) => {
+      let v = 0;
+      for (const s of sites) v = Math.max(v, 1 - smoothstep(s.radius * 0.85, s.radius * 1.35, Math.hypot(x - s.x, z - s.z)));
+      return v;
+    };
     const plainAt = (x: number, z: number) => {
       const dx = (x - size / 2) / size;
       const dz = (z - size / 2) / size;
       // Elongated along z: the two armies deploy at both ends of the plain.
-      return 1 - smoothstep(0.18, 0.42, Math.hypot(dx * 1.6, dz * 0.85));
+      return Math.max(1 - smoothstep(0.18, 0.42, Math.hypot(dx * 1.6, dz * 0.85)), siteAt(x, z));
     };
     // Superellipse distance to the border (rounded corners instead of a square crease).
     const edgeAt = (x: number, z: number) => {
@@ -117,7 +125,9 @@ export class Terrain {
         const plain = plainAt(i, j);
         const edge = edgeAt(i, j);
         const rim = smoothstep(0.78, 1, edge) * (16 + fbm(i * 0.03, j * 0.03, seed + 3) * 22);
-        heights[j * res + i] = (hills * (1 - 0.8 * plain) + detail) + rim;
+        // Base clearings are levelled further (and pushed back from the mountain rim).
+        const site = siteAt(i, j);
+        heights[j * res + i] = (hills * (1 - 0.8 * plain) * (1 - 0.7 * site) + detail * (1 - 0.6 * site)) + rim * (1 - 0.6 * site);
       }
     }
 
@@ -140,7 +150,7 @@ export class Terrain {
         const plain = plainAt(x, z);
         const edge = edgeAt(x, z);
         const { slope } = terrainAt(x, z);
-        if (slope > 0.9 || edge > 0.93) continue;
+        if (slope > 0.9 || edge > 0.93 || siteAt(x, z) > 0.2) continue;
         const forestMask = fbm(x * 0.018, z * 0.018, seed + 21);
         const threshold = 0.53 + plain * 0.3;
         const dense = forestMask > threshold;
@@ -159,7 +169,7 @@ export class Terrain {
       for (let gx = 0; gx * rockStep < size; gx++) {
         const x = (gx + hash2(gx, gz, seed + 31)) * rockStep;
         const z = (gz + hash2(gx, gz, seed + 32)) * rockStep;
-        if (x < 3 || z < 3 || x > size - 3 || z > size - 3) continue;
+        if (x < 3 || z < 3 || x > size - 3 || z > size - 3 || siteAt(x, z) > 0.1) continue;
         const plain = plainAt(x, z);
         const edge = edgeAt(x, z);
         const outcrop = fbm(x * 0.03, z * 0.03, seed + 33);
