@@ -4,6 +4,8 @@ export default defineConfig({
   // Relative paths so the build works from any sub-folder (GitHub Pages, itch.io...).
   base: './',
   build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
+  // Blender models (public/models) can be imported too: the unit tests inline them.
+  assetsInclude: ['**/*.glb'],
   test: {
     environment: 'node',
     projects: [

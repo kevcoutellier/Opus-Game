@@ -7,3 +7,5 @@ playwright-report/
 # (property of Blueside / Phantagram and of their authors): never versioned.
 public/assets/
 .vitest/
+# Python caches of the Blender model scripts (tools/blender).
+__pycache__/

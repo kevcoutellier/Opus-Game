@@ -189,6 +189,8 @@ export class UnitRenderer {
   private readonly frustum = new THREE.Frustum();
   private readonly projScreen = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere(new THREE.Vector3(), 1.6);
+  /** Models made in Blender that replace the procedural ones (see UnitModelLoader). */
+  private readonly modelGeometry = new Map<UnitModel, THREE.BufferGeometry>();
   /** Units drawn during the last frame (after frustum culling). */
   visible = 0;
 
@@ -207,8 +209,25 @@ export class UnitRenderer {
     this.pools = UNIT_MODELS.map((model) => this.createPool(model, INITIAL_CAPACITY));
   }
 
+  /** Draws `model` with this geometry (a Blender model) from now on. */
+  useGeometry(model: UnitModel, geometry: THREE.BufferGeometry): void {
+    this.modelGeometry.set(model, geometry);
+    const index = UNIT_MODELS.indexOf(model);
+    const old = this.pools[index];
+    this.group.remove(old.mesh);
+    old.mesh.geometry.dispose();
+    old.mesh.dispose();
+    this.pools[index] = this.createPool(model, old.capacity);
+  }
+
+  /** Where the geometry of a model comes from. */
+  source(model: UnitModel): 'procedural' | 'blender' {
+    return this.modelGeometry.has(model) ? 'blender' : 'procedural';
+  }
+
   private createPool(model: UnitModel, capacity: number): Pool {
-    const geometry = createUnitGeometry(model);
+    // Each pool owns its geometry (it carries the instance attributes and is disposed when the pool grows).
+    const geometry = this.modelGeometry.get(model)?.clone() ?? createUnitGeometry(model);
     const anim = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
     const state = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
     const team = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);

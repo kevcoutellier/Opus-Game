@@ -22,6 +22,7 @@ import { ScreenProjector } from '../renderer/ScreenProjector';
 import { TerrainPicker } from '../renderer/TerrainPicker';
 import { TerrainRenderer } from '../renderer/TerrainRenderer';
 import { UnitRenderer } from '../renderer/UnitRenderer';
+import { loadUnitModels } from '../renderer/UnitModelLoader';
 import { BattleOutcome } from '../scenes/BattleOutcome';
 import { ENEMY_TEAM, PLAYER_TEAM, setupTroopBattle, type Army } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
@@ -187,6 +188,8 @@ export class Game {
 
     const teamColors = TEAM_FACTIONS.map((id) => new THREE.Color(faction(id).color));
     this.unitRenderer = new UnitRenderer(this.world.entities.capacity, teamColors, heightAt);
+    // The Blender models arrive a moment later; until then (or if they fail) the procedural ones stand in.
+    void loadUnitModels((model, geometry) => this.unitRenderer.useGeometry(model, geometry));
     this.overlay = new OverlayRenderer(heightAt);
     this.effects = new EffectsRenderer(this.world, heightAt);
     this.missiles = new ProjectileRenderer(this.world);
