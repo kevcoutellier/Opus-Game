@@ -1,7 +1,12 @@
 import type { Random } from '../core/Random';
 import type { World } from '../core/World';
 import { NO_ENTITY, UnitState } from '../entities/Components';
+import { UNIT_DEFS } from '../data/units';
 import { ARMOR_TYPES, DAMAGE_TYPES, type ArmorType, type DamageType } from '../units/UnitStats';
+
+/** Damage types that the dark elves' tolerance to magic softens. */
+const MAGIC: ReadonlySet<DamageType> = new Set(['MAGICAL', 'ICE', 'LIGHTNING']);
+const MAGIC_RESIST = UNIT_DEFS.map((d) => d.magicResist);
 
 /** One blow, spell or projectile hit, as it reaches the damage resolution. */
 export interface Attack {
@@ -92,7 +97,8 @@ export class DamageSystem {
     // Shields stop arrows, not the burst of a spell.
     const shield = attack.missile && attack.ability === null && flank === Flank.Front ? 1 - c.shield[t] : 1;
     const hit = computeDamage(attack, c.defense[t] + c.defenseBonus[t], ARMOR_TYPES[c.armorType[t]], world.rng);
-    const damage = Math.max(1, hit.damage * FLANK_DAMAGE[flank] * shield);
+    const resist = MAGIC.has(attack.damageType) ? 1 - MAGIC_RESIST[c.unitType[t]] : 1;
+    const damage = Math.max(1, hit.damage * FLANK_DAMAGE[flank] * shield * resist);
     const critical = hit.critical;
     c.hp[t] -= damage;
     c.lastHit[t] = 0;

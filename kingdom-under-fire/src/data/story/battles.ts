@@ -27,8 +27,8 @@ export const SKIRMISH_BATTLE: BattleStory = BattleSchema.parse({
   era: 'Guerre des Croisés — hors campagne',
   briefing: [
     'Hironeiden et Vellond se disputent la frontière. Sur une plaine bordée de forêts, la troupe de Gerald, capitaine de la Force de défense de l’Est, croise les gardes-frontières de Lucretia.',
-    'Gerald mène sa garde avec ses officiers Rupert et Ellen, des lanciers, des archers, de la cavalerie et des sapeurs. Lucretia commande sa garde d’elfes noirs avec Morene et Cirith, de l’infanterie, des archers, des archers montés et de la cavalerie.',
-    'Les elfes sont frêles mais rapides, et se soignent. Gardez vos lances face aux cavaliers, abattez les chefs de troupe, et laissez Gerald combattre au milieu de sa garde (Tab, ou zoomez sur elle). S’il tombe, tout est perdu.',
+    'Gerald mène sa garde avec ses officiers Rupert et Ellen, des lanciers, des archers, de la cavalerie, des sapeurs et, en renfort, des cavaliers de l’orage montés sur des aigles géants. Lucretia commande sa garde d’elfes noirs avec Morene et Cirith, de l’infanterie, des archers, des archers montés et de la cavalerie.',
+    'Les elfes sont frêles mais rapides, ils se soignent et guérissent en forêt : brûlez leurs bois (Flèche de feu, sapeurs). Gardez vos lances face aux cavaliers, tenez vos aigles loin de leurs archers, abattez les chefs de troupe, et laissez Gerald combattre au milieu de sa garde (Tab, ou zoomez sur elle). S’il tombe, tout est perdu.',
   ],
   objective: 'Briser les cinq troupes de Lucretia. Gerald ne doit pas tomber.',
   playerFaction: 'human_alliance',

@@ -8,3 +8,6 @@ export const IMPACT_FRACTION = 0.45;
 
 /** Seconds of the red flash after a hit. */
 export const HIT_FLASH_SECONDS = 0.18;
+
+/** Height (m above the ground) at which flyers (Storm Riders) hold. */
+export const FLY_HEIGHT = 6;

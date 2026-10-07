@@ -107,7 +107,7 @@ html, body {
 .troop-list { display: flex; gap: 0.4rem; }
 .troop-card {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: 'name count' 'gauge gauge' 'status sp';
   gap: 0.2rem 0.5rem;
   min-width: 9rem;
@@ -124,12 +124,12 @@ html, body {
 .troop-card.selected { background: rgba(110, 86, 44, 0.95); border-color: #f0d27a; box-shadow: 0 0 0.5rem rgba(240, 210, 122, 0.45); }
 .troop-card.hero .troop-name::before { content: '♛ '; color: var(--gold); }
 .troop-card.broken { filter: grayscale(1) brightness(0.55); cursor: default; }
-.troop-name { grid-area: name; font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); white-space: nowrap; }
-.troop-count { grid-area: count; font-weight: 700; font-size: 0.85rem; }
+.troop-name { grid-area: name; font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.troop-count { grid-area: count; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
 .troop-card .gauge { grid-area: gauge; height: 0.4rem; }
 .gauge.leader i { background: linear-gradient(#ff6a55, #b8231a); }
 .troop-status { grid-area: status; font-size: 0.75rem; color: var(--ink-dim); }
-.troop-sp { grid-area: sp; font-size: 0.7rem; color: #ffd27a; text-align: right; }
+.troop-sp { grid-area: sp; font-size: 0.7rem; color: #ffd27a; text-align: right; white-space: nowrap; }
 .troop-skills { display: flex; gap: 0.3rem; justify-content: center; }
 .troop-skills[hidden] { display: none; }
 .troop-skill {

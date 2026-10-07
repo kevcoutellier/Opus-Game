@@ -39,6 +39,7 @@ import { Comp, UnitState } from '../entities/Components';
 import { GameLoop } from './GameLoop';
 import type { Simulation } from './Simulation';
 import { createBattleSimulation } from './SimulationFactory';
+import { FLY_HEIGHT } from '../units/Unit';
 import { World } from './World';
 
 const MAP_SIZE = 256;
@@ -270,7 +271,7 @@ export class Game {
     for (let i = 0; i < entities.count; i++) {
       const id = entities.dense[i];
       if ((entities.mask[id] & Comp.Unit) === 0 || c.state[id] === UnitState.Dying) continue;
-      const p = this.projector.project(c.x[id], this.terrain.heightAt(c.x[id], c.z[id]) + 1.1, c.z[id]);
+      const p = this.projector.project(c.x[id], this.terrain.heightAt(c.x[id], c.z[id]) + 1.1 + (c.flying[id] ? FLY_HEIGHT : 0), c.z[id]);
       if (!p.visible) continue;
       const d = Math.hypot(p.x - x, p.y - y);
       if (d > PICK_RADIUS) continue;

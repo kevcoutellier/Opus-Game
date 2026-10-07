@@ -154,6 +154,8 @@ export class ChargeSystem implements System {
     for (let k = 0; k < n; k++) {
       const e = this.neighbours[k];
       if (!(world.entities.mask[e] & Comp.Unit) || c.team[e] === c.team[id] || c.state[e] === UnitState.Dying) continue;
+      // A charge tramples what stands on the ground, not what flies over it.
+      if (c.flying[e] !== c.flying[id]) continue;
       const dx = c.x[e] - c.x[id];
       const dz = c.z[e] - c.z[id];
       const dist = Math.hypot(dx, dz) || 1;

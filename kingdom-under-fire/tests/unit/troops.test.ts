@@ -165,10 +165,10 @@ describe('TroopAI', () => {
 });
 
 describe('troop battle', () => {
-  it('deploys five troops a side, each hero leading the first', () => {
+  it('deploys the troops of both sides, each hero leading the first', () => {
     const { world, troops } = battle();
     const setup = setupTroopBattle(world, troops, 128);
-    expect(setup.playerTroops).toHaveLength(5);
+    expect(setup.playerTroops).toHaveLength(6);
     expect(setup.enemyTroops).toHaveLength(5);
     expect(setup.playerTroops[0].hero).toBe(true);
     expect(setup.enemyTroops[0].hero).toBe(true);

@@ -2,6 +2,7 @@ import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
 import { Comp, UnitState } from '../entities/Components';
+import { FLY_HEIGHT } from '../units/Unit';
 import { DAMAGE_TYPES, PROJECTILE_TYPES, type DamageType, type ProjectileType } from '../units/UnitStats';
 import type { Attack, DamageSystem } from './DamageSystem';
 
@@ -35,6 +36,8 @@ export class ProjectilePool {
   readonly duration: Float32Array;
   /** Burst radius (m) of a spell missile, 0 for an arrow striking one body. */
   readonly splash: Float32Array;
+  /** 1 when the missile was aimed at a flyer: it can only strike flyers. */
+  readonly air: Uint8Array;
   /** Ability that loosed the missile, null for an arrow. */
   readonly ability: (string | null)[];
   /** Seconds in flight now and at the previous tick (render interpolation). */
@@ -65,6 +68,7 @@ export class ProjectilePool {
     this.arc = f32();
     this.duration = f32();
     this.splash = f32();
+    this.air = new Uint8Array(capacity);
     this.ability = new Array<string | null>(capacity).fill(null);
     this.t = f32();
     this.prevT = f32();
@@ -129,12 +133,15 @@ export function launchProjectile(world: World, shooter: number, target: number, 
   pool.sx[i] = sx;
   pool.sy[i] = terrain.heightAt(sx, sz) + LAUNCH_HEIGHT;
   pool.sz[i] = sz;
+  const air = c.flying[target];
   pool.ex[i] = tx;
-  pool.ey[i] = terrain.heightAt(tx, tz) + TORSO_HEIGHT;
+  pool.ey[i] = terrain.heightAt(tx, tz) + (air ? FLY_HEIGHT + 0.5 : TORSO_HEIGHT);
   pool.ez[i] = tz;
-  pool.arc[i] = 0.4 + distance * 0.13;
+  // Shots at a flyer fly straighter, up at it.
+  pool.arc[i] = air ? 0.3 + distance * 0.04 : 0.4 + distance * 0.13;
   pool.duration[i] = Math.max(0.2, Math.hypot(tx - sx, tz - sz) / ranged.speed);
-  pool.splash[i] = 0;
+  pool.splash[i] = ranged.splash;
+  pool.air[i] = air;
   pool.ability[i] = null;
   pool.t[i] = pool.prevT[i] = 0;
   world.events.emit('projectileLaunched', { x: sx, z: sz, type: pool.type[i] });
@@ -173,6 +180,7 @@ export function launchSpell(world: World, caster: number, x: number, z: number, 
   pool.arc[i] = 1 + distance * 0.12;
   pool.duration[i] = Math.max(0.2, distance / spell.speed);
   pool.splash[i] = spell.radius;
+  pool.air[i] = 0;
   pool.ability[i] = ability;
   pool.t[i] = pool.prevT[i] = 0;
   world.events.emit('projectileLaunched', { x: sx, z: sz, type: pool.type[i] });
@@ -213,6 +221,8 @@ export class ProjectileSystem implements System {
       for (let k = 0; k < n; k++) {
         const e = this.neighbours[k];
         if (!(entities.mask[e] & Comp.Unit) || c.team[e] === team || c.state[e] === UnitState.Dying) continue;
+        // An arrow aimed at a flyer only meets flyers; one aimed at the ground passes under them.
+        if (c.flying[e] !== pool.air[i]) continue;
         const gap = Math.hypot(c.x[e] - x, c.z[e] - z) - c.radius[e];
         if (gap > HIT_TOLERANCE) continue;
         const score = gap - (e === pool.target[i] ? 1 : 0);
@@ -258,7 +268,7 @@ export class ProjectileSystem implements System {
     const n = spatial.query(x, z, radius + 1, c.x, c.z, this.neighbours);
     for (let k = 0; k < n; k++) {
       const e = this.neighbours[k];
-      if (!(entities.mask[e] & Comp.Unit) || c.team[e] === pool.team[i] || c.state[e] === UnitState.Dying) continue;
+      if (!(entities.mask[e] & Comp.Unit) || c.team[e] === pool.team[i] || c.state[e] === UnitState.Dying || c.flying[e]) continue;
       if (Math.hypot(c.x[e] - x, c.z[e] - z) - c.radius[e] > radius) continue;
       hit = true;
       this.hits.push({

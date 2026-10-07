@@ -13,6 +13,8 @@ const SEPARATION = 5.5;
 const ALIGNMENT = 0.2;
 const COHESION = 0.06;
 const PROBE_DISTANCE = 1.3;
+/** Speed left to a unit pinned by spears. */
+const PINNED_SPEED = 0.3;
 const AVOID_ANGLES = [Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, (3 * Math.PI) / 4, (-3 * Math.PI) / 4];
 
 /**
@@ -56,6 +58,9 @@ export class MovementSystem implements System {
       // Frozen, stunned or casting a spell: rooted to the spot (still pushed around by the crowd).
       const rooted = c.stun[id] > 0 || (c.swingKind[id] === SwingKind.Cast && c.swing[id] >= 0 && c.swing[id] < c.swingDuration[id] * IMPACT_FRACTION);
       const direct = c.order[id] === Order.Direct;
+      // Flyers cross woods, slopes and rocks, and only jostle other flyers.
+      const flyer = c.flying[id] === 1;
+      const ground = flyer ? 1 : nav.speedAt(x, z);
 
       // 1. Goal: the enemy being engaged, the formation slot, or (routing) the flight point in slot*.
       const target = c.target[id];
@@ -81,7 +86,7 @@ export class MovementSystem implements System {
       let wantSpeed = 0;
       if (direct && !rooted) {
         // Steered by the player (HeroSystem): straight where the stick points.
-        const top = c.maxSpeed[id] * c.speedBoost[id] * nav.speedAt(x, z);
+        const top = c.maxSpeed[id] * c.speedBoost[id] * ground;
         wantX = c.steerX[id] * top;
         wantZ = c.steerZ[id] * top;
         wantSpeed = Math.hypot(wantX, wantZ);
@@ -89,7 +94,7 @@ export class MovementSystem implements System {
         let ux = dx / dist;
         let uz = dz / dist;
         const flow = c.flow[id];
-        if (!engaging && dist > 2.5 && flow >= 0 && !nav.lineOfSight(x, z, gx, gz)) {
+        if (!flyer && !engaging && dist > 2.5 && flow >= 0 && !nav.lineOfSight(x, z, gx, gz)) {
           if (paths.fieldForCell(flow).direction(x, z, this.dir)) {
             ux = this.dir.x;
             uz = this.dir.z;
@@ -98,9 +103,16 @@ export class MovementSystem implements System {
         const arrive = Math.min(1, (dist - stop) / 1.6 + 0.12);
         // Stragglers jog to catch up with their formation; routers run.
         const hurry = routing ? 1.25 : dist > 5 ? 1.2 : 1;
-        wantSpeed = c.maxSpeed[id] * c.speedBoost[id] * nav.speedAt(x, z) * arrive * hurry;
+        wantSpeed = c.maxSpeed[id] * c.speedBoost[id] * ground * arrive * hurry;
         wantX = ux * wantSpeed;
         wantZ = uz * wantSpeed;
+      }
+      // Pinned by the spears in front of it: it can hardly move.
+      if (c.pinned[id] > 0) {
+        c.pinned[id] = Math.max(0, c.pinned[id] - dt);
+        wantX *= PINNED_SPEED;
+        wantZ *= PINNED_SPEED;
+        wantSpeed *= PINNED_SPEED;
       }
 
       // 2. Neighbours: separation with everyone, alignment and cohesion with formation mates.
@@ -115,7 +127,7 @@ export class MovementSystem implements System {
       const formation = c.formation[id];
       for (let k = 0; k < n; k++) {
         const j = this.neighbours[k];
-        if (j === id) continue;
+        if (j === id || c.flying[j] !== c.flying[id]) continue;
         let ox = x - c.x[j];
         let oz = z - c.z[j];
         let d = Math.hypot(ox, oz);
@@ -149,7 +161,7 @@ export class MovementSystem implements System {
 
       // 3. Obstacle avoidance: probe ahead, turn towards the first free direction.
       const speed = Math.hypot(tx, tz);
-      if (speed > 0.1 && nav.isBlockedAt(x + (tx / speed) * PROBE_DISTANCE, z + (tz / speed) * PROBE_DISTANCE)) {
+      if (!flyer && speed > 0.1 && nav.isBlockedAt(x + (tx / speed) * PROBE_DISTANCE, z + (tz / speed) * PROBE_DISTANCE)) {
         for (const angle of AVOID_ANGLES) {
           const cos = Math.cos(angle);
           const sin = Math.sin(angle);
@@ -187,7 +199,10 @@ export class MovementSystem implements System {
       }
       let nx = x + vx * dt;
       let nz = z + vz * dt;
-      if (nav.isBlockedAt(nx, nz)) {
+      if (flyer) {
+        nx = Math.min(world.size - 1, Math.max(1, nx));
+        nz = Math.min(world.size - 1, Math.max(1, nz));
+      } else if (nav.isBlockedAt(nx, nz)) {
         if (!nav.isBlockedAt(nx, z)) {
           nz = z;
           vz = 0;

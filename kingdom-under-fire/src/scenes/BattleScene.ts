@@ -44,9 +44,9 @@ export interface TroopBattle {
 }
 
 /**
- * Field battle fought by troops, as in The Crusaders: each side deploys five troops, the hero leading his
- * own. Skirmish of The Crusaders, outside the campaign: Gerald's guard, spearmen, archers, cavalry and sappers
- * of Hironeiden against Lucretia's guard, dark elf infantry, archers, cavalry archers and cavalry of Vellond.
+ * Field battle fought by troops, as in The Crusaders, the hero leading his own. Skirmish outside the
+ * campaign: Gerald's guard, spearmen, archers, cavalry, sappers and Storm Riders of Hironeiden against
+ * Lucretia's guard, dark elf infantry, archers, cavalry archers and cavalry of Vellond.
  */
 export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: number): TroopBattle {
   const cx = mapSize / 2;
@@ -73,6 +73,7 @@ export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: num
     { name: 'Archers', type: 'hir_archer', count: 16, dx: 0, dz: 61 },
     { name: 'Cavalerie', type: 'hir_cavalry', count: 9, dx: 28, dz: 50 },
     { name: 'Sapeurs', type: 'hir_sapper', count: 12, dx: -24, dz: 61 },
+    { name: 'Cavaliers de l’orage', type: 'hir_storm_rider', count: 5, dx: 26, dz: 64 },
   ]);
   const enemyTroops = deploy(ENEMY_TEAM, -1, [
     { name: 'Garde de Lucretia', type: 'vel_infantry', count: 14, dx: 0, dz: 48, hero: 'hero_lucretia' },

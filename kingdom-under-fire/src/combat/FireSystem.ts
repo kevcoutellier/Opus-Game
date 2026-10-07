@@ -175,7 +175,7 @@ export class FireSystem implements System {
     const n = spatial.query(x, z, FIRE_CELL * 0.75, c.x, c.z, this.neighbours);
     for (let k = 0; k < n; k++) {
       const u = this.neighbours[k];
-      if (!(entities.mask[u] & Comp.Unit) || c.state[u] === UnitState.Dying || fire.cellAt(c.x[u], c.z[u]) !== cell) continue;
+      if (!(entities.mask[u] & Comp.Unit) || c.state[u] === UnitState.Dying || c.flying[u] || fire.cellAt(c.x[u], c.z[u]) !== cell) continue;
       c.morale[u] = Math.max(0, c.morale[u] - FIRE_FEAR * STEP * (1 - c.discipline[u] * 0.5));
       this.hits.push({
         attacker: -1,

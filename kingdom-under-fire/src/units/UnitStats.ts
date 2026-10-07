@@ -6,7 +6,7 @@ export type DamageType = (typeof DAMAGE_TYPES)[number];
 export const ARMOR_TYPES = ['LIGHT', 'MEDIUM', 'HEAVY', 'MOUNTED', 'STRUCTURE'] as const;
 export type ArmorType = (typeof ARMOR_TYPES)[number];
 
-export const UNIT_ROLES = ['infantry', 'spear', 'archer', 'cavalry', 'siege', 'hero', 'worker'] as const;
+export const UNIT_ROLES = ['infantry', 'spear', 'archer', 'cavalry', 'flyer', 'siege', 'hero', 'worker'] as const;
 export type UnitRole = (typeof UNIT_ROLES)[number];
 
 /** Procedural 3D models available to the renderer. */
@@ -37,6 +37,7 @@ export const UNIT_MODELS = [
   'dark_elf_horse_archer',
   'hero_lucretia',
   'officer_morene',
+  'storm_rider',
 ] as const;
 export type UnitModel = (typeof UNIT_MODELS)[number];
 
@@ -58,6 +59,12 @@ export const RangedSchema = z.object({
   period: z.number().positive(),
   /** Seconds to draw and aim before the release. */
   windup: z.number().nonnegative(),
+  /** Radius (m) of the burst of an explosive shot (mortars), 0 for an arrow striking one body. */
+  splash: z.number().nonnegative().default(0),
+  /** Can shoot at flyers (archers can, mortars cannot). */
+  antiAir: z.boolean().default(true),
+  /** Shoots while galloping, always to its left (cavalry archers). */
+  mobile: z.boolean().default(false),
 });
 export type RangedDef = z.infer<typeof RangedSchema>;
 
@@ -145,6 +152,12 @@ export const UnitDefSchema = z.object({
   hero: HeroSchema.optional(),
   /** Flies (Storm Riders): out of reach of blades and spears, only missiles, magic and flyers touch it. */
   flying: z.boolean().default(false),
+  /** Seconds an enemy struck by this unit stays pinned in place (spearmen fix the troops before them). */
+  pin: z.number().nonnegative().default(0),
+  /** Share of magic damage (magic, ice, lightning) shrugged off (dark elves tolerate magic). */
+  magicResist: z.number().min(0).max(0.9).default(0),
+  /** Health regained per second in the woods (dark elves heal in the forest). */
+  forestRegen: z.number().nonnegative().default(0),
   /** Skills of a troop of these soldiers (ability ids), paid with the troop's SP. */
   skills: z.array(z.string()).max(4).default([]),
   /** Kingdom the unit belongs to in The Crusaders (none for the older rosters). */

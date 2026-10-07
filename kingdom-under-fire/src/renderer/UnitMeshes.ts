@@ -6,8 +6,8 @@ import { merge, paint, tag } from './GeometryUtils';
  * Procedural low-poly units of the Human Alliance and of the Dark Legion (~1.8 m before the per-type scale,
  * facing +Z). Every vertex carries:
  *  - `aBone`: 0 body, 1 left leg, 2 right leg, 3 weapon arm, 4 shield/bow arm, 5 weapon (wrist-mounted),
- *    6-9 horse legs (front-left, front-right, back-left, back-right), 10 horse body; animated in the
- *    vertex shader (see UnitRenderer);
+ *    6-9 horse legs (front-left, front-right, back-left, back-right), 10 horse (or eagle) body, 11-12 eagle
+ *    wings (left, right); animated in the vertex shader (see UnitRenderer);
  *  - `aTeam`: 1 where the faction colour replaces the painted colour (tabard, shield face, caparison);
  *  - `aMount`: 1 for a rider, built standing on the infantry skeleton and lifted onto the saddle by the shader.
  * Pivots used by the shader: hips y = 0.92, shoulders (±0.27, 1.42, 0), weapon hand (0.29, 0.93, 0.05),
@@ -25,6 +25,8 @@ export const BONE = {
   HorseBackLeft: 8,
   HorseBackRight: 9,
   HorseBody: 10,
+  WingLeft: 11,
+  WingRight: 12,
 } as const;
 
 const SHOULDER_L = new THREE.Vector3(-0.27, 1.42, 0);
@@ -461,6 +463,28 @@ function horse(coat: number, mane: number): Part[] {
   ];
 }
 
+// ------------------------------------------------------------------ giant eagle (Storm Riders)
+
+function eagle(): Part[] {
+  const FEATHER = 0x6a4a2a;
+  const wing = (side: -1 | 1): Part[] => [
+    { geometry: box(1.5, 0.06, 0.75, side * 1.05, 1.5, 0.05), color: FEATHER, bone: side < 0 ? BONE.WingLeft : BONE.WingRight },
+    { geometry: box(0.9, 0.05, 0.5, side * 2.1, 1.5, -0.08), color: 0x4a3420, bone: side < 0 ? BONE.WingLeft : BONE.WingRight },
+    { geometry: box(0.5, 0.07, 0.2, side * 0.8, 1.53, 0.3), color: TEAM, bone: side < 0 ? BONE.WingLeft : BONE.WingRight, team: true },
+  ];
+  return [
+    { geometry: box(0.62, 0.5, 1.5, 0, 1.3, 0), color: FEATHER, bone: BONE.HorseBody },
+    { geometry: box(0.34, 0.34, 0.4, 0, 1.55, 0.9), color: 0xe8e2d0, bone: BONE.HorseBody },
+    { geometry: new THREE.ConeGeometry(0.08, 0.24, 5).rotateX(Math.PI / 2 + 0.5).translate(0, 1.5, 1.18), color: 0xe0b030, bone: BONE.HorseBody },
+    { geometry: box(0.55, 0.08, 0.55, 0, 1.36, -0.98), color: 0xe8e2d0, bone: BONE.HorseBody },
+    { geometry: box(0.66, 0.1, 0.55, 0, 1.57, -0.05), color: TEAM, bone: BONE.HorseBody, team: true },
+    { geometry: box(0.1, 0.35, 0.1, -0.18, 0.95, 0.1), color: 0xe0b030, bone: BONE.HorseBody },
+    { geometry: box(0.1, 0.35, 0.1, 0.18, 0.95, 0.1), color: 0xe0b030, bone: BONE.HorseBody },
+    ...wing(-1),
+    ...wing(1),
+  ];
+}
+
 // ------------------------------------------------------------------ models
 
 function createParts(model: UnitModel): Part[] {
@@ -580,6 +604,11 @@ function createParts(model: UnitModel): Part[] {
         ...curvedBlade(),
         ...offhandBlade(),
       ];
+    case 'storm_rider':
+      return [
+        ...eagle(),
+        ...mounted([...humanoid({ skin: SKIN, head: 'human', helmet: 'greathelm', torso: 'tabard', seated: true }), ...polearm(2.6, 0.1, WOOD, STEEL)]),
+      ];
     case 'officer_morene':
       return [
         ...humanoid({ skin: 0xd8d2dc, head: 'human', helmet: 'longhair', torso: 'elf', cloth: 0x1a1018, boots: 0x120a10, hairColour: 0x1a1018 }),
@@ -620,11 +649,12 @@ export const ATTACK_STYLE: Record<UnitModel, number> = {
   dark_elf_horse_archer: 0,
   hero_lucretia: 0,
   officer_morene: 1,
+  storm_rider: 1,
 };
 export const BOW_STYLE = 2;
 
 /** Models with a horse (the rider sits on the saddle, the horse gallops). */
-export const MOUNTED_MODELS: ReadonlySet<UnitModel> = new Set(['human_knight', 'dark_elf_rider', 'human_cavalry', 'dark_elf_horse_archer']);
+export const MOUNTED_MODELS: ReadonlySet<UnitModel> = new Set(['human_knight', 'dark_elf_rider', 'human_cavalry', 'dark_elf_horse_archer', 'storm_rider']);
 
 /** Walk-cycle radians per metre travelled (a horse's stride is much longer than a man's). */
 export const STRIDE: Record<UnitModel, number> = {
@@ -653,4 +683,5 @@ export const STRIDE: Record<UnitModel, number> = {
   dark_elf_horse_archer: 1.25,
   hero_lucretia: 3.4,
   officer_morene: 3.3,
+  storm_rider: 0.6,
 };

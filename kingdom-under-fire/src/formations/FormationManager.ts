@@ -8,7 +8,7 @@ import { assignSlots, columnsForWidth, computeSlots } from './FormationSolver';
 import type { FormationType } from './FormationType';
 
 /** Front ranks first: melee, then ranged and siege. */
-const ROLE_PRIORITY: Record<UnitRole, number> = { infantry: 0, spear: 0, hero: 0, cavalry: 0, archer: 1, worker: 1, siege: 2 };
+const ROLE_PRIORITY: Record<UnitRole, number> = { infantry: 0, spear: 0, hero: 0, cavalry: 0, flyer: 0, archer: 1, worker: 1, siege: 2 };
 /** Minimum seconds between two re-deals of the slots after casualties (avoids constant shuffling). */
 const RESOLVE_COOLDOWN = 1.5;
 

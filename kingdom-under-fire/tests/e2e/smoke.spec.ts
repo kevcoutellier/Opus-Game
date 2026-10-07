@@ -46,7 +46,7 @@ test('the player commands troops: Q / E choose one, right click marches, Shift a
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
-  await expect(page.locator('.troop-card')).toHaveCount(5);
+  await expect(page.locator('.troop-card')).toHaveCount(6);
   const ids = (await game(page, 'g.deployed.player.map((t) => t.id)')) as number[];
   // The hero's troop is chosen first; E chooses the next one and the camera follows it.
   await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[0]);

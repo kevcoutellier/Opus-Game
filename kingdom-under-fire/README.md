@@ -9,7 +9,31 @@ Ce que l'on sait de l'original (avec un niveau de confiance pour chaque point) e
 [`docs/CRUSADERS.md`](docs/CRUSADERS.md). Les portraits et illustrations officiels, ainsi que vos propres musiques
 et sons, s'installent avec `npm run assets` et ne sont jamais versionnés (voir [Assets officiels](#assets-officiels)).
 
-## État : étape 2 sur 5, le combat du héros ✅
+## État : étape 3 sur 5, les troupes et leurs contres ✅
+
+L'étape 3 remplace les armées provisoires par celles de *The Crusaders*, d'après le guide officiel du jeu
+(rôles, points de vie, vitesses, visions et compétences ; voir `docs/CRUSADERS.md`) :
+
+- **Hironeiden (Gerald)** : infanterie, infanterie lourde, chevaliers à pied (épée à deux mains), lanciers,
+  archers, archers longs, cavalerie, cavalerie lourde, sapeurs, mortiers, paladins, cavaliers de l'orage.
+- **Vellond (Lucretia)** : infanterie, archers, cavalerie et archers montés elfes noirs.
+- **Héros et officiers** : Gerald (épée, ni sorts ni magie : les héros n'ont que la mêlée et l'éclairage) avec
+  Rupert (marteau) et Ellen (arc) ; Lucretia (deux cimeterres, Arbre de soin, Boost élémentaire) avec Morene et
+  Cirith. Leurs jauges de SP montent à 1000 (la magie coûte 750 SP).
+- **SP des troupes et compétences** : chaque troupe gagne des SP en combattant et les dépense en compétences
+  (touches 1 à 4) : Flèche de feu (archers, 20 SP), Piège et Incendie (sapeurs), Curatio et Fureur divine
+  (paladins), Honneur (chevaliers), Arbre de soin et Boost élémentaire (+50 % de dégâts, elfes noirs).
+- **Feu** : les forêts brûlent. L'incendie gagne les arbres voisins, s'éteint, blesse et effraie ceux qui sont
+  pris dedans ; les arbres rougeoient puis restent calcinés.
+- **Pièges** : cachés à l'ennemi, ils explosent sous le premier qui passe, étourdissent et embrasent les bois.
+- **Contres** : les volants ne sont atteints que par les archers, la magie et d'autres volants (jamais par les
+  lames ni les mortiers) ; les mortiers éclatent sur plusieurs soldats et frappent fort les troupes lourdes ;
+  les archers montés tirent au galop, toujours sur leur gauche ; les lanciers immobilisent ceux qu'ils
+  frappent ; les elfes guérissent en forêt et encaissent mieux la magie.
+- **Escarmouche** hors campagne : six troupes de Gerald contre cinq de Lucretia ; `#showcase` montre tous
+  les modèles des deux royaumes.
+
+### Étape 2 : le combat du héros
 
 L'étape 2 donne au héros le combat de l'original, tel que le décrivent les guides (voir `docs/CRUSADERS.md`) :
 
@@ -26,7 +50,7 @@ L'étape 2 donne au héros le combat de l'original, tel que le décrivent les gu
 - **Officiers** : la troupe du héros compte deux officiers, les seuls de l'armée. Pour 200 SP, X + A (clic
   gauche + droit) appelle l'assaut du lieutenant à travers les ennemis devant le héros, B + Y (Espace + R) le
   sort Curatio du paladin, qui soigne les blessés de la troupe. En mode tactique, les boutons de la barre
-  du héros font de même. Leurs noms (Rupert et Ellen pour Gerald) viendront avec les héros de The Crusaders.
+  du héros font de même. Curian, héros des prototypes, garde ces officiers génériques ; Gerald a Rupert et Ellen (étape 3).
 - **Interface** : jauge de SP, officiers et coût de leurs assistances, compteur de coups et nom du coup
   spécial en mode action, barres de vie plus discrètes de près.
 
@@ -63,9 +87,7 @@ l'armée se gère entre les missions. La bataille se joue désormais comme dans 
 - **Fin de bataille** : défaite si le héros du joueur tombe ou si toutes ses troupes sont brisées ; victoire
   quand toutes les troupes ennemies le sont.
 
-La bataille de démonstration (« Les plaines de Hironeiden ») oppose encore Curian et Likuku, avec quatre
-troupes de chaque côté : ces armées provisoires seront remplacées par celles de Hironeiden (Gerald) et de
-Vellond (Lucretia) à l'étape 3.
+(À l'étape 1, la bataille de démonstration opposait encore Curian et Likuku ; l'étape 3 l'a remplacée.)
 
 ### Socle hérité des prototypes
 
@@ -110,8 +132,8 @@ npm run dev        # http://localhost:5173
 
 | Commande | Rôle |
 | --- | --- |
-| `npm test` | 104 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros (combos, estoc, spécial et Smash, contre, repousser, SP), officiers et assistances, troupes (chef, points de passage, armée entière, escorte du héros, IA, fin de bataille), IA tactique, histoire, assets, script d'assets contre un faux wiki |
-| `npm run test:e2e` | 4 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte ; visée d'une capacité, officiers, mode action par Tab et par le zoom, attaque spéciale ; assets installés utilisés |
+| `npm test` | 115 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, histoire, assets, script d'assets contre un faux wiki |
+| `npm run test:e2e` | 4 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte, Flèche de feu visée ; officiers, mode action par Tab et par le zoom, attaque spéciale ; assets installés utilisés |
 | `npm run assets` | installe les portraits et illustrations officiels, votre musique et vos sons |
 | `npm run bench` | coût CPU d'un tick de simulation de 100 à 1000 unités, armées interarmes |
 | `npm run typecheck` | TypeScript strict (jeu, tests, configurations) |
@@ -135,6 +157,7 @@ reprennent la disposition de la manette.
 | Tactique | Ctrl + clic droit | toute l'armée marche là, troupes côte à côte (Y) |
 | Tactique | minicarte | clic : regarder · clic droit : marcher · Maj + clic droit : point de passage · Ctrl : toute l'armée |
 | Tactique | F (Maj + F) / H | formation suivante (précédente) / tenir la position |
+| Tactique | 1–4 | compétences de la troupe choisie (SP) : clic pour viser, clic droit ou Échap pour annuler |
 | Tactique | WASD (ZQSD) ou bords · clic molette glissé · molette · PgUp/PgDn | caméra (la déplacer cesse de suivre la troupe) · rotation · zoom · inclinaison · L : caméra libre · Origine : revenir derrière la troupe |
 | Tactique | Z X C V (W X C V en AZERTY) | capacités du héros : clic pour viser, clic droit ou Échap pour annuler |
 | Tactique | boutons des officiers (barre du héros) | assistance d'un officier (200 SP) |
@@ -204,15 +227,18 @@ src/
                (état), Simulation, SimulationFactory (ordre des systèmes), commandes sérialisables, EventBus,
                Random, Time
   entities/    EntityManager (ids, liste dense), Components (structure de tableaux typés, troupe et chef)
-  data/        unités, capacités, officiers, factions, histoire (lore, personnages, bataille) validées par Zod
+  data/        unités (dont celles de The Crusaders), capacités et compétences, officiers, factions, histoire
+               (lore, personnages, escarmouche) validées par Zod
   assets/      AssetManager (manifeste des assets officiels), sources.json (wiki, Steam, sons)
   audio/       AudioManager (musique et sons installés)
   units/       UnitFactory, UnitManager, MovementSystem (steering), LifecycleSystem, UnitStats (schémas)
-  troops/      TroopSystem (troupes, chefs, ordres, points de passage, armée entière, escorte du héros, déroute)
+  troops/      TroopSystem (troupes, chefs, ordres, points de passage, armée entière, escorte du héros, déroute,
+               SP et compétences)
   formations/  Formation, FormationSolver (6 dispositions, affectation), FormationManager (système)
   navigation/  NavGrid, FlowField, Pathfinding (cache), SpatialHashGrid, SpatialSystem
-  combat/      CombatSystem (mêlée, tir, balayage), DamageSystem (flancs, boucliers), MoraleSystem,
-               Projectiles (pool + système), ChargeSystem (7 états)
+  combat/      CombatSystem (mêlée, tir, tir au galop, volants, lances), DamageSystem (flancs, boucliers,
+               résistance à la magie), MoraleSystem, Projectiles (pool + système, éclats), ChargeSystem (7 états),
+               FireSystem (feu de forêt), TrapSystem (pièges)
   heroes/      Ability (schéma des capacités), Moves (coups du mode action), Officer (officiers, assistances),
                HeroSystem (SP, sorts, coups et combos, contre, assistances, niveaux, statuts)
   ai/          AIKnowledge (vision), TroopAI (IA par troupes), HeroAI (choix des sorts), TacticalAI et
@@ -237,8 +263,8 @@ Principes, dépendances justifiées et journal détaillé des phases : [`docs/AR
    minicarte et points de passage, IA par troupes.
 2. ✅ **Combat du héros** : combos faible et fort, estoc, attaque spéciale et Smash, contre-attaque, repousser
    et esquive, SP gagnés en combattant, officiers de la troupe du héros et leurs assistances.
-3. **Troupes et contres** : les armées de Hironeiden (Gerald) et de Vellond (Lucretia), infanterie, archers,
-   cavalerie, lanciers, sapeurs et pièges, mortiers, volants, forêts qui brûlent.
+3. ✅ **Troupes et contres** : les armées de Hironeiden (Gerald) et de Vellond (Lucretia), SP et compétences
+   des troupes, sapeurs et pièges, mortiers, volants, forêts qui brûlent.
 4. **Missions 1 et 2 de Gerald** : Greyhampton et Ravenmeadow, objectifs et scripts.
 5. **Campagne** : choix de la campagne, briefing et choix des troupes, résultats (or, expérience), caserne
    (équipement, mercenaires, promotions), sauvegarde (IndexedDB).

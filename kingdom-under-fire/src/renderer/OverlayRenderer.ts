@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
 import { Comp, UnitState } from '../entities/Components';
+import { FLY_HEIGHT } from '../units/Unit';
 
 const MAX_RINGS = 2048;
 const MAX_MARKERS = 12;
@@ -179,7 +180,7 @@ export class OverlayRenderer {
       const leader = c.leader[id] === 1;
       if (c.lastHit[id] > BAR_SECONDS && !(leader && this.selectedSet.has(id))) continue;
       renderPosition(world, id, alpha, this.pos);
-      const top = 2.25 * UNIT_DEFS[c.unitType[id]].scale;
+      const top = 2.25 * UNIT_DEFS[c.unitType[id]].scale + (c.flying[id] ? FLY_HEIGHT : 0);
       this.matrix.makeTranslation(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + top, this.pos.z);
       this.bars.setMatrixAt(n, this.matrix);
       const ratio = Math.max(0, c.hp[id] / c.maxHp[id]);

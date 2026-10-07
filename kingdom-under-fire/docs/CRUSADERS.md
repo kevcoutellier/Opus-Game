@@ -50,6 +50,7 @@ Woodenshade, Funero pour Kendal ; Brimstone Forest, Cremium, Funero pour Regnier
 | --- | --- | --- |
 | Deux modes | **Mode action** : on dirige le héros au corps à corps, façon Dynasty Warriors. **Mode tactique** : caméra en hauteur, on commande les troupes. On passe de l'un à l'autre sans coupure, par un zoom de la caméra. | confirmé |
 | Troupes | On commande des **troupes** (régiments) entières, jamais des soldats isolés. Jusqu'à 450 soldats à l'écran. | confirmé |
+| Mode héros | Quand la troupe du héros engage la mêlée, le mode de combat du héros s'active ; la bataille s'engage d'elle-même quand les troupes se rapprochent ; cadence et dégâts dépendent des types de troupes en présence. | confirmé (guide officiel) |
 | Troupe du héros | Le héros mène sa propre troupe, la seule qui a des officiers. | confirmé |
 | Sélection | Les gâchettes / L-R font défiler les troupes ; la caméra se place derrière la troupe choisie. | confirmé |
 | Ordres | Ordres de déplacement et d'attaque en temps réel, sur la minicarte ou à l'écran. Points de passage sur la minicarte (maintenir L, appuyer sur A) ; Y déplace toutes les troupes. | confirmé |
@@ -68,12 +69,39 @@ Woodenshade, Funero pour Kendal ; Brimstone Forest, Cremium, Funero pour Regnier
 | Archers | Tir à distance, seule défense anti-aérienne de base. | confirmé |
 | Cavalerie | Ne reste pas au contact : elle charge à travers les rangs, désorganise et inflige de lourdes pertes. Les compétences Équitation (vitesse de rotation) et frontale (dégâts) la règlent. | confirmé |
 | Lanciers | Contre la cavalerie, immobilisent les troupes devant eux. | confirmé |
-| Sapeurs | Posent des pièges qui infligent de lourds dégâts et mettent le feu aux forêts ; peuvent servir d'infanterie. | confirmé |
-| Mortiers | Comme des archers, sans pouvoir viser les troupes volantes ; abattent les murailles. | confirmé |
+| Sapeurs | Posent des pièges qui infligent de lourds dégâts et mettent le feu aux forêts ; peuvent servir d'infanterie. Compétences : Piège, Fausses troupes, Pont, Mise à feu, Retrait de piège, Retrait de barricade. | confirmé (guide officiel) |
+| Mortiers | Deux hommes par tube ; plus efficaces contre les troupes lourdes ; défense contre le tir ; rotation la plus lente ; ne visent pas les volants ; abattent les murailles. | confirmé (guide officiel) |
 | Catapultes, balistes | Siège (côté humain). | à vérifier |
-| Volants | Storm Riders (aigles, efficaces contre tout sauf les archers), Bomber Wing (bombardiers, dégâts explosifs), wyvernes. Seuls les archers, des balistes spéciales et la magie les atteignent. | confirmé |
+| Volants | Storm Riders (aigles, efficaces contre tout sauf les archers, renfort aérien), Bomber Wing (bombardement à la poudre, ne combat pas les autres volants, fragile contre le tir sol-air). Seuls les archers, des balistes spéciales et la magie les atteignent. | confirmé |
 | Monstres | Scorpions géants (engins de siège vivants, insensibles aux flèches), mammouths des marais. | confirmé |
-| Spéciales | Paladins (permettent à leur chef de lancer *Curio*), goules (résistantes à tout sauf aux explosifs et au sacré). | à vérifier |
+| Spéciales | Paladins (attaque et défense de chevaliers ; seuls soigneurs : Heal ; Fury of God, magie sacrée efficace contre les morts-vivants), goules (orcs relevés : forte défense, vulnérables au sacré, kamikazes contre le siège). | confirmé (guide officiel) |
+
+### Fiches du guide officiel (kuftc.blueside.net)
+
+Lues à travers les extraits de recherche ; les valeurs humaines peuvent venir du site jumeau de
+*Kingdom Under Fire: Heroes*, d'où la confiance « à vérifier ».
+
+| Troupe | Compétences requises | PV par soldat | Vitesse | Vision | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Infanterie (Hironeiden) | Mêlée 1+ | 360 | — | — | épée à une main et bouclier |
+| Infanterie lourde | Mêlée 10+ | 375 | plus lente | — | grand bouclier, meilleure en mêlée |
+| Chevaliers | Mêlée 15+ | 390 | plus rapides que l'infanterie | — | épée à deux mains, sans bouclier, faibles contre le tir ; compétence Honor |
+| Archers | Mêlée 1+, Tir 3+ | — | — | — | Flèche de feu (20 SP) |
+| Archers longs | Mêlée 3+, Tir 7+ | 300 | basse | petite | |
+| Cavalerie lourde | Mêlée 7+, Frontal 5+, Équitation 5+ | 833 | haute | basse | |
+| Sapeurs | Mêlée 1+, Travail d'équipe 1+ | 300 | basse | basse | mise à feu 5 × plus chère que la Flèche de feu |
+| Mortiers | Mêlée 9+, Poudre 12+, Travail d'équipe 8+ | 400 | basse | basse | portée haute |
+| Storm Riders | Mêlée 10+, Équitation 10+, Frontal 8+ | 1429 | la plus haute | la plus haute | |
+| Infanterie elfe noire | Mêlée 7+ | 350 | basse | moyenne | supérieure à l'infanterie humaine, tolère la magie |
+| Archers elfes noirs | Mêlée 1+, Tir 1+ | 300 | basse | moyenne | voient plus loin que les humains, leur sont inférieurs |
+| Cavalerie elfe noire | Mêlée 7+ | 360 | — | moyenne | moins maniable et moins forte que l'humaine ; Arbre de soin en traversant les lignes |
+| Archers montés | — | — | haute | — | tirent en mouvement, toujours sur leur gauche ; gagnent des SP ainsi |
+| Chevaliers elfes noirs | — | — | — | — | plus faibles que les chevaliers humains, mais les dépassent avec le Boost magique ; tolèrent la magie |
+
+Toutes les troupes elfes noires ont l'Arbre de soin (un arbre blanc qui soigne les alliés proches) et le
+Boost élémentaire (+50 % de dégâts, mélange de tous les éléments). Les elfes guérissent en forêt. Les héros
+n'ont que les compétences Mêlée et Éclaireur ; la magie (Météore, Blizzard…) coûte en général 750 SP
+(confirmé).
 
 ## 3. Entre les missions
 
@@ -107,7 +135,7 @@ affiche la correspondance clavier (confirmé). Les touches par défaut : **incon
 
 ## 5. Inconnues bloquantes pour un clone exact
 
-- Statistiques des troupes et des héros, formules de dégâts, contres chiffrés.
+- Attaque, défense, cadences et portées des troupes ; formules de dégâts ; contres chiffrés.
 - Effet exact de la mort d'un chef de troupe ; présence d'un moral.
 - Cartes, déploiements, scripts et objectifs des missions au-delà des deux premières de Gerald.
 - Liste des officiers et de leurs assistances, capacités des troupes ; SP gagnés par coup et par victime.
@@ -116,6 +144,8 @@ affiche la correspondance clavier (confirmé). Les touches par défaut : **incon
 
 ## Sources (extraits de recherche)
 
+- [Guide officiel — Human Alliance](https://kuftc.blueside.net/eng/Guide/human_alliance.asp), [Dark Elf](https://kuftc.blueside.net/eng/Guide/dark_elf.asp), [unités (français)](https://kuftc.blueside.net/france/kuf_tc_units_h.asp), [bataille](https://kuftc.blueside.net/eng/Guide/battle.asp)
+- [Kingdom Under Fire: Heroes — unités humaines](https://www.kufheroes.com/eng/characters/unit_human.asp)
 - [GameSpot — critique de The Crusaders](https://www.gamespot.com/reviews/kingdom-under-fire-the-crusaders-review/1900-6110734/)
 - [Guide Steam — Kingdom Under Fire: The Crusaders Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2243680956) (combos, Smash, assistances)
 - [Discussion Steam — officier paladin et Curatio](https://steamcommunity.com/app/1121420/discussions/0/1746772308311625309/)

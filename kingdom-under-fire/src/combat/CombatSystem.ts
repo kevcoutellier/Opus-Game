@@ -1,6 +1,7 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
 import { Comp, MoraleState, NO_ENTITY, Order, SwingKind, UnitState, type SwingKindId } from '../entities/Components';
+import { UNIT_DEFS } from '../data/units';
 import type { FormationManager } from '../formations/FormationManager';
 import { IMPACT_FRACTION } from '../units/Unit';
 import { DAMAGE_TYPES } from '../units/UnitStats';
@@ -35,7 +36,11 @@ export class CombatSystem implements System {
   /** Unit of the current `nearest` search (avoids a closure per call). */
   private seeker = NO_ENTITY;
   private world: World | null = null;
-  private readonly enemyOfSeeker = (e: number) => this.isEnemy(this.world!, this.seeker, e);
+  private readonly enemyOfSeeker = (e: number) => this.isEnemy(this.world!, this.seeker, e) && this.canReach(this.world!, this.seeker, e);
+  /** An enemy within reach on the left of the seeker (cavalry archers shoot to their left). */
+  private readonly leftOfSeeker = (e: number) => this.enemyOfSeeker(e) && this.onLeft(this.world!, this.seeker, e);
+  /** Whether each unit type's missiles can climb to a flyer (archers can, mortars cannot). */
+  private readonly antiAir = UNIT_DEFS.map((d) => d.ranged?.antiAir ?? false);
 
   constructor(private readonly formations: FormationManager) {}
 
@@ -81,11 +86,17 @@ export class CombatSystem implements System {
 
       // Validate the current target.
       let target = c.target[id];
-      if (target >= 0 && (!this.isEnemy(world, id, target))) target = NO_ENTITY;
+      if (target >= 0 && (!this.isEnemy(world, id, target) || !this.canReach(world, id, target))) target = NO_ENTITY;
 
       const order = c.order[id];
       const formation = this.formations.get(c.formation[id]);
       const marching = order === Order.Move && formation?.moving;
+      if (marching && c.mobileShot[id]) {
+        // Cavalry archers shoot on the gallop, to their left, without breaking their march.
+        this.shootOnTheMove(world, id, target);
+        this.advanceSwing(world, id, dt);
+        continue;
+      }
       if (marching) {
         target = NO_ENTITY;
       } else if (target < 0 || (time.tick + id) % RESCAN_TICKS === 0) {
@@ -101,7 +112,9 @@ export class CombatSystem implements System {
         const dist = Math.hypot(c.x[target] - c.x[id], c.z[target] - c.z[id]);
         const contact = c.radius[id] + c.radius[target];
         const range = c.range[id];
-        if (dist - contact <= c.reach[id] + 0.05) {
+        // Only a flyer crosses blades with a flyer; the others shoot it down.
+        const melee = !c.flying[target] || c.flying[id] === 1;
+        if (melee && dist - contact <= c.reach[id] + 0.05) {
           c.state[id] = UnitState.Attacking;
           c.engageDist[id] = contact + c.reach[id] * 0.85;
           if (c.swing[id] < 0 && c.attackTimer[id] <= 0) this.startSwing(world, id, c.attackWindup[id], c.attackPeriod[id], SwingKind.Blow);
@@ -127,6 +140,37 @@ export class CombatSystem implements System {
       if (world.c.state[attack.target] !== UnitState.Dying) this.damage.apply(world, attack);
     }
     this.impacts.length = 0;
+  }
+
+  /** Flyers are out of reach of blades: only other flyers and missiles that climb (archers) reach them. */
+  private canReach(world: World, id: number, other: number): boolean {
+    const { c } = world;
+    if (!c.flying[other] || c.flying[id]) return true;
+    return c.range[id] > 0 && this.antiAir[c.unitType[id]];
+  }
+
+  /** A mounted archer on the march: it looses at the nearest enemy in range on its left. */
+  private shootOnTheMove(world: World, id: number, current: number): void {
+    const { c, time } = world;
+    // The arrow being drawn keeps its target.
+    if (c.swing[id] >= 0) return;
+    let target = current;
+    const valid = target >= 0 && this.isEnemy(world, id, target) && this.canReach(world, id, target) && this.onLeft(world, id, target);
+    if (!valid || (time.tick + id) % RESCAN_TICKS === 0) {
+      this.seeker = id;
+      target = world.spatial.nearest(c.x[id], c.z[id], c.range[id], c.x, c.z, this.leftOfSeeker);
+    }
+    c.target[id] = target;
+    if (target >= 0 && c.attackTimer[id] <= 0) this.startSwing(world, id, c.rangedWindup[id], c.rangedPeriod[id], SwingKind.Shot);
+  }
+
+  /** The other unit is on the left of this one (left of the facing (sin r, cos r) is (cos r, −sin r)). */
+  private onLeft(world: World, id: number, other: number): boolean {
+    const { c } = world;
+    const dx = c.x[other] - c.x[id];
+    const dz = c.z[other] - c.z[id];
+    const d = Math.hypot(dx, dz) || 1;
+    return (dx * Math.cos(c.rot[id]) - dz * Math.sin(c.rot[id])) / d > 0.25;
   }
 
   private isEnemy(world: World, id: number, other: number): boolean {
@@ -173,7 +217,7 @@ export class CombatSystem implements System {
     const { c, spatial } = world;
     const close = this.acquireMelee(world, id, current, Order.Hold, false);
     if (close >= 0) return close;
-    if (current >= 0 && this.isEnemy(world, id, current)) {
+    if (current >= 0 && this.isEnemy(world, id, current) && this.canReach(world, id, current)) {
       if (order === Order.Attack || Math.hypot(c.x[current] - c.x[id], c.z[current] - c.z[id]) <= c.range[id]) return current;
     }
     this.seeker = id;
@@ -194,7 +238,7 @@ export class CombatSystem implements System {
     let bestScore = Infinity;
     for (let k = 0; k < n; k++) {
       const e = this.neighbours[k];
-      if (!this.isEnemy(world, id, e)) continue;
+      if (!this.isEnemy(world, id, e) || (c.flying[e] && !c.flying[id])) continue;
       if (leashed && Math.hypot(c.x[e] - c.slotX[id], c.z[e] - c.slotZ[id]) > LEASH) continue;
       const d = Math.hypot(c.x[e] - x, c.z[e] - z);
       // Fleeing enemies are easy prey but not worth breaking ranks for.
@@ -228,9 +272,11 @@ export class CombatSystem implements System {
         const shaken = c.moraleState[id] === MoraleState.Shaken ? 0.9 : 1;
         if (kind === SwingKind.Shot) {
           if (dist <= c.range[id] * 1.15) launchProjectile(world, id, t, c.rangedAttack[id] * c.damageMul[id] * shaken);
-        } else if (dist - c.radius[id] - c.radius[t] <= c.reach[id] + 0.6) {
+        } else if (dist - c.radius[id] - c.radius[t] <= c.reach[id] + 0.6 && (!c.flying[t] || c.flying[id])) {
           const damage = c.attack[id] * c.damageMul[id] * shaken;
           this.strike(world, id, t, damage);
+          // Spearmen pin the enemy in front of them.
+          if (c.pin[id] > 0) c.pinned[t] = Math.max(c.pinned[t], c.pin[id]);
           if (c.cleave[id] > 0) this.cleave(world, id, t, damage * CLEAVE_DAMAGE);
         }
       }

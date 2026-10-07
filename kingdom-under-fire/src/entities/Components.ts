@@ -179,6 +179,11 @@ export class Components {
   readonly officer: Uint8Array;
   /** 1 for a unit in the air (only missiles, magic and other flyers reach it). */
   readonly flying: Uint8Array;
+  /** Seconds an enemy this unit strikes stays pinned (spearmen), and seconds this unit is pinned. */
+  readonly pin: Float32Array;
+  readonly pinned: Float32Array;
+  /** 1 when the unit shoots on the move (cavalry archers). */
+  readonly mobileShot: Uint8Array;
 
   // Unit
   readonly unitType: Uint16Array;
@@ -256,6 +261,9 @@ export class Components {
     this.leader = new Uint8Array(capacity);
     this.officer = new Uint8Array(capacity);
     this.flying = new Uint8Array(capacity);
+    this.pin = f32();
+    this.pinned = f32();
+    this.mobileShot = new Uint8Array(capacity);
     this.unitType = new Uint16Array(capacity);
     this.state = new Uint8Array(capacity);
     this.stateTime = f32();

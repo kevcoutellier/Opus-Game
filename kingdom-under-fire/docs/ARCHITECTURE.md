@@ -66,6 +66,9 @@ F1 maison suffit).
 | C1 Référence | `docs/CRUSADERS.md` : ce que l'on sait de The Crusaders, avec un niveau de confiance par point | ✅ |
 | C2 Cœur de la bataille | Retrait de la base et de l'économie (P2.7–P2.9) et de la sélection d'unités (P4) ; `TroopSystem` (troupes autour d'un chef, ordres `troopMove` / `troopAttack` / `troopHold` / `troopFormation` / `troopsMoveAll`, points de passage, déroute à la mort du chef, escorte du héros dirigé), `TroopAI`, `BattleOutcome` par troupes (chute du héros), modes action et tactique par le zoom, `TroopInput`, `TroopPanel`, `Minimap`, barre rouge du chef | ✅ |
 | C3 Combat du héros | `Moves` (15 coups en données Zod : combos faible et fort, estoc, coup puissant, spécial, Smash, contre, repousser), machine à états des coups dans `HeroSystem` (commande `heroButton`, mémoire du bouton suivant, fente, impact, enchaînement), B contextuel (contre, repousser, esquive), SP gagnés par coups et victimes, officiers (`Officer`, `officerAssist`, effet `heal`), accords X + A et B + Y dans `HeroInput`, styles d'animation des coups (estoc, tourbillon), jauge de SP, officiers et compteur de coups | ✅ |
+| C4a Armées | Troupes de Hironeiden et de Vellond en données (`data/units/crusaders.ts`, PV du guide officiel ÷ 3), Gerald, Lucretia, Rupert, Ellen, Morene, Cirith, 14 nouveaux modèles procéduraux, escarmouche | ✅ |
+| C4b Compétences | SP des troupes (coups, victimes, chefs), commande `troopSkill`, compétences de The Crusaders, `FireGrid` + `FireSystem` (feu de forêt), `TrapSystem`, effets `ignite` et `trap`, flammes, arbres calcinés, pièges visibles de leur camp, IA qui les emploie | ✅ |
+| C4c Contres | Volants (`flying` : couche à part pour les lames, les charges, le feu, les pièges et les flèches ; altitude, ailes animées), mortiers à éclats sans tir anti-aérien, tir au galop vers la gauche, lances qui immobilisent, régénération en forêt et résistance à la magie des elfes | ✅ |
 
 ### Équité de la simulation
 
@@ -106,6 +109,16 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
 - **Les accords se lisent dans l'entrée.** `HeroInput` retient un bouton 70 ms : si son partenaire (X / A,
   B / Y) arrive entre-temps, ou s'il est déjà tenu, c'est l'assistance d'un officier ; sinon le bouton part
   seul. La simulation ne voit que des commandes `heroButton` et `officerAssist`.
+- **Les volants sont une couche, pas une hauteur.** Un volant garde sa position au sol ; `c.flying` décide
+  qui peut l'atteindre (archers et magie, pas les lames, les charges, le feu ni les pièges), la flèche
+  tirée sur lui ne frappe que des volants (et inversement), et il traverse bois et rochers. Seul le rendu le
+  place à 6 m (`FLY_HEIGHT`). La simulation reste en deux dimensions.
+- **Le feu est une grille.** `FireGrid` découpe la carte en cellules de 4 m dont le combustible vient de la
+  densité des arbres ; le `FireSystem` propage le feu aux voisines boisées par un tirage du générateur de la
+  simulation (déterministe), toutes les 0,5 s. Le rendu ne reçoit que des événements `fireCell`.
+- **Une troupe a sa jauge.** Les SP d'une troupe viennent de l'événement `unitHit` comme ceux du héros ; la
+  troupe du héros partage la jauge de son héros. Une compétence de troupe est jouée par son chef avec les
+  effets des capacités des héros (`HeroSystem.applyEffect`).
 - **Les SP viennent des événements.** `HeroSystem` écoute `unitHit` : un coup porté par un héros (hors sort)
   et chaque victime lui rapportent des SP, ses coups automatiques en mode tactique compris.
 

@@ -106,6 +106,7 @@ export class HeroSystem implements System {
   private readonly buffed = new Set<number>();
   private readonly neighbours = new Int32Array(256);
   private readonly hits: Attack[] = [];
+  private readonly forestRegen = UNIT_DEFS.map((d) => d.forestRegen);
 
   constructor(
     world: World,
@@ -185,6 +186,11 @@ export class HeroSystem implements System {
       if (c.stun[id] > 0) c.stun[id] = Math.max(0, c.stun[id] - dt);
       if (c.invulnerable[id] > 0) c.invulnerable[id] = Math.max(0, c.invulnerable[id] - dt);
       if (c.frozen[id] > 0) c.frozen[id] = Math.max(0, c.frozen[id] - dt);
+      // Dark elves heal their wounds in the woods.
+      const regen = this.forestRegen[c.unitType[id]];
+      if (regen > 0 && c.hp[id] < c.maxHp[id] && c.state[id] !== UnitState.Dying && world.terrain.forestAt(c.x[id], c.z[id]) > 0.3) {
+        c.hp[id] = Math.min(c.maxHp[id], c.hp[id] + regen * dt);
+      }
       if (c.auraRadius[id] > 0 && !this.heroes.has(id) && c.state[id] !== UnitState.Dying) this.register(world, id);
     }
 
@@ -387,6 +393,8 @@ export class HeroSystem implements System {
     for (let k = 0; k < n; k++) {
       const e = this.neighbours[k];
       if (!(entities.mask[e] & Comp.Unit) || c.state[e] === UnitState.Dying || c.team[e] === h.team) continue;
+      // A blade does not reach a flyer.
+      if (c.flying[e] && !c.flying[id]) continue;
       const dx = c.x[e] - c.x[id];
       const dz = c.z[e] - c.z[id];
       const d = Math.hypot(dx, dz);

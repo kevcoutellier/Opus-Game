@@ -81,7 +81,13 @@ export class EffectsRenderer {
     });
     world.events.on('projectileLanded', ({ index, x, z }) => {
       const source = world.projectiles.ability[index];
-      if (source) this.ring(x, z, world.projectiles.splash[index], ability(source).color);
+      const splash = world.projectiles.splash[index];
+      if (source) this.ring(x, z, splash, ability(source).color);
+      else if (splash > 0) {
+        // A mortar shell bursts: fire and earth.
+        this.ring(x, z, splash, 0xff9a40);
+        this.dust(x, z, 18, 1.6);
+      }
     });
     world.events.on('heroLevelUp', ({ id }) => {
       const x = world.c.x[id];

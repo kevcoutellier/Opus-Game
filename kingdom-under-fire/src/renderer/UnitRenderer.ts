@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { World } from '../core/World';
 import { UNIT_DEFS } from '../data/units';
 import { Comp, MoraleState, SwingKind, UnitState } from '../entities/Components';
-import { CORPSE_SECONDS, HIT_FLASH_SECONDS } from '../units/Unit';
+import { CORPSE_SECONDS, FLY_HEIGHT, HIT_FLASH_SECONDS } from '../units/Unit';
 import { UNIT_MODELS, type UnitModel } from '../units/UnitStats';
 import { ATTACK_STYLE, BOW_AIM, BOW_STYLE, createUnitGeometry, MOUNTED_MODELS, STRIDE } from './UnitMeshes';
 
@@ -57,6 +57,11 @@ void kPose(inout vec3 p, inout vec3 n) {
     float offset = (front > 0.0 ? 0.0 : 3.14159) + right * 0.55;
     vec3 pivot = vec3(right > 0.5 ? 0.2 : -0.2, 1.05, front * 0.61);
     kRotate(p, n, kRotX(sin(phase + offset) * 0.75 * walk), pivot);
+  } else if (aBone > 10.5 && aBone < 12.5) {
+    // Eagle wings: they beat all the time, faster when it climbs.
+    float side = aBone < 11.5 ? -1.0 : 1.0;
+    float flap = sin(uTime * (5.0 + 3.0 * walk) + iState.w) * 0.6;
+    kRotate(p, n, kRotZ(side * flap), vec3(side * 0.3, 1.5, 0.0));
   } else if (aBone > 0.5 && aBone < 2.5) {
     float side = aBone < 1.5 ? 1.0 : -1.0;
     kRotate(p, n, kRotX(sin(phase) * 0.62 * limbWalk * side), vec3(0.0, 0.92, 0.0));
@@ -258,7 +263,9 @@ export class UnitRenderer {
       this.walkAmount[id] += (amount - this.walkAmount[id]) * walkBlend;
       this.walkPhase[id] = (this.walkPhase[id] + speed * frameSeconds * this.strideOfType[type]) % (Math.PI * 2000);
 
-      const y = this.heightAt(x, z);
+      // Flyers hold above the battlefield, rising and sinking a little with each wingbeat; a dead one falls.
+      const air = !c.flying[id] ? 0 : dying ? FLY_HEIGHT * Math.max(0, 1 - c.stateTime[id] * 1.2) : FLY_HEIGHT + Math.sin(time * 2 + id) * 0.35;
+      const y = this.heightAt(x, z) + air;
       const scale = this.scaleOfType[type];
       this.sphere.center.set(x, y + scale, z);
       this.sphere.radius = 1.6 * scale;
