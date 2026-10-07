@@ -30,7 +30,7 @@ export interface BattleSimulation {
 export function createBattleSimulation(world: World, extra: System[] = [], perf?: PerformanceMonitor): BattleSimulation {
   const formations = new FormationManager(world);
   const combat = new CombatSystem(formations);
-  const heroes = new HeroSystem(world, combat.damage, combat, formations);
+  const heroes = new HeroSystem(world, combat.damage, formations);
   const troops = new TroopSystem(world, formations);
   const simulation = new Simulation(
     world,

@@ -12,7 +12,7 @@ export interface CastChoice {
   score: number;
 }
 
-/** A cast must affect at least this many soldiers to be worth the mana. */
+/** A cast must affect at least this many soldiers to be worth the SP. */
 const MIN_SCORE = 3;
 const buffer = new Int32Array(512);
 

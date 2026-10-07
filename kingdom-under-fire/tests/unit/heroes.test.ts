@@ -44,7 +44,7 @@ describe('hero data', () => {
 });
 
 describe('abilities', () => {
-  it('Gel freezes and wounds a group after its cast time, costs mana and goes on cooldown', () => {
+  it('Gel freezes and wounds a group after its cast time, costs SP and goes on cooldown', () => {
     const { world, run, heroes } = battle();
     const curian = spawnUnit(world, CURIAN, 0, 40, 60, Math.PI / 2);
     const orcs = spawnBlock(world, ORC, 1, 6, 3, 58, 60, -Math.PI / 2);
@@ -52,10 +52,10 @@ describe('abilities', () => {
     world.commands.push({ kind: 'hold', team: 1, units: orcs });
     run(0.1);
     const h = heroes.get(curian)!;
-    const mana = h.mana;
+    const sp = h.sp;
     world.commands.push({ kind: 'cast', team: 0, hero: curian, slot: 1, x: 58, z: 60 });
     run(0.2);
-    expect(h.mana).toBeLessThan(mana - 30);
+    expect(h.sp).toBeLessThan(sp - 30);
     expect(h.cooldowns[1]).toBeGreaterThan(10);
     expect(orcs.every((o) => world.c.stun[o] === 0)).toBe(true);
     run(0.6);
@@ -63,10 +63,10 @@ describe('abilities', () => {
     expect(frozen.length).toBeGreaterThanOrEqual(5);
     expect(hp(world, orcs)).toBeLessThan(orcs.length * world.c.maxHp[orcs[0]]);
     // A second cast while on cooldown does nothing.
-    const before = h.mana;
+    const before = h.sp;
     world.commands.push({ kind: 'cast', team: 0, hero: curian, slot: 1, x: 58, z: 60 });
     run(0.1);
-    expect(h.mana).toBeGreaterThanOrEqual(before);
+    expect(h.sp).toBeGreaterThanOrEqual(before);
     expect(heroes.blocked(world, h, 1)).toBe('cooldown');
   });
 
@@ -100,7 +100,7 @@ describe('abilities', () => {
     run(2.5);
     expect(victims.size).toBeGreaterThanOrEqual(4);
 
-    heroes.get(curian)!.mana = 100;
+    heroes.get(curian)!.sp = 100;
     const dashed = new Set<number>();
     world.events.on('unitHit', ({ attack }) => {
       if (attack.ability === 'curian_shift') dashed.add(attack.target);
@@ -110,7 +110,7 @@ describe('abilities', () => {
     // Range 14 m: from x = 30 towards x = 60 it stops at x ≈ 44, short of the orcs at 53.6–56.4.
     expect(world.c.x[curian]).toBeGreaterThan(42);
     expect(world.c.x[curian]).toBeLessThan(46);
-    heroes.get(curian)!.mana = 100;
+    heroes.get(curian)!.sp = 100;
     heroes.get(curian)!.cooldowns[0] = 0;
     world.commands.push({ kind: 'cast', team: 0, hero: curian, slot: 0, x: 58, z: 60 });
     run(0.5);
@@ -215,7 +215,7 @@ describe('experience and aura', () => {
 });
 
 describe('direct control', () => {
-  it('steers the hero, strikes in an arc, dodges, and gives it back to the army', () => {
+  it('steers the hero, strikes in an arc (X), dodges (B), and gives it back to the army', () => {
     const { world, run, heroes } = battle(11);
     const curian = spawnUnit(world, CURIAN, 0, 40, 40, 0);
     const guards = spawnBlock(world, FOOTMAN, 0, 4, 4, 40, 36, 0);
@@ -247,14 +247,16 @@ describe('direct control', () => {
     world.events.on('unitHit', ({ attack }) => {
       if (attack.attacker === curian) struck.add(attack.target);
     });
-    world.commands.push({ kind: 'heroStrike', team: 0, hero: curian, heavy: false });
+    world.commands.push({ kind: 'heroButton', team: 0, hero: curian, button: 'X', x: 0, z: 0, aim: Math.PI / 2 });
     run(1);
     expect(front.filter((o) => struck.has(o)).length).toBeGreaterThanOrEqual(2);
     expect(struck.has(back)).toBe(false);
 
-    // Dodge roll north: fast and untouchable for a moment.
+    // Nobody strikes him and he was not hit lately: B is a dodge roll north, fast and untouchable a moment.
+    for (const o of [...front, back]) world.entities.destroy(o);
+    world.c.lastHit[curian] = 10;
     const z0 = world.c.z[curian];
-    world.commands.push({ kind: 'heroDodge', team: 0, hero: curian, x: 0, z: 1 });
+    world.commands.push({ kind: 'heroButton', team: 0, hero: curian, button: 'B', x: 0, z: 1, aim: Math.PI / 2 });
     run(0.1);
     expect(world.c.invulnerable[curian]).toBeGreaterThan(0);
     run(0.4);

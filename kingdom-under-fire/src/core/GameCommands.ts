@@ -1,3 +1,4 @@
+import type { Button } from '../heroes/Moves';
 import type { FormationType } from '../formations/FormationType';
 
 /** Commands understood by the simulation (see core/Commands.ts). Unit lists are entity ids. */
@@ -24,10 +25,13 @@ export type GameCommand =
   | { kind: 'heroControl'; team: number; hero: number; direct: boolean }
   /** Direct control: wanted direction of travel (x, z) in world space (length 0–1) and aim (radians). */
   | { kind: 'heroSteer'; team: number; hero: number; x: number; z: number; aim: number }
-  /** Direct control: a blow in the aim direction, heavy or quick. */
-  | { kind: 'heroStrike'; team: number; hero: number; heavy: boolean }
-  /** Direct control: a dodge roll in the direction (x, z). */
-  | { kind: 'heroDodge'; team: number; hero: number; x: number; z: number }
+  /**
+   * Action mode: a button of the pad (X attack, A second attack, Y special, B counter / evade), with the
+   * stick (x, z, world space, length 0–1) and the aim (radians) at the moment it was pressed.
+   */
+  | { kind: 'heroButton'; team: number; hero: number; button: Button; x: number; z: number; aim: number }
+  /** The officer in `slot` (0 or 1) of the hero's troop performs his assist attack (200 SP). */
+  | { kind: 'officerAssist'; team: number; hero: number; slot: number }
   /** A troop marches to (x, z); `queue` adds the point as the next waypoint instead of replacing the route. */
   | { kind: 'troopMove'; team: number; troop: number; x: number; z: number; queue: boolean }
   /** A troop attacks an enemy troop. */

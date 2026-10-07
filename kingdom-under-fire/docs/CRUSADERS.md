@@ -55,9 +55,9 @@ Woodenshade, Funero pour Kendal ; Brimstone Forest, Cremium, Funero pour Regnier
 | Ordres | Ordres de déplacement et d'attaque en temps réel, sur la minicarte ou à l'écran. Points de passage sur la minicarte (maintenir L, appuyer sur A) ; Y déplace toutes les troupes. | confirmé |
 | Formations | Changement de formation de la troupe (LB / RB). | à vérifier |
 | Chef de troupe | Chaque troupe a un chef, le seul soldat dont la barre de vie est rouge quand on le frappe. La tactique de base est de le trouver et de le tuer vite. | confirmé (effet exact de sa mort : **inconnu**) |
-| Héros | Combo faible (tapotis de l'attaque normale), combo fort (une attaque normale puis l'attaque spéciale répétée, stick au neutre), coups spéciaux, contre ou esquive (B), capacités sur la croix directionnelle. | confirmé |
-| Officiers | Ils donnent des sorts à la troupe du héros, lancés par combinaisons de touches (B+Y, X+A…). | à vérifier |
-| SP | Les capacités coûtent des SP. Exemple : Flèche de feu, 20 SP, met le feu à une forêt ou à une structure. | confirmé |
+| Héros | Combo faible : X X X X X. Combo fort : X puis A A A A, stick au neutre. Estoc : A avec le stick vers l'ennemi. Contre-attaque : B au moment où l'ennemi frappe. Repousser : B quand on vient d'être touché. Attaque spéciale : Y ; Smash : Y Y, 180 SP. Capacités sur la croix directionnelle. | confirmé (guide Steam) ; durées et dégâts : **inconnu** |
+| Officiers | Chaque commandant a deux lieutenants dans sa troupe. Ils combattent, et le héros peut appeler leur attaque d'assistance (200 SP) par B+Y ou X+A selon l'officier. Gerald a pour officiers Rupert et Ellen. Un officier paladin doté de la compétence Holy soigne par B+Y les soldats blessés de la troupe (sort Curatio) ; les paladins sont les seuls soigneurs. | confirmé (guide Steam, discussions Steam) ; liste des assistances par officier : **inconnu** |
+| SP | Les capacités, le Smash et les assistances coûtent des SP, gagnés en tuant des ennemis (aucun gain tant que la jauge est pleine). Exemple : Flèche de feu, 20 SP, met le feu à une forêt ou à une structure. | confirmé ; gains par coup et jauge maximale : **inconnu** |
 | Terrain | Les forêts brûlent (flèches de feu, sapeurs). | confirmé |
 
 ### Types de troupes
@@ -110,13 +110,16 @@ affiche la correspondance clavier (confirmé). Les touches par défaut : **incon
 - Statistiques des troupes et des héros, formules de dégâts, contres chiffrés.
 - Effet exact de la mort d'un chef de troupe ; présence d'un moral.
 - Cartes, déploiements, scripts et objectifs des missions au-delà des deux premières de Gerald.
-- Liste des officiers, de leurs sorts et des capacités des troupes ; coûts en SP.
+- Liste des officiers et de leurs assistances, capacités des troupes ; SP gagnés par coup et par victime.
+- Durées, dégâts et fenêtres de timing des coups du héros (combos, contre, Smash).
 - Disposition exacte de l'interface (HUD de bataille, minicarte, écrans de caserne et de briefing).
 
 ## Sources (extraits de recherche)
 
 - [GameSpot — critique de The Crusaders](https://www.gamespot.com/reviews/kingdom-under-fire-the-crusaders-review/1900-6110734/)
-- [Guide Steam — Kingdom Under Fire: The Crusaders Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2243680956)
+- [Guide Steam — Kingdom Under Fire: The Crusaders Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2243680956) (combos, Smash, assistances)
+- [Discussion Steam — officier paladin et Curatio](https://steamcommunity.com/app/1121420/discussions/0/1746772308311625309/)
+- [GameSpot — présentation des personnages](https://www.gamespot.com/articles/kingdom-under-fire-the-crusaders-character-spotlight/1100-6101787/)
 - [Guide Steam — Gerald's Campaign](https://steamcommunity.com/sharedfiles/filedetails/?id=2964223278)
 - [Speedrun.com — niveaux](https://www.speedrun.com/kingdom_under_fire_the_crusaders/levels)
 - [Kingdom Under Fire Wiki — The Crusaders](https://kingdomunderfire.fandom.com/wiki/Kingdom_Under_Fire:_The_Crusaders)

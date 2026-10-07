@@ -72,7 +72,7 @@ export class CombatSystem implements System {
         continue;
       }
       if (c.order[id] === Order.Direct) {
-        // Steered by the player: no automatic target, only the blows he orders (freeStrike).
+        // Steered by the player: no automatic target, only the moves he orders (HeroSystem).
         this.dropTarget(world, id);
         if (c.state[id] === UnitState.Engaging || c.state[id] === UnitState.Attacking) c.state[id] = UnitState.Idle;
         this.advanceSwing(world, id, dt);
@@ -153,18 +153,6 @@ export class CombatSystem implements System {
     c.attackTimer[id] = (period * slow) / haste;
   }
 
-  /**
-   * A blow ordered by the player to a hero under direct control: it hits every enemy in an arc in front.
-   * A heavy blow is slower and hits almost twice as hard. False when the hero is not ready.
-   */
-  freeStrike(world: World, id: number, heavy: boolean): boolean {
-    const { c } = world;
-    if (c.swing[id] >= 0 || c.attackTimer[id] > 0 || c.stun[id] > 0 || c.state[id] === UnitState.Dying) return false;
-    this.startSwing(world, id, c.attackWindup[id] * (heavy ? 1.5 : 1), c.attackPeriod[id] * (heavy ? 1.6 : 0.8), SwingKind.Arc);
-    c.swingPower[id] = heavy ? 1.9 : 1;
-    return true;
-  }
-
   private acquire(world: World, id: number, current: number, order: number, panicked: boolean): number {
     const { c } = world;
     if (c.range[id] > 0 && !panicked) return this.acquireShot(world, id, current, order);
@@ -228,13 +216,12 @@ export class CombatSystem implements System {
   private advanceSwing(world: World, id: number, dt: number): void {
     const { c } = world;
     const swing = c.swing[id];
-    if (swing < 0) return;
+    const kind = c.swingKind[id];
+    // A hero's move is timed and resolved by the HeroSystem.
+    if (swing < 0 || kind === SwingKind.Move) return;
     const next = swing + dt;
     const windup = c.swingDuration[id] * IMPACT_FRACTION;
-    const kind = c.swingKind[id];
-    if (swing < windup && next >= windup && kind === SwingKind.Arc) {
-      this.arcStrike(world, id, c.attack[id] * c.damageMul[id] * c.swingPower[id]);
-    } else if (swing < windup && next >= windup && kind !== SwingKind.Cast) {
+    if (swing < windup && next >= windup && kind !== SwingKind.Cast) {
       const t = c.target[id];
       if (t >= 0 && this.isEnemy(world, id, t)) {
         const dist = Math.hypot(c.x[t] - c.x[id], c.z[t] - c.z[id]);
@@ -265,26 +252,6 @@ export class CombatSystem implements System {
       missile: false,
       criticalChance: c.critChance[id],
     });
-  }
-
-  /** Free blow of a hero: every enemy within reach in a ±65° arc in front, the nearest first. */
-  private arcStrike(world: World, id: number, damage: number): void {
-    const { c, spatial } = world;
-    const n = spatial.query(c.x[id], c.z[id], c.radius[id] + c.reach[id] + 1.6, c.x, c.z, this.neighbours);
-    const fx = Math.sin(c.rot[id]);
-    const fz = Math.cos(c.rot[id]);
-    const max = 3 + c.cleave[id];
-    let hits = 0;
-    for (let k = 0; k < n && hits < max; k++) {
-      const e = this.neighbours[k];
-      if (!this.isEnemy(world, id, e)) continue;
-      const dx = c.x[e] - c.x[id];
-      const dz = c.z[e] - c.z[id];
-      const dist = Math.hypot(dx, dz);
-      if (dist - c.radius[id] - c.radius[e] > c.reach[id] + 0.5 || (dx * fx + dz * fz) / (dist || 1) < 0.42) continue;
-      this.strike(world, id, e, damage);
-      hits++;
-    }
   }
 
   /** A sweeping blow also hits up to `cleave` other enemies within reach in front of the attacker. */

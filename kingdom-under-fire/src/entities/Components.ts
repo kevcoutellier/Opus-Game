@@ -54,8 +54,8 @@ export const SwingKind = {
   Blow: 0,
   /** A missile loosed at the target (bow animation). */
   Shot: 1,
-  /** A free blow hitting every enemy in an arc in front (hero under direct control). */
-  Arc: 2,
+  /** A move of a hero in action mode (combo, special, counter): the HeroSystem resolves it. */
+  Move: 2,
   /** A spell being cast: no blow, the HeroSystem releases the ability. */
   Cast: 3,
 } as const;
@@ -148,6 +148,10 @@ export class Components {
   readonly steerZ: Float32Array;
   /** Damage multiplier of the current swing (heavy blow). */
   readonly swingPower: Float32Array;
+  /** Animation of a hero's move: 0 the model's own, 1 swing, 2 thrust, 3 spin. */
+  readonly swingStyle: Uint8Array;
+  /** Seconds during which the unit keeps its velocity (a hero's lunge). */
+  readonly lunge: Float32Array;
 
   // Morale
   readonly morale: Float32Array;
@@ -171,6 +175,8 @@ export class Components {
   readonly troop: Int32Array;
   /** 1 for the leader of a troop (a hero or a captain): his fall decides the troop's fate. */
   readonly leader: Uint8Array;
+  /** Officer of a hero's troop: slot + 1 (1 or 2), 0 for everyone else. */
+  readonly officer: Uint8Array;
 
   // Unit
   readonly unitType: Uint16Array;
@@ -232,6 +238,8 @@ export class Components {
     this.steerX = f32();
     this.steerZ = f32();
     this.swingPower = new Float32Array(capacity).fill(1);
+    this.swingStyle = new Uint8Array(capacity);
+    this.lunge = f32();
     this.morale = f32();
     this.moraleState = new Uint8Array(capacity);
     this.discipline = f32();
@@ -244,6 +252,7 @@ export class Components {
     this.team = new Uint8Array(capacity);
     this.troop = new Int32Array(capacity).fill(NO_ENTITY);
     this.leader = new Uint8Array(capacity);
+    this.officer = new Uint8Array(capacity);
     this.unitType = new Uint16Array(capacity);
     this.state = new Uint8Array(capacity);
     this.stateTime = f32();

@@ -57,6 +57,8 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.steerX[id] = c.steerZ[id] = 0;
   c.swingKind[id] = 0;
   c.swingPower[id] = 1;
+  c.swingStyle[id] = 0;
+  c.lunge[id] = 0;
   c.morale[id] = def.morale;
   c.moraleState[id] = MoraleState.Normal;
   c.discipline[id] = def.discipline;
@@ -65,6 +67,7 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.team[id] = team;
   c.troop[id] = NO_ENTITY;
   c.leader[id] = 0;
+  c.officer[id] = 0;
   c.unitType[id] = type;
   c.state[id] = UnitState.Idle;
   c.stateTime[id] = 0;

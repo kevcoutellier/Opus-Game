@@ -122,7 +122,9 @@ export class OverlayRenderer {
         varying vec2 vUv;
         void main() {
           vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-          mv.xy += position.xy * vec2(iWidth, 1.0 + (iWidth - 1.0) * 0.5);
+          // Smaller up close (action mode), so that the bars never hide the fight.
+          float near = clamp(-mv.z / 18.0, 0.3, 1.0);
+          mv.xy += position.xy * vec2(iWidth, 1.0 + (iWidth - 1.0) * 0.5) * near;
           gl_Position = projectionMatrix * mv;
           vFill = iFill;
           vColor = iColor;

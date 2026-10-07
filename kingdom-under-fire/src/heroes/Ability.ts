@@ -51,6 +51,12 @@ export const EffectSchema = z.discriminatedUnion('kind', [
     allies: z.number().nonnegative(),
     enemies: z.number().nonnegative(),
   }),
+  /** Wounded soldiers of the caster's troop within `radius` regain `amount` of their health (0–1). */
+  z.object({
+    kind: z.literal('heal'),
+    radius: z.number().positive(),
+    amount: z.number().positive().max(1),
+  }),
 ]);
 export type Effect = z.infer<typeof EffectSchema>;
 
@@ -65,7 +71,8 @@ export const AbilitySchema = z.object({
   /** `self`: centred on the caster; `point`: aimed at a spot of the ground within `range`. */
   targeting: z.enum(['self', 'point']),
   range: z.number().nonnegative().default(0),
-  manaCost: z.number().nonnegative(),
+  /** SP spent (The Crusaders: SP are earned by fighting, not regenerated). */
+  spCost: z.number().nonnegative(),
   cooldown: z.number().positive(),
   /** Seconds the hero spends casting before the effects happen. */
   castTime: z.number().nonnegative(),

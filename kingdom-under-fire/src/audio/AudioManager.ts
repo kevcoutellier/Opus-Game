@@ -113,6 +113,10 @@ export class AudioManager {
     world.events.on('chargeStarted', ({ id }) => this.play('horn', 0.3 + 0.5 * near(world.c.x[id], world.c.z[id])));
     world.events.on('chargeImpact', ({ x, z }) => this.play('clash', 0.5 + 0.5 * near(x, z)));
     world.events.on('unitDied', ({ x, z }) => this.play('death', 0.3 + 0.7 * near(x, z)));
+    world.events.on('heroMove', ({ move, x, z }) => {
+      if (move === 'smash' || move === 'counter') this.play('clash', 0.6 + 0.4 * near(x, z));
+    });
+    world.events.on('assistCast', ({ x, z }) => this.play('horn', 0.3 + 0.4 * near(x, z)));
     world.events.on('unitRouted', ({ id }) => this.play('horn', 0.4 * near(world.c.x[id], world.c.z[id])));
   }
 }

@@ -9,7 +9,31 @@ Ce que l'on sait de l'original (avec un niveau de confiance pour chaque point) e
 [`docs/CRUSADERS.md`](docs/CRUSADERS.md). Les portraits et illustrations officiels, ainsi que vos propres musiques
 et sons, s'installent avec `npm run assets` et ne sont jamais versionnés (voir [Assets officiels](#assets-officiels)).
 
-## État : étape 1 sur 5, le cœur de la bataille ✅
+## État : étape 2 sur 5, le combat du héros ✅
+
+L'étape 2 donne au héros le combat de l'original, tel que le décrivent les guides (voir `docs/CRUSADERS.md`) :
+
+- **Combos** : combo faible (clic ×5, X X X X X sur la manette), combo fort (clic puis clic droit ×4,
+  X A A A A, stick au neutre) dont le dernier coup frappe tout autour, estoc (clic droit en marchant vers
+  l'ennemi : le héros se fend en avant). Un bouton pressé pendant un coup est gardé et enchaîne au bon moment.
+- **Attaque spéciale et Smash** : R (Y) frappe en tourbillon ; R R (Y Y) déclenche le Smash pour 180 SP,
+  une onde de choc qui projette et étourdit tout autour.
+- **B (Espace)**, selon le moment : contre-attaque si un ennemi est en train de frapper le héros (le coup est
+  paré, l'attaquant reçoit la riposte et reste étourdi), repousser s'il vient d'être touché (les ennemis
+  sont projetés), sinon esquive.
+- **SP** : ils ne se régénèrent pas, ils se gagnent en frappant et en tuant (davantage pour un chef ou un
+  héros). Capacités, Smash et assistances les dépensent.
+- **Officiers** : la troupe du héros compte deux officiers, les seuls de l'armée. Pour 200 SP, X + A (clic
+  gauche + droit) appelle l'assaut du lieutenant à travers les ennemis devant le héros, B + Y (Espace + R) le
+  sort Curatio du paladin, qui soigne les blessés de la troupe. En mode tactique, les boutons de la barre
+  du héros font de même. Leurs noms (Rupert et Ellen pour Gerald) viendront avec les héros de The Crusaders.
+- **Interface** : jauge de SP, officiers et coût de leurs assistances, compteur de coups et nom du coup
+  spécial en mode action, barres de vie plus discrètes de près.
+
+Durées, dégâts et fenêtres de timing ne sont documentés nulle part : ils sont réglés par nous et rassemblés
+dans [`src/heroes/Moves.ts`](src/heroes/Moves.ts).
+
+### Étape 1 : le cœur de la bataille
 
 La construction de base et l'économie du prototype précédent ont été retirées : The Crusaders n'en a pas,
 l'armée se gère entre les missions. La bataille se joue désormais comme dans l'original :
@@ -86,8 +110,8 @@ npm run dev        # http://localhost:5173
 
 | Commande | Rôle |
 | --- | --- |
-| `npm test` | 94 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, troupes (chef, points de passage, armée entière, escorte du héros, IA, fin de bataille), IA tactique, histoire, assets, script d'assets contre un faux wiki |
-| `npm run test:e2e` | 4 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte ; visée d'une capacité, mode action par Tab et par le zoom ; assets installés utilisés |
+| `npm test` | 104 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros (combos, estoc, spécial et Smash, contre, repousser, SP), officiers et assistances, troupes (chef, points de passage, armée entière, escorte du héros, IA, fin de bataille), IA tactique, histoire, assets, script d'assets contre un faux wiki |
+| `npm run test:e2e` | 4 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte ; visée d'une capacité, officiers, mode action par Tab et par le zoom, attaque spéciale ; assets installés utilisés |
 | `npm run assets` | installe les portraits et illustrations officiels, votre musique et vos sons |
 | `npm run bench` | coût CPU d'un tick de simulation de 100 à 1000 unités, armées interarmes |
 | `npm run typecheck` | TypeScript strict (jeu, tests, configurations) |
@@ -113,8 +137,14 @@ reprennent la disposition de la manette.
 | Tactique | F (Maj + F) / H | formation suivante (précédente) / tenir la position |
 | Tactique | WASD (ZQSD) ou bords · clic molette glissé · molette · PgUp/PgDn | caméra (la déplacer cesse de suivre la troupe) · rotation · zoom · inclinaison · L : caméra libre · Origine : revenir derrière la troupe |
 | Tactique | Z X C V (W X C V en AZERTY) | capacités du héros : clic pour viser, clic droit ou Échap pour annuler |
+| Tactique | boutons des officiers (barre du héros) | assistance d'un officier (200 SP) |
 | Action | WASD · souris (cliquer pour la capturer) | marcher · regarder |
-| Action | clic · clic droit · Espace · 1–4 | frapper · coup puissant · esquive · capacités au viseur |
+| Action | clic (X) ×5 | combo faible |
+| Action | clic puis clic droit ×4 (X A A A A) | combo fort ; clic droit seul : coup puissant ; clic droit en marchant vers l'ennemi : estoc |
+| Action | R (Y) · R R (Y Y) | attaque spéciale · Smash (180 SP) |
+| Action | Espace (B) | contre-attaque quand l'ennemi frappe, repousser quand il vient de vous toucher, sinon esquive |
+| Action | clic G + D (X + A) · Espace + R (B + Y) | assistance du premier / second officier (200 SP) |
+| Action | 1–4 | capacités au viseur (SP) |
 | Divers | Entrée · P · M · F1 · F2 | commencer la bataille · pause · son · panneau développeur · test de performance |
 
 ## Assets officiels
@@ -174,7 +204,7 @@ src/
                (état), Simulation, SimulationFactory (ordre des systèmes), commandes sérialisables, EventBus,
                Random, Time
   entities/    EntityManager (ids, liste dense), Components (structure de tableaux typés, troupe et chef)
-  data/        unités, capacités, factions, histoire (lore, personnages, bataille) validées par Zod
+  data/        unités, capacités, officiers, factions, histoire (lore, personnages, bataille) validées par Zod
   assets/      AssetManager (manifeste des assets officiels), sources.json (wiki, Steam, sons)
   audio/       AudioManager (musique et sons installés)
   units/       UnitFactory, UnitManager, MovementSystem (steering), LifecycleSystem, UnitStats (schémas)
@@ -183,7 +213,8 @@ src/
   navigation/  NavGrid, FlowField, Pathfinding (cache), SpatialHashGrid, SpatialSystem
   combat/      CombatSystem (mêlée, tir, balayage), DamageSystem (flancs, boucliers), MoraleSystem,
                Projectiles (pool + système), ChargeSystem (7 états)
-  heroes/      Ability (schéma des capacités), HeroSystem (mana, sorts, niveaux, statuts, contrôle direct)
+  heroes/      Ability (schéma des capacités), Moves (coups du mode action), Officer (officiers, assistances),
+               HeroSystem (SP, sorts, coups et combos, contre, assistances, niveaux, statuts)
   ai/          AIKnowledge (vision), TroopAI (IA par troupes), HeroAI (choix des sorts), TacticalAI et
                AIController (IA d'une armée en bloc, tests et banc d'essai)
   maps/        Terrain (heightmap, forêts, rochers), Noise
@@ -204,8 +235,8 @@ Principes, dépendances justifiées et journal détaillé des phases : [`docs/AR
 
 1. ✅ **Cœur de la bataille** : troupes et chefs, troupe du héros, modes action et tactique, choix des troupes,
    minicarte et points de passage, IA par troupes.
-2. **Combat du héros** : combos faible et fort, coups spéciaux, contre et esquive, capacités payées en SP,
-   officiers de la troupe du héros et leurs sorts.
+2. ✅ **Combat du héros** : combos faible et fort, estoc, attaque spéciale et Smash, contre-attaque, repousser
+   et esquive, SP gagnés en combattant, officiers de la troupe du héros et leurs assistances.
 3. **Troupes et contres** : les armées de Hironeiden (Gerald) et de Vellond (Lucretia), infanterie, archers,
    cavalerie, lanciers, sapeurs et pièges, mortiers, volants, forêts qui brûlent.
 4. **Missions 1 et 2 de Gerald** : Greyhampton et Ravenmeadow, objectifs et scripts.

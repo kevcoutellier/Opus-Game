@@ -9,6 +9,7 @@ import { Pathfinding } from '../navigation/Pathfinding';
 import { SpatialHashGrid } from '../navigation/SpatialHashGrid';
 import { CommandQueue } from './Commands';
 import { EventBus, type EventMap } from './EventBus';
+import type { MoveId } from '../heroes/Moves';
 import type { GameCommand } from './GameCommands';
 import { Random } from './Random';
 import { SimTime } from './Time';
@@ -29,6 +30,12 @@ export interface SimEvents extends EventMap {
   heroLevelUp: { id: number; level: number };
   heroControl: { id: number; direct: boolean };
   heroDodged: { id: number };
+  /** A hero's move in action mode landed (`hits` enemies struck). */
+  heroMove: { hero: number; move: MoveId; x: number; z: number; hits: number };
+  /** An officer joined the troop of a hero (`slot` 0 or 1, `officer` its definition). */
+  officerJoined: { hero: number; unit: number; slot: number; officer: string };
+  /** An officer performed his assist attack. */
+  assistCast: { hero: number; officer: number; assist: string; x: number; z: number; color: number; radius: number };
   /** A troop lost its leader: its soldiers flee the field. */
   troopRouted: { troop: number; team: number };
   /** A troop has no soldier left on the field. */

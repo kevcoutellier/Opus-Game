@@ -65,6 +65,7 @@ F1 maison suffit).
 | P2.9 Scénario et IA | `StrategicAI` (ordre de construction, recrutement interarmes, vagues), IA en deux groupes (vague et garnison), bataille avec bases (clairières aplanies, victoire à la chute du QG), choix de la bataille au briefing ; caméra qui s'élève au-dessus des crêtes | ✅ puis retiré |
 | C1 Référence | `docs/CRUSADERS.md` : ce que l'on sait de The Crusaders, avec un niveau de confiance par point | ✅ |
 | C2 Cœur de la bataille | Retrait de la base et de l'économie (P2.7–P2.9) et de la sélection d'unités (P4) ; `TroopSystem` (troupes autour d'un chef, ordres `troopMove` / `troopAttack` / `troopHold` / `troopFormation` / `troopsMoveAll`, points de passage, déroute à la mort du chef, escorte du héros dirigé), `TroopAI`, `BattleOutcome` par troupes (chute du héros), modes action et tactique par le zoom, `TroopInput`, `TroopPanel`, `Minimap`, barre rouge du chef | ✅ |
+| C3 Combat du héros | `Moves` (15 coups en données Zod : combos faible et fort, estoc, coup puissant, spécial, Smash, contre, repousser), machine à états des coups dans `HeroSystem` (commande `heroButton`, mémoire du bouton suivant, fente, impact, enchaînement), B contextuel (contre, repousser, esquive), SP gagnés par coups et victimes, officiers (`Officer`, `officerAssist`, effet `heal`), accords X + A et B + Y dans `HeroInput`, styles d'animation des coups (estoc, tourbillon), jauge de SP, officiers et compteur de coups | ✅ |
 
 ### Équité de la simulation
 
@@ -92,6 +93,21 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
   contrôle direct.
 
 ### Choix du clone (The Crusaders)
+
+- **Les coups du héros sont des données.** `src/heroes/Moves.ts` décrit chaque coup (durée, instant de
+  l'impact, moment où il peut s'enchaîner, dégâts, portée, arc, cibles, recul, étourdissement, fente, coût en
+  SP, invulnérabilité) et ses suites par bouton. `HeroSystem` déroule le coup en cours tick par tick : le
+  joueur envoie des boutons (`heroButton`), jamais des coups, ce qui garde les combos déterministes et
+  rejouables. Un bouton pressé pendant un coup est gardé jusqu'à sa fenêtre d'enchaînement ; le schéma
+  refuse un coup qui pourrait s'enchaîner avant de frapper.
+- **B est résolu par la simulation.** Le même bouton contre, repousse ou esquive selon l'état du combat :
+  un ennemi dont le coup visant le héros tombe dans les 0,45 s, un coup reçu il y a moins de 0,6 s, ou rien.
+  La décision ne dépend que de l'état du monde au tick où la commande s'applique.
+- **Les accords se lisent dans l'entrée.** `HeroInput` retient un bouton 70 ms : si son partenaire (X / A,
+  B / Y) arrive entre-temps, ou s'il est déjà tenu, c'est l'assistance d'un officier ; sinon le bouton part
+  seul. La simulation ne voit que des commandes `heroButton` et `officerAssist`.
+- **Les SP viennent des événements.** `HeroSystem` écoute `unitHit` : un coup porté par un héros (hors sort)
+  et chaque victime lui rapportent des SP, ses coups automatiques en mode tactique compris.
 
 - **La troupe est une couche au-dessus des formations.** `TroopSystem` ne déplace aucun soldat : il traduit
   les ordres de troupe en ordres de formation (`FormationManager.orderMove`, `orderAttack`, `orderHold`) et

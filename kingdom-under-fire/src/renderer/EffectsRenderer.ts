@@ -91,6 +91,33 @@ export class EffectsRenderer {
       }
     });
     world.events.on('heroDodged', ({ id }) => this.dust(world.c.x[id], world.c.z[id], 10, 0.8));
+    // The hero's great moves: a shockwave for the Smash, a gust for the whirls, sparks for a counter.
+    world.events.on('heroMove', ({ hero, move, x, z }) => {
+      if (move === 'smash') {
+        this.ring(x, z, 5, 0xffb050);
+        this.dust(x, z, 30, 2);
+      } else if (move === 'special' || move === 'strong5' || move === 'repel') {
+        this.ring(x, z, 2.6, 0xffe0a0);
+      } else if (move === 'counter') {
+        const y = this.heightAt(x, z) + 1.3;
+        const fx = Math.sin(world.c.rot[hero]);
+        const fz = Math.cos(world.c.rot[hero]);
+        for (let i = 0; i < 14; i++) {
+          this.spawn(x + fx * 0.8, y, z + fz * 0.8, fx * 3 + this.r(-2.5, 2.5), this.r(1.5, 4), fz * 3 + this.r(-2.5, 2.5), this.r(0.15, 0.3), this.r(0.04, 0.07), 0xfff0c0, 1);
+        }
+      }
+    });
+    // An officer's assist: a ring where it strikes (or around him for a heal), light rising from it.
+    world.events.on('assistCast', ({ officer, x, z, color, radius }) => {
+      this.ring(x, z, Math.min(radius, 8), color);
+      const ox = world.c.x[officer];
+      const oz = world.c.z[officer];
+      const y = this.heightAt(ox, oz);
+      for (let i = 0; i < 24; i++) {
+        const a = this.r(0, Math.PI * 2);
+        this.spawn(ox + Math.cos(a) * 0.7, y + this.r(0.2, 1.6), oz + Math.sin(a) * 0.7, Math.cos(a) * 0.4, this.r(1.5, 3.2), Math.sin(a) * 0.4, this.r(0.6, 1.1), this.r(0.06, 0.11), color, 0.6);
+      }
+    });
     // A charge hits in a cloud of dust and splinters.
     world.events.on('chargeImpact', ({ x, z, braced }) => {
       this.dust(x, z, 26, 1.8);

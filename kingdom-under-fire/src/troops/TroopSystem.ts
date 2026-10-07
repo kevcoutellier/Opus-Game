@@ -1,5 +1,6 @@
 import type { System } from '../core/Simulation';
 import type { World } from '../core/World';
+import { officer } from '../data/officers';
 import { UNIT_DEFS, unitIndex } from '../data/units';
 import { Comp, MoraleState, NO_ENTITY, Order, UnitState } from '../entities/Components';
 import type { Formation } from '../formations/Formation';
@@ -51,6 +52,8 @@ export interface TroopSpec {
 
 /** A captain is a seasoned soldier of the troop's type: much tougher, steadier and harder-hitting. */
 const CAPTAIN = { health: 5, attack: 1.4, defense: 6 };
+/** The officers of a hero's troop are seasoned too, a little less than a captain. */
+const OFFICER = { health: 3, attack: 1.3, defense: 4 };
 /** Routed soldiers leave the field once no enemy has been near them for this long. */
 const LEAVE_SECONDS = 6;
 const LEAVE_SAFE_RADIUS = 16;
@@ -147,20 +150,35 @@ export class TroopSystem implements System {
     const ahead = (rows * 1.6) / 2 + 1.8;
     const lx = spec.x + Math.sin(spec.facing) * ahead;
     const lz = spec.z + Math.cos(spec.facing) * ahead;
+    const seasoned = (id: number, boost: { health: number; attack: number; defense: number }) => {
+      c.maxHp[id] *= boost.health;
+      c.hp[id] = c.maxHp[id];
+      c.attack[id] *= boost.attack;
+      c.defense[id] += boost.defense;
+      c.discipline[id] = 1;
+      c.morale[id] = 100;
+    };
     let leader = spec.leader ?? NO_ENTITY;
     if (leader === NO_ENTITY) {
       leader = spawnUnit(world, type, spec.team, lx, lz, spec.facing);
-      c.maxHp[leader] *= CAPTAIN.health;
-      c.hp[leader] = c.maxHp[leader];
-      c.attack[leader] *= CAPTAIN.attack;
-      c.defense[leader] += CAPTAIN.defense;
-      c.discipline[leader] = 1;
-      c.morale[leader] = 100;
+      seasoned(leader, CAPTAIN);
     } else {
       c.x[leader] = c.prevX[leader] = lx;
       c.z[leader] = c.prevZ[leader] = lz;
       c.rot[leader] = c.prevRot[leader] = spec.facing;
     }
+    // A hero's troop is the only one with officers: they stand on either side of him.
+    const officers: number[] = [];
+    const heroDef = UNIT_DEFS[c.unitType[leader]].hero;
+    (heroDef?.officers ?? []).forEach((name, slot) => {
+      const side = slot === 0 ? -1.8 : 1.8;
+      const ox = lx + Math.cos(spec.facing) * side;
+      const oz = lz - Math.sin(spec.facing) * side;
+      const id = spawnUnit(world, unitIndex(officer(name).unit), spec.team, ox, oz, spec.facing);
+      seasoned(id, OFFICER);
+      c.officer[id] = slot + 1;
+      officers.push(id);
+    });
     const troop: Troop = {
       id: this.nextId++,
       team: spec.team,
@@ -168,8 +186,8 @@ export class TroopSystem implements System {
       soldierType: spec.soldierType,
       leader,
       hero: UNIT_DEFS[c.unitType[leader]].role === 'hero',
-      members: [leader, ...soldiers],
-      initialSize: soldiers.length + 1,
+      members: [leader, ...officers, ...soldiers],
+      initialSize: soldiers.length + officers.length + 1,
       waypoints: [],
       status: 'idle',
       routTime: 0,
@@ -177,6 +195,7 @@ export class TroopSystem implements System {
     for (const id of troop.members) c.troop[id] = troop.id;
     c.leader[leader] = 1;
     this.troops.set(troop.id, troop);
+    officers.forEach((id, slot) => world.events.emit('officerJoined', { hero: leader, unit: id, slot, officer: heroDef!.officers[slot] }));
     // At rest the formation defends (it answers enemies coming at it), facing the given way.
     const f = this.formations.assemble(spec.team, troop.members, spec.formation ?? 'LINE');
     if (f) {

@@ -88,6 +88,9 @@ test('the hero: an ability is aimed then cancelled, direct control is taken and 
   await page.keyboard.press('Enter');
   await expect(page.locator('.hero-bar')).toBeVisible();
   await expect(page.locator('.hero-bar .hero-name')).toContainText('Curian');
+  // His troop's two officers and their assists.
+  await expect(page.locator('.hero-bar .officer')).toHaveCount(2);
+  await expect(page.locator('.hero-bar .officer').nth(1)).toContainText('Curatio');
   // X aims Gel, Escape cancels.
   await page.keyboard.press('KeyX');
   await expect.poll(() => game(page, 'g.heroInput.targeting?.slot ?? -1')).toBe(1);
@@ -101,6 +104,9 @@ test('the hero: an ability is aimed then cancelled, direct control is taken and 
   await expect.poll(() => game(page, `g.world.c.order[${hero}]`), { timeout: 60_000 }).toBe(5);
   await expect(page.locator('.crosshair')).toBeVisible();
   await expect(page.locator('.mode-badge')).toContainText('Mode action');
+  // R is Y on the pad: the special attack.
+  await page.keyboard.press('KeyR');
+  await expect.poll(() => game(page, `g.heroes.get(${hero}).lastMove`), { timeout: 60_000 }).toBe('special');
   await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(await game(page, 'g.deployed.player[0].id'));
   await page.keyboard.press('Tab');
   await expect.poll(() => game(page, 'g.heroInput.direct')).toBe(-1);

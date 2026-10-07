@@ -12,6 +12,10 @@ import { ATTACK_STYLE, BOW_AIM, BOW_STYLE, createUnitGeometry, MOUNTED_MODELS, S
  * the vertex shader poses the bones (legs, arms, weapon), the body lean, the death fall and the sinking.
  * No AnimationMixer, no skinning: the cost per unit is a handful of floats.
  */
+/** Components.swingStyle of a hero's moves. */
+const THRUST = 2;
+const SPIN = 3;
+
 const ANIMATION_GLSL = /* glsl */ `
 attribute float aBone;
 attribute float aTeam;
@@ -271,6 +275,11 @@ export class UnitRenderer {
       if (delta > Math.PI) delta -= Math.PI * 2;
       if (delta < -Math.PI) delta += Math.PI * 2;
       rot = c.prevRot[id] + delta * alpha;
+      const swing = c.swing[id];
+      const attack = swing >= 0 && !dying ? Math.max(0.001, Math.min(1, swing / c.swingDuration[id])) : 0;
+      const move = c.swingKind[id] === SwingKind.Move ? c.swingStyle[id] : 0;
+      // A whirling move turns the whole body once around.
+      if (move === SPIN && attack > 0) rot += Math.PI * 2 * Math.min(1, attack * 1.25);
       const sin = Math.sin(rot) * scale;
       const cos = Math.cos(rot) * scale;
       const m = pool.mesh.instanceMatrix.array as Float32Array;
@@ -280,8 +289,6 @@ export class UnitRenderer {
       m[o + 8] = sin; m[o + 9] = 0; m[o + 10] = cos; m[o + 11] = 0;
       m[o + 12] = x; m[o + 13] = y; m[o + 14] = z; m[o + 15] = 1;
 
-      const swing = c.swing[id];
-      const attack = swing >= 0 && !dying ? Math.max(0.001, Math.min(1, swing / c.swingDuration[id])) : 0;
       const a = pool.anim.array as Float32Array;
       a[k * 4] = this.walkPhase[id];
       a[k * 4 + 1] = this.walkAmount[id];
@@ -292,7 +299,8 @@ export class UnitRenderer {
       const flash = c.lastHit[id] < HIT_FLASH_SECONDS && !dying ? 1 - c.lastHit[id] / HIT_FLASH_SECONDS : 0;
       s[k * 4] = c.frozen[id] > 0 && !dying ? -Math.min(1, c.frozen[id] * 2) : flash;
       s[k * 4 + 1] = c.moraleState[id] === MoraleState.Routing ? 1 : 0;
-      s[k * 4 + 2] = (c.swingKind[id] === SwingKind.Shot ? BOW_STYLE : this.styleOfType[type]) + (this.mountedOfType[type] ? 10 : 0);
+      const style = c.swingKind[id] === SwingKind.Shot ? BOW_STYLE : move === THRUST ? 1 : move > 0 ? 0 : this.styleOfType[type];
+      s[k * 4 + 2] = style + (this.mountedOfType[type] ? 10 : 0);
       s[k * 4 + 3] = (id * 1.618) % 6.283;
 
       const color = this.teamColors[c.team[id]] ?? this.teamColors[0];

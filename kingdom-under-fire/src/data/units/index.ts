@@ -219,9 +219,9 @@ const RAW_UNITS = [
     shield: 0.2,
     hero: {
       character: 'curian',
-      mana: 100,
-      manaRegen: 1.6,
+      sp: 300,
       abilities: ['curian_shift', 'curian_freeze', 'curian_energy', 'curian_oath'],
+      officers: ['hironeiden_lieutenant', 'hironeiden_paladin'],
       aura: { radius: 14, morale: 2.5 },
     },
     cost: {},
@@ -332,8 +332,7 @@ const RAW_UNITS = [
     cleave: 3,
     hero: {
       character: 'likuku',
-      mana: 90,
-      manaRegen: 1.4,
+      sp: 300,
       abilities: ['likuku_quake', 'likuku_bloodrage', 'likuku_warcry', 'likuku_boulder'],
       aura: { radius: 14, morale: 2.5 },
     },

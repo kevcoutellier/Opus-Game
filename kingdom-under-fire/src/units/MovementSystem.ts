@@ -166,7 +166,7 @@ export class MovementSystem implements System {
       // 4. Integrate with inertia, slide along obstacles.
       // A dodge roll keeps its momentum, a stunned body thrown back slides to a halt; otherwise inertia
       // towards the wanted velocity.
-      const dodging = c.invulnerable[id] > 0;
+      const dodging = c.invulnerable[id] > 0 || c.lunge[id] > 0;
       let vx: number;
       let vz: number;
       if (dodging) {
@@ -209,7 +209,9 @@ export class MovementSystem implements System {
       // 5. Facing: the enemy in reach, else the direction of travel, else the formation front.
       const moving = Math.hypot(vx, vz) > 0.35;
       let facing = c.rot[id];
-      if (direct) facing = moving && !dodging ? Math.atan2(vx, vz) : c.rot[id];
+      // A hero keeps facing where his move was aimed until it ends.
+      const inMove = c.swingKind[id] === SwingKind.Move && c.swing[id] >= 0;
+      if (direct) facing = moving && !dodging && !inMove ? Math.atan2(vx, vz) : c.rot[id];
       else if (engaging && dist < stop + 1.5) facing = Math.atan2(dx, dz);
       else if (moving) facing = Math.atan2(vx, vz);
       else if (!engaging && !routing) facing = c.slotRot[id];

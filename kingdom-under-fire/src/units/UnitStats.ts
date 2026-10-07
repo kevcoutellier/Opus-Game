@@ -62,11 +62,12 @@ export type ChargeDef = z.infer<typeof ChargeSchema>;
 export const HeroSchema = z.object({
   /** Character of the lore (portrait, biography). */
   character: z.string(),
-  mana: z.number().positive(),
-  /** Mana per second. */
-  manaRegen: z.number().nonnegative(),
+  /** Most SP the hero can hold (they are earned by fighting). */
+  sp: z.number().positive(),
   /** Ability ids, in the order of the keys 1–4. */
   abilities: z.array(z.string()).min(1).max(4),
+  /** Officers of the hero's troop (at most two), whose assist attacks he can call. */
+  officers: z.array(z.string()).max(2).default([]),
   /** Allies within `radius` (m) gain `morale` points per second and hold better. */
   aura: z.object({ radius: z.number().positive(), morale: z.number().nonnegative() }),
 });
