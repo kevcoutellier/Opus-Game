@@ -2,6 +2,7 @@ import type { Attack, FlankId } from '../combat/DamageSystem';
 import { FireGrid } from '../combat/FireSystem';
 import { ProjectilePool } from '../combat/Projectiles';
 import type { Trap } from '../combat/TrapSystem';
+import type { Prop } from '../maps/Props';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { Comp, Components } from '../entities/Components';
 import { EntityManager } from '../entities/EntityManager';
@@ -80,6 +81,8 @@ export class World {
   readonly projectiles = new ProjectilePool();
   /** What can burn and what burns (forest fires). */
   readonly fire: FireGrid;
+  /** Buildings and fortifications of the map (missions). */
+  readonly props: Prop[] = [];
   /** Traps laid by sappers, waiting for an enemy. */
   readonly traps: Trap[] = [];
   /** Next id given to a trap. */

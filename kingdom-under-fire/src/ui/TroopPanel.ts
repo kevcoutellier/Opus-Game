@@ -136,7 +136,7 @@ export class TroopPanel {
   update(): void {
     const { c } = this.world;
     const selected = this.input.troop()?.id ?? -1;
-    for (const t of this.troops.list(this.team)) {
+    for (const t of this.troops.list(this.team, false, 'player')) {
       const el = this.card(t);
       const k = `t${t.id}`;
       const leaderAlive = c.hp[t.leader] > 0 && t.members.includes(t.leader);

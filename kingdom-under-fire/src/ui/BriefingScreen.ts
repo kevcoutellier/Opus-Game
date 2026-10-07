@@ -4,6 +4,8 @@ import { character, LORE, type Character } from '../data/story/lore';
 
 export interface BriefingOptions {
   story: BattleStory;
+  /** Missions to choose from (and the skirmish): following one reloads the page on it. */
+  missions: { hash: string; label: string; current: boolean }[];
   /** URL of a character portrait (downloaded official artwork), or null for the heraldic fallback. */
   portrait(id: string): string | null;
   /** Background artwork, or null. */
@@ -32,9 +34,12 @@ export class BriefingScreen {
     if (options.artwork) this.el.style.setProperty('--artwork', `url("${options.artwork}")`);
     this.el.innerHTML = `
       <div class="briefing-card panel">
+        <nav class="briefing-missions">${options.missions
+          .map((m) => `<a href="${escape(m.hash)}" class="${m.current ? 'current' : ''}">${escape(m.label)}</a>`)
+          .join('')}</nav>
         <header>
           <div class="briefing-game title">Kingdom Under Fire</div>
-          <div class="briefing-subtitle">La Guerre des Héros · ${escape(story.era)}</div>
+          <div class="briefing-subtitle">The Crusaders · ${escape(story.era)}</div>
           <h1 class="title">${escape(story.title)}</h1>
         </header>
         <div class="briefing-body">
@@ -61,6 +66,13 @@ export class BriefingScreen {
         } Kingdom Under Fire © Blueside / Phantagram — projet de fan non commercial.</div>
       </div>`;
     this.el.querySelector<HTMLButtonElement>('.briefing-start')!.onclick = () => this.start();
+    this.el.querySelectorAll<HTMLAnchorElement>('.briefing-missions a').forEach((a) => {
+      a.onclick = (e) => {
+        e.preventDefault();
+        location.hash = a.getAttribute('href')!;
+        location.reload();
+      };
+    });
     root.appendChild(this.el);
     window.addEventListener('keydown', this.keyHandler);
   }

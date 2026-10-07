@@ -48,6 +48,13 @@ export class TroopAI implements System {
     this.stance = options.stance ?? { kind: 'hold' };
   }
 
+  private readonly engage = new Map<number, number>();
+
+  /** Gives one troop its own engagement range (mission scripts: a troop that waits, or one that hunts). */
+  setEngage(troop: number, radius: number): void {
+    this.engage.set(troop, radius);
+  }
+
   /** Gives one troop its own stance (mission scripts). */
   setStance(troop: number, stance: TroopStance): void {
     this.stances.set(troop, stance);
@@ -66,7 +73,8 @@ export class TroopAI implements System {
         if (cast) world.commands.push({ kind: 'cast', team, hero: h.id, slot: cast.slot, x: cast.x, z: cast.z });
       }
     }
-    for (const troop of this.troops.list(team, true)) {
+    // Only the troops it commands (the player's allies are AI-led until they join him).
+    for (const troop of this.troops.list(team, true, 'ai')) {
       this.useSkills(world, troop);
       this.decide(world, troop);
     }
@@ -131,7 +139,7 @@ export class TroopAI implements System {
   private decide(world: World, troop: Troop): void {
     const { c } = world;
     const { team } = this.options;
-    const radius = this.options.engageRadius ?? DEFAULT_ENGAGE_RADIUS;
+    const radius = this.engage.get(troop.id) ?? this.options.engageRadius ?? DEFAULT_ENGAGE_RADIUS;
     const x = c.x[troop.leader];
     const z = c.z[troop.leader];
     // The troop of the nearest enemy soldier it knows of.

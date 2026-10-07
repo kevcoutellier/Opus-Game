@@ -52,6 +52,7 @@ export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: num
   const cx = mapSize / 2;
   type Spec = { name: string; type: string; count: number; dx: number; dz: number; hero?: string };
   const deploy = (team: number, dir: number, specs: Spec[]): Troop[] => {
+    const controller = team === PLAYER_TEAM ? 'player' : 'ai';
     const facing = dir > 0 ? Math.PI : 0;
     // dx is towards the troop's right: +x when it faces south (dir > 0), -x when it faces north.
     return specs.map((s) =>
@@ -64,6 +65,7 @@ export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: num
         x: cx + s.dx * dir,
         z: mapSize / 2 + dir * s.dz,
         facing,
+        controller,
       }),
     );
   };

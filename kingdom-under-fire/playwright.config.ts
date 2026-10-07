@@ -7,6 +7,9 @@ const executablePath = process.env.PW_CHROMIUM ?? (process.env.CI ? undefined : 
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 90_000,
+  // Most assertions wait for the next rendered frames, and a software renderer (SwiftShader, several
+  // browsers at once) can take seconds per frame.
+  expect: { timeout: 20_000 },
   use: {
     baseURL: 'http://localhost:4173',
     viewport: { width: 1920, height: 1080 },

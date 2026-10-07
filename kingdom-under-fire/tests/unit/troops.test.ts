@@ -89,9 +89,9 @@ describe('troops', () => {
 
   it('sends the whole army side by side to one place', () => {
     const { world, run, troops } = battle();
-    const a = troops.create({ team: 0, name: 'A', soldierType: 'human_footman', count: 9, x: 30, z: 20, facing: 0 });
-    const b = troops.create({ team: 0, name: 'B', soldierType: 'human_spearman', count: 9, x: 60, z: 20, facing: 0 });
-    const c = troops.create({ team: 0, name: 'C', soldierType: 'human_archer', count: 9, x: 90, z: 20, facing: 0 });
+    const a = troops.create({ team: 0, name: 'A', soldierType: 'human_footman', count: 9, x: 30, z: 20, facing: 0, controller: 'player' });
+    const b = troops.create({ team: 0, name: 'B', soldierType: 'human_spearman', count: 9, x: 60, z: 20, facing: 0, controller: 'player' });
+    const c = troops.create({ team: 0, name: 'C', soldierType: 'human_archer', count: 9, x: 90, z: 20, facing: 0, controller: 'player' });
     world.commands.push({ kind: 'troopsMoveAll', team: 0, x: 60, z: 80 });
     run(35);
     const pa = centroid(world, a.members);

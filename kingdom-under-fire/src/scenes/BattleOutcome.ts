@@ -26,6 +26,8 @@ export class BattleOutcome {
   constructor(
     private readonly playerTeam: number,
     private readonly rules: TroopRules | null = null,
+    /** False in a mission: its script decides the victory (more enemies may come). */
+    private readonly enemyBrokenWins = true,
   ) {}
 
   /** Soldiers of a team still able to fight (alive, not routing). */
@@ -48,7 +50,8 @@ export class BattleOutcome {
       const { entities, c } = world;
       if (!entities.has(hero, Comp.Unit) || c.state[hero] === UnitState.Dying) return false;
     }
-    return troops.list(team, true).length > 0;
+    // The player's side stands while one of his own troops does (allies do not hold the field for him).
+    return troops.list(team, true, team === this.playerTeam ? 'player' : undefined).length > 0;
   }
 
   update(world: World): Outcome {
@@ -60,7 +63,7 @@ export class BattleOutcome {
     }
     const playerBroken = now - this.brokenSince[this.playerTeam] >= BROKEN_SECONDS;
     const enemyBroken = now - this.brokenSince[1 - this.playerTeam] >= BROKEN_SECONDS;
-    if (enemyBroken) this.result = 'victory';
+    if (enemyBroken && this.enemyBrokenWins) this.result = 'victory';
     else if (playerBroken) this.result = 'defeat';
     return this.result;
   }

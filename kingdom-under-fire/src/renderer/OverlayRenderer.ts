@@ -46,6 +46,8 @@ export class OverlayRenderer {
   private readonly previewMesh: THREE.InstancedMesh;
   /** The player's own traps (hidden from the enemy). */
   private readonly trapMesh: THREE.InstancedMesh;
+  /** Green spots of the mission's objectives. */
+  private readonly spotMesh: THREE.InstancedMesh;
   /** Aiming an ability: its area under the cursor and the reach of the hero. */
   private readonly area: THREE.Mesh;
   private readonly areaFill: THREE.Mesh;
@@ -97,6 +99,16 @@ export class OverlayRenderer {
     this.trapMesh.renderOrder = 3;
     this.trapMesh.count = 0;
     this.group.add(this.trapMesh);
+
+    this.spotMesh = new THREE.InstancedMesh(
+      new THREE.RingGeometry(0.9, 1, 64).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x6dff6d, transparent: true, opacity: 0.75, depthWrite: false, fog: false }),
+      8,
+    );
+    this.spotMesh.frustumCulled = false;
+    this.spotMesh.renderOrder = 3;
+    this.spotMesh.count = 0;
+    this.group.add(this.spotMesh);
 
     const aim = (inner: number, segments: number, opacity: number) => {
       const mesh = new THREE.Mesh(
@@ -226,6 +238,19 @@ export class OverlayRenderer {
     this.reach.position.set(t.heroX, this.heightAt(t.heroX, t.heroZ) + 0.15, t.heroZ);
     this.reach.scale.set(t.range, 1, t.range);
     this.reach.visible = t.range > 0;
+  }
+
+  /** The green spots of the objectives, gently pulsing. */
+  objectives(markers: readonly { x: number; z: number; radius: number }[], time: number): void {
+    const n = Math.min(8, markers.length);
+    for (let i = 0; i < n; i++) {
+      const m = markers[i];
+      const r = m.radius * (1 + Math.sin(time * 3 + i) * 0.04);
+      this.matrix.makeScale(r, 1, r).setPosition(m.x, this.heightAt(m.x, m.z) + 0.12, m.z);
+      this.spotMesh.setMatrixAt(i, this.matrix);
+    }
+    this.spotMesh.count = n;
+    this.spotMesh.instanceMatrix.needsUpdate = true;
   }
 
   /** The traps of `ownTeam` are marked on the ground; the enemy's stay hidden. */

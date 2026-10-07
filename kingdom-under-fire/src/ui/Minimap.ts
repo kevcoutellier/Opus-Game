@@ -16,6 +16,8 @@ export interface MinimapDeps {
   team: number;
   /** Troop receiving the orders (its waypoints are drawn), -1 when none. */
   selected(): number;
+  /** Green spots of the mission's objectives. */
+  markers(): { x: number; z: number; radius: number }[];
   /** Ground point the camera looks at, and the direction it looks (radians, simulation convention). */
   view(): { x: number; z: number; facing: number };
   /** Left click or drag: look there. */
@@ -177,13 +179,21 @@ export class Minimap {
           ctx.fill();
         }
       }
-      ctx.fillStyle = own ? (t.id === selected ? '#f0d27a' : '#3f78e0') : '#e0302a';
+      ctx.fillStyle = own ? (t.id === selected ? '#f0d27a' : t.controller === 'ai' ? '#5fd0c8' : '#3f78e0') : '#e0302a';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1;
       ctx.beginPath();
       if (t.hero) ctx.arc(x, z, 5, 0, Math.PI * 2);
       else ctx.rect(x - 4, z - 4, 8, 8);
       ctx.fill();
+      ctx.stroke();
+    }
+    // The green spots of the objectives.
+    ctx.strokeStyle = '#6dff6d';
+    ctx.lineWidth = 2;
+    for (const m of this.d.markers()) {
+      ctx.beginPath();
+      ctx.arc(m.x * k, m.z * k, Math.max(4, m.radius * k), 0, Math.PI * 2);
       ctx.stroke();
     }
     // Where the camera looks.

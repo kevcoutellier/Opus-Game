@@ -9,7 +9,32 @@ Ce que l'on sait de l'original (avec un niveau de confiance pour chaque point) e
 [`docs/CRUSADERS.md`](docs/CRUSADERS.md). Les portraits et illustrations officiels, ainsi que vos propres musiques
 et sons, s'installent avec `npm run assets` et ne sont jamais versionnés (voir [Assets officiels](#assets-officiels)).
 
-## État : étape 3 sur 5, les troupes et leurs contres ✅
+## État : étape 4 sur 5, les deux premières missions de Gerald ✅
+
+L'étape 4 ouvre la campagne de Gerald avec ses deux premières missions, rejouées d'après les guides
+(enchaînements confirmés, carte et répliques reconstituées ; voir `docs/CRUSADERS.md`). Le jeu démarre sur
+Greyhampton ; le briefing liste les missions et l'escarmouche, et « Mission suivante » enchaîne après une victoire.
+
+- **Greyhampton** : la patrouille de Gerald (sa garde, Rupert, Ellen et des archers) rejoint deux points verts ;
+  le ballon des nains passe au-dessus d'elle. Au second point, une scène coupée montre le village en flammes,
+  puis surgissent les elfes noirs de Rithrin : brève escarmouche, Rithrin s'enfuit, Gerald rentre faire
+  son rapport.
+- **Ravenmeadow** : la première grande bataille. Les sapeurs, seuls au pied du mur, tombent avant que Gerald
+  arrive (comme dans l'original, quoi qu'on fasse). Il faut ensuite briser l'infanterie et les archers de
+  Rithrin en rangs serrés (les bois atténuent les flèches), secourir à l'est des archers alliés qui rejoignent alors
+  Gerald, tenir la cavalerie avec les lanciers, puis briser les défenseurs de la porte.
+- **Missions en données** : troupes (du joueur, alliées ou ennemies, en réserve), objectifs et script
+  « quand → faire » validés par Zod, joués par un système de la simulation (`MissionDirector`) : lieux
+  atteints, troupes brisées ou repérées, délais ; répliques, objectifs, renforts, ralliements, feu, scènes
+  coupées, victoire ou défaite.
+- **Alliés** : troupes du camp du joueur menées par l'IA jusqu'à ce qu'elles le rejoignent.
+- **Décor** : maisons, huttes, murs, tours, tentes et palissades que les troupes contournent et que le feu
+  dévore ; ballon dirigeable des nains.
+- **Interface** : répliques avec portrait (clic ou Entrée pour passer), objectifs en haut à droite (◆ en cours,
+  ✓ remplis, ✗ ratés), points verts sur le terrain et la minicarte, alliés en turquoise, scènes coupées en
+  bandes noires. Le jeu passe seul en mode action quand la troupe du héros, choisie, engage le combat.
+
+### Étape 3 : les troupes et leurs contres
 
 L'étape 3 remplace les armées provisoires par celles de *The Crusaders*, d'après le guide officiel du jeu
 (rôles, points de vie, vitesses, visions et compétences ; voir `docs/CRUSADERS.md`) :
@@ -30,7 +55,7 @@ L'étape 3 remplace les armées provisoires par celles de *The Crusaders*, d'apr
   lames ni les mortiers) ; les mortiers éclatent sur plusieurs soldats et frappent fort les troupes lourdes ;
   les archers montés tirent au galop, toujours sur leur gauche ; les lanciers immobilisent ceux qu'ils
   frappent ; les elfes guérissent en forêt et encaissent mieux la magie.
-- **Escarmouche** hors campagne : six troupes de Gerald contre cinq de Lucretia ; `#showcase` montre tous
+- **Escarmouche** hors campagne (`#skirmish`) : six troupes de Gerald contre cinq de Lucretia ; `#showcase` montre tous
   les modèles des deux royaumes.
 
 ### Étape 2 : le combat du héros
@@ -132,14 +157,15 @@ npm run dev        # http://localhost:5173
 
 | Commande | Rôle |
 | --- | --- |
-| `npm test` | 115 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, histoire, assets, script d'assets contre un faux wiki |
-| `npm run test:e2e` | 4 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte, Flèche de feu visée ; officiers, mode action par Tab et par le zoom, attaque spéciale ; assets installés utilisés |
+| `npm test` | 119 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, missions (données, Greyhampton et Ravenmeadow jouées de bout en bout), histoire, assets, script d'assets contre un faux wiki |
+| `npm run test:e2e` | 5 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte, Flèche de feu visée ; officiers, mode action par Tab et par le zoom, attaque spéciale ; Greyhampton (briefing, points verts, scène coupée du village en flammes, répliques, objectifs) ; assets installés utilisés |
 | `npm run assets` | installe les portraits et illustrations officiels, votre musique et vos sons |
 | `npm run bench` | coût CPU d'un tick de simulation de 100 à 1000 unités, armées interarmes |
 | `npm run typecheck` | TypeScript strict (jeu, tests, configurations) |
 | `npm run build` | vérification des types puis build statique dans `dist/` (chemins relatifs) |
 
-URL : `#perf=N` pour déployer directement N soldats et mesurer (par exemple `#perf=50` ou `#perf=1000`) ;
+URL : `#mission=greyhampton` ou `#mission=ravenmeadow` pour choisir la mission (Greyhampton par défaut),
+`#skirmish` pour l'escarmouche ; `#perf=N` pour déployer directement N soldats et mesurer (par exemple `#perf=50` ou `#perf=1000`) ;
 `#showcase` pour voir les douze modèles côte à côte.
 
 ## Contrôles
@@ -168,7 +194,7 @@ reprennent la disposition de la manette.
 | Action | Espace (B) | contre-attaque quand l'ennemi frappe, repousser quand il vient de vous toucher, sinon esquive |
 | Action | clic G + D (X + A) · Espace + R (B + Y) | assistance du premier / second officier (200 SP) |
 | Action | 1–4 | capacités au viseur (SP) |
-| Divers | Entrée · P · M · F1 · F2 | commencer la bataille · pause · son · panneau développeur · test de performance |
+| Divers | Entrée · P · M · F1 · F2 | commencer la bataille (puis passer une réplique) · pause · son · panneau développeur · test de performance |
 
 ## Assets officiels
 
@@ -228,7 +254,9 @@ src/
                Random, Time
   entities/    EntityManager (ids, liste dense), Components (structure de tableaux typés, troupe et chef)
   data/        unités (dont celles de The Crusaders), capacités et compétences, officiers, factions, histoire
-               (lore, personnages, escarmouche) validées par Zod
+               (lore, personnages, escarmouche), missions de Gerald, validées par Zod
+  missions/    Mission (schéma : troupes, déclencheurs, actions), MissionDirector (système qui joue le script),
+               startMission (terrain, bâtiments, IA ennemie et alliée, déploiement)
   assets/      AssetManager (manifeste des assets officiels), sources.json (wiki, Steam, sons)
   audio/       AudioManager (musique et sons installés)
   units/       UnitFactory, UnitManager, MovementSystem (steering), LifecycleSystem, UnitStats (schémas)
@@ -243,13 +271,13 @@ src/
                HeroSystem (SP, sorts, coups et combos, contre, assistances, niveaux, statuts)
   ai/          AIKnowledge (vision), TroopAI (IA par troupes), HeroAI (choix des sorts), TacticalAI et
                AIController (IA d'une armée en bloc, tests et banc d'essai)
-  maps/        Terrain (heightmap, forêts, rochers), Noise
+  maps/        Terrain (heightmap, forêts, rochers, clairières), Props (bâtiments : emprise, combustible), Noise
   renderer/    Renderer, SceneManager, Lighting, TerrainRenderer, UnitMeshes, UnitRenderer (instancing +
                animation GPU), ProjectileRenderer, OverlayRenderer (anneaux, barres de vie dont celle du chef,
-               points de passage, visée), EffectsRenderer, picking
+               points de passage, visée, points verts), EffectsRenderer, PropRenderer (bâtiments, ballon), picking
   camera/      RTSCamera (mode tactique), HeroCamera (mode action)
   input/       KeyboardInput, MouseInput, InputManager, TroopInput (ordres aux troupes), HeroInput
-  ui/          HUD, TroopPanel, Minimap, HeroBar, BriefingScreen
+  ui/          HUD, TroopPanel, Minimap, HeroBar, BriefingScreen, DialogueBox (répliques), ObjectivePanel
   debug/       PerformanceMonitor, DebugManager (F1), GpuTimer
   scenes/      BattleScene (bataille par troupes), BattleOutcome, PerformanceTestScene (F2), ShowcaseScene
 scripts/fetch-assets.mjs  npm run assets
@@ -265,7 +293,8 @@ Principes, dépendances justifiées et journal détaillé des phases : [`docs/AR
    et esquive, SP gagnés en combattant, officiers de la troupe du héros et leurs assistances.
 3. ✅ **Troupes et contres** : les armées de Hironeiden (Gerald) et de Vellond (Lucretia), SP et compétences
    des troupes, sapeurs et pièges, mortiers, volants, forêts qui brûlent.
-4. **Missions 1 et 2 de Gerald** : Greyhampton et Ravenmeadow, objectifs et scripts.
+4. ✅ **Missions 1 et 2 de Gerald** : Greyhampton et Ravenmeadow, objectifs, scripts, alliés, décor, répliques
+   et scènes coupées.
 5. **Campagne** : choix de la campagne, briefing et choix des troupes, résultats (or, expérience), caserne
    (équipement, mercenaires, promotions), sauvegarde (IndexedDB).
 

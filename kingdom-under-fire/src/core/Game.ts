@@ -26,7 +26,14 @@ import { BattleOutcome } from '../scenes/BattleOutcome';
 import { ENEMY_TEAM, PLAYER_TEAM, setupTroopBattle, type Army } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
 import { setupShowcase } from '../scenes/ShowcaseScene';
-import { SKIRMISH_BATTLE } from '../data/story/battles';
+import { SKIRMISH_BATTLE, type BattleStory } from '../data/story/battles';
+import { MISSIONS, mission as missionById } from '../data/missions';
+import type { Mission } from '../missions/Mission';
+import type { MissionDirector, MissionFeed } from '../missions/MissionDirector';
+import { startMission } from '../missions/startMission';
+import { PropRenderer } from '../renderer/PropRenderer';
+import { DialogueBox } from '../ui/DialogueBox';
+import { ObjectivePanel } from '../ui/ObjectivePanel';
 import { BriefingScreen } from '../ui/BriefingScreen';
 import { HeroBar } from '../ui/HeroBar';
 import { HUD } from '../ui/HUD';
@@ -38,7 +45,7 @@ import type { Troop, TroopSystem } from '../troops/TroopSystem';
 import { Comp, UnitState } from '../entities/Components';
 import { GameLoop } from './GameLoop';
 import type { Simulation } from './Simulation';
-import { createBattleSimulation } from './SimulationFactory';
+import { createBattleSimulation, type BattleSimulation } from './SimulationFactory';
 import { FLY_HEIGHT } from '../units/Unit';
 import { World } from './World';
 
@@ -50,6 +57,19 @@ const TEAM_FACTIONS = ['human_alliance', 'dark_legion'];
 const PICK_RADIUS = 22;
 /** Seconds before the enemy marches on the player's deployment if it has not met him yet. */
 const ENEMY_ADVANCE = 20;
+
+/** What the page plays: a mission of a campaign (`#mission=<id>`, the first one by default) or the skirmish. */
+export type Scenario = { kind: 'mission'; mission: Mission } | { kind: 'skirmish' };
+
+export function readScenario(hash: string): Scenario {
+  const m = /#mission=([a-z0-9_]+)/.exec(hash);
+  if (m) {
+    const found = missionById(m[1]);
+    if (found) return { kind: 'mission', mission: found };
+  }
+  if (/^#(skirmish|perf=|showcase)/.test(hash)) return { kind: 'skirmish' };
+  return { kind: 'mission', mission: MISSIONS[0] };
+}
 
 /** Browser orchestrator: owns the renderer, the loop, the input, the UI and the simulation. */
 export class Game {
@@ -63,6 +83,18 @@ export class Game {
   readonly heroes: HeroSystem;
   readonly troops: TroopSystem;
   readonly ai: TroopAI;
+  readonly scenario: Scenario;
+  /** Story shown by the briefing and the HUD (the mission, or the skirmish). */
+  readonly story: BattleStory;
+  /** Script of the mission (null in the skirmish). */
+  readonly director: MissionDirector | null;
+  private readonly props: PropRenderer;
+  private readonly dialogue: DialogueBox;
+  private readonly objectives: ObjectivePanel | null;
+  /** A cutscene holds the battle while its lines play. */
+  cutscene = false;
+  /** The hero's troop was in melee at the last frame (action mode starts when it engages). */
+  private heroEngaged = false;
   /** Units deployed at the start of the battle. */
   readonly armies: { player: Army; enemy: Army };
   /** Troops deployed at the start of the battle (the hero's first). */
@@ -104,24 +136,53 @@ export class Game {
     readonly assets: AssetManager,
   ) {
     this.renderer = new Renderer(canvas);
-    this.terrain = Terrain.generate({ size: MAP_SIZE, seed: 20260925 });
+    this.scenario = readScenario(location.hash);
+    const feed: MissionFeed = {
+      say: (speaker, text) => this.dialogue.say(speaker, text),
+      cutscene: (x, z) => this.startCutscene(x, z),
+      flyover: (from, to, seconds) => this.props.flyover(from.x, from.z, to.x, to.z, seconds),
+    };
+    let battle: BattleSimulation;
+    if (this.scenario.kind === 'mission') {
+      const m = startMission(this.scenario.mission, feed, { hz: SIM_HZ, perf: this.perf });
+      this.terrain = m.terrain;
+      this.world = m.world;
+      battle = m.battle;
+      this.ai = m.enemyAI;
+      this.director = m.director;
+      this.story = this.scenario.mission;
+      const all = [...m.director.troopOf.values()];
+      const hero = m.director.hero;
+      const player = all.filter((t) => t.team === PLAYER_TEAM && t.controller === 'player').sort((a, b) => Number(b.leader === hero) - Number(a.leader === hero));
+      const enemy = all.filter((t) => t.team === ENEMY_TEAM);
+      this.deployed = { player, enemy };
+      this.armies = {
+        player: { team: PLAYER_TEAM, units: player.flatMap((t) => t.members) },
+        enemy: { team: ENEMY_TEAM, units: enemy.flatMap((t) => t.members) },
+      };
+      // The script decides the victory; the player loses if his hero falls or his troops break.
+      this.outcome = new BattleOutcome(PLAYER_TEAM, { troops: battle.troops, hero }, false);
+    } else {
+      this.terrain = Terrain.generate({ size: MAP_SIZE, seed: 20260925 });
+      this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
+      this.ai = new TroopAI(this.world, { team: ENEMY_TEAM });
+      battle = createBattleSimulation(this.world, [this.ai], this.perf);
+      this.ai.heroes = battle.heroes;
+      this.ai.troops = battle.troops;
+      this.director = null;
+      this.story = SKIRMISH_BATTLE;
+      const setup = setupTroopBattle(this.world, battle.troops, MAP_SIZE);
+      this.armies = { player: setup.player, enemy: setup.enemy };
+      this.deployed = { player: setup.playerTroops, enemy: setup.enemyTroops };
+      // The enemy knows where the player deploys, not where his troops are.
+      this.ai.stance = { kind: 'advance', x: setup.objective.x, z: setup.objective.z, after: ENEMY_ADVANCE };
+      this.outcome = new BattleOutcome(PLAYER_TEAM, { troops: battle.troops, hero: setup.hero });
+    }
     const heightAt = (x: number, z: number) => this.terrain.heightAt(x, z);
-
-    this.world = new World({ seed: 1337, hz: SIM_HZ, terrain: this.terrain, perf: this.perf });
-    this.ai = new TroopAI(this.world, { team: ENEMY_TEAM });
-    const battle = createBattleSimulation(this.world, [this.ai], this.perf);
     this.simulation = battle.simulation;
     this.formations = battle.formations;
     this.heroes = battle.heroes;
     this.troops = battle.troops;
-    this.ai.heroes = battle.heroes;
-    this.ai.troops = battle.troops;
-    const setup = setupTroopBattle(this.world, this.troops, MAP_SIZE);
-    this.armies = { player: setup.player, enemy: setup.enemy };
-    this.deployed = { player: setup.playerTroops, enemy: setup.enemyTroops };
-    // The enemy knows where the player deploys, not where his troops are.
-    this.ai.stance = { kind: 'advance', x: setup.objective.x, z: setup.objective.z, after: ENEMY_ADVANCE };
-    this.outcome = new BattleOutcome(PLAYER_TEAM, { troops: this.troops, hero: setup.hero });
     this.units = new UnitManager(this.world);
 
     const teamColors = TEAM_FACTIONS.map((id) => new THREE.Color(faction(id).color));
@@ -130,9 +191,14 @@ export class Game {
     this.effects = new EffectsRenderer(this.world, heightAt);
     this.missiles = new ProjectileRenderer(this.world);
     const terrainRenderer = new TerrainRenderer(this.terrain);
-    this.world.events.on('fireCell', ({ cell, burning }) => terrainRenderer.burnCell(cell, burning));
+    this.props = new PropRenderer(this.world.props, heightAt, this.world.fire.cols);
+    this.world.events.on('fireCell', ({ cell, burning }) => {
+      terrainRenderer.burnCell(cell, burning);
+      this.props.burnCell(cell, burning);
+    });
     this.scenes.scene.add(
       terrainRenderer.group,
+      this.props.group,
       this.unitRenderer.group,
       this.overlay.group,
       this.effects.group,
@@ -151,7 +217,9 @@ export class Game {
     this.input = new InputManager(canvas);
 
     const world = this.world;
-    this.hud = new HUD(ui, this.units, this.troops, TEAM_FACTIONS, SKIRMISH_BATTLE, assets);
+    this.hud = new HUD(ui, this.units, this.troops, TEAM_FACTIONS, this.story, assets, this.nextMission());
+    this.dialogue = new DialogueBox(ui, (id) => this.assets.portrait(id));
+    this.objectives = this.director ? new ObjectivePanel(ui, this.director) : null;
     this.audio = new AudioManager(assets);
     this.audio.attach(world, () => this.rtsCamera.target);
     const pickGround = (x: number, y: number) => this.picker.pick(x, y, this.projector.width, this.projector.height);
@@ -195,6 +263,7 @@ export class Game {
       troops: this.troops,
       team: PLAYER_TEAM,
       selected: () => this.troopInput.selected,
+      markers: () => this.markers(),
       view: () => {
         const direct = this.heroInput.direct;
         if (direct >= 0) return { x: world.c.x[direct], z: world.c.z[direct], facing: this.heroCamera.aim };
@@ -207,7 +276,7 @@ export class Game {
       },
       onOrder: (x, z, queue, all) => this.troopInput.moveTo(x, z, queue, all),
     });
-    const first = setup.playerTroops[0];
+    const first = this.deployed.player[0];
     this.troopInput.select(first, false);
     this.lookBehind(first, true);
 
@@ -242,7 +311,11 @@ export class Game {
     // The battle waits for the player to read the briefing (the scene keeps rendering behind it).
     this.loop.paused = true;
     new BriefingScreen(this.ui, {
-      story: SKIRMISH_BATTLE,
+      story: this.story,
+      missions: [
+        ...MISSIONS.map((m) => ({ hash: `#mission=${m.id}`, label: `${m.order}. ${m.title}`, current: this.scenario.kind === 'mission' && this.scenario.mission.id === m.id })),
+        { hash: '#skirmish', label: 'Escarmouche', current: this.scenario.kind === 'skirmish' },
+      ],
       portrait: (id) => this.assets.portrait(id),
       artwork: this.assets.artwork(),
       credits: this.assets.credits(),
@@ -251,6 +324,43 @@ export class Game {
         this.audio.play('horn');
       },
     });
+  }
+
+  /**
+   * The official guide: when the hero's troop engages the enemy in melee, the hero's battle mode starts.
+   * Here, when the player is looking at that troop (it is the chosen one), once per engagement.
+   */
+  private autoActionMode(): void {
+    const hero = this.heroInput.hero();
+    const troop = hero ? this.troops.of(hero.id) : undefined;
+    const engaged = troop?.status === 'fighting';
+    if (engaged && !this.heroEngaged && !this.cutscene && this.heroInput.direct < 0 && this.troopInput.troop() === troop && !this.loop.paused) {
+      this.heroInput.toggleDirect();
+    }
+    this.heroEngaged = engaged;
+  }
+
+  /** The mission after this one in its campaign, if any. */
+  private nextMission(): string | null {
+    if (this.scenario.kind !== 'mission') return null;
+    const { campaign, order } = this.scenario.mission;
+    const next = MISSIONS.find((m) => m.campaign === campaign && m.order === order + 1);
+    return next ? `#mission=${next.id}` : null;
+  }
+
+  /** Green spots of the active objectives. */
+  private markers(): { x: number; z: number; radius: number }[] {
+    return (this.director?.objectives ?? []).filter((o) => o.state === 'active' && o.marker).map((o) => o.marker!);
+  }
+
+  /** A cutscene: the battle waits, the camera shows the place while the lines are spoken. */
+  private startCutscene(x: number, z: number): void {
+    if (this.heroInput.direct >= 0) this.heroInput.toggleDirect();
+    this.follow = -1;
+    this.rtsCamera.focus(x, z, 55);
+    this.cutscene = true;
+    this.loop.paused = true;
+    document.body.classList.add('cutscene');
   }
 
   /** F2: stress test with the next unit count (the AI is switched off, both armies charge). */
@@ -343,6 +453,7 @@ export class Game {
     const direct = this.heroInput.direct;
     const camera = this.rtsCamera.camera;
     if (direct < 0) this.troopInput.update();
+    this.autoActionMode();
     const followed = this.troops.get(this.follow);
     if (followed && followed.status !== 'defeated' && followed.status !== 'routing') {
       const p = this.centre(followed);
@@ -376,9 +487,20 @@ export class Game {
     this.unitRenderer.update(this.world, alpha, dt, this.rtsCamera.camera, this.time);
     this.overlay.update(this.world, alpha, dt, chosen?.members ?? [], PLAYER_TEAM);
     this.overlay.traps(this.world.traps, PLAYER_TEAM);
-    this.effects.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
+    // A cutscene holds the battle, not the flames and smoke it shows.
+    this.effects.update(this.loop.paused && !this.cutscene ? 0 : dt * this.loop.timeScale);
     this.missiles.update(this.world, alpha, this.loop.paused ? 0 : dt * this.loop.timeScale);
-    this.hud.update(this.perfTest.current === null ? this.outcome.update(this.world) : null, direct >= 0 ? 'action' : 'tactic', chosen?.name ?? null);
+    this.dialogue.update(dt);
+    if (this.cutscene && !this.dialogue.busy) {
+      this.cutscene = false;
+      this.loop.paused = false;
+      document.body.classList.remove('cutscene');
+    }
+    this.props.update(this.loop.paused ? 0 : dt * this.loop.timeScale);
+    this.overlay.objectives(this.markers(), this.time);
+    this.objectives?.update();
+    const outcome = this.perfTest.current !== null ? null : (this.director?.outcome ?? this.outcome.update(this.world));
+    this.hud.update(outcome, direct >= 0 ? 'action' : 'tactic', chosen?.name ?? null, this.director?.outcomeText ?? null);
     this.heroBar.update();
     this.troopPanel.update();
     this.minimap.update(dt);

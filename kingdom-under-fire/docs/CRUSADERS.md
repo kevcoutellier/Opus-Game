@@ -23,12 +23,27 @@ domaines permettrait de compléter et de corriger ce document.
 
 ### Missions de Gerald
 
-1. Greyhampton : rejoindre deux points verts sur la carte ; une scène au village ; combat contre les elfes
-   noirs (confirmé). Le raid sur Greyhampton est le fait des humains (à vérifier).
-2. Ravenmeadow : première grande bataille. L'ordre est de rejoindre le mur pour sauver les sapeurs, mais Gerald
-   arrive toujours trop tard. Il faut affronter une troupe d'infanterie et une troupe d'archers ennemies, en
-   formation serrée. Pas de sort de soin avant la fin de cette bataille ; il faut chercher et tuer vite les
-   chefs ennemis (à vérifier).
+1. **Greyhampton** (confirmé par deux guides et un résumé de partie) : Gerald patrouille vers Greyhampton ; en
+   chemin, un ballon dirigeable des nains (*Battaloon*) passe au-dessus de l'armée ; il faut rejoindre deux
+   points verts sur la carte ; une scène coupée montre le village en ruine et en flammes ; Rithrin et ses elfes
+   noirs sont tout près, Gerald en conclut que la Légion a fait le coup ; brève escarmouche, puis Gerald fait
+   son rapport à ses supérieurs. Le village a en fait été rasé par l'armée humaine de **Walter**, qui a
+   maquillé le massacre en raid d'elfes noirs : l'accusation de Gerald repose sur un coup monté (probable :
+   article Walter du wiki, lu à travers un moteur de recherche).
+2. **Ravenmeadow** (confirmé par le guide Steam de la campagne de Gerald, à vérifier pour le détail) : première
+   grande bataille de Gerald. L'ordre est de rejoindre le mur pour sauver les sapeurs, mais Gerald arrive
+   toujours trop tard, quoi qu'il fasse. Il faut affronter une troupe d'infanterie et une troupe d'archers,
+   en formation serrée ; la forêt au nord atténue leurs flèches. Deux troupes ennemies attaquent des archers
+   alliés près de la rive : une fois sauvés, ils rejoignent Gerald. La cavalerie ennemie attend au point de
+   passage suivant (les lanciers la tiennent, l'infanterie la prend de flanc). Gerald n'a aucun sort de soin
+   avant la fin de cette bataille : il faut chercher et tuer vite les chefs ennemis. Rithrin commande les
+   archers de Ravenmeadow.
+
+   **Dans le clone** : cartes, effectifs, positions, minutages et répliques sont reconstitués ; seuls les
+   enchaînements ci-dessus viennent des sources. Nos cartes n'ont pas d'eau : la rive de Ravenmeadow devient le
+   flanc est. Le relief et les bois sont générés : la forêt au nord n'est pas placée (les bois
+   atténuent néanmoins les flèches partout, ×0,6). Le guide ne dit pas si la mission échoue quand les sapeurs tombent : ici l'objectif est raté et
+   la bataille continue.
 3. Greywood · 4. Glaucus (la vanne du barrage sur la rivière Glaucus ; le général Hugh, figure paternelle de
    Gerald et de Rupert, est attaqué par Lucretia) · 5. Woodenshade · 6. Rose Rain · 7. Halmoral ·
    8. Stormdeen · 9. Outer Hironeiden · 10. Posterus Green · 11. Nymphbarren (à vérifier).
@@ -137,7 +152,8 @@ affiche la correspondance clavier (confirmé). Les touches par défaut : **incon
 
 - Attaque, défense, cadences et portées des troupes ; formules de dégâts ; contres chiffrés.
 - Effet exact de la mort d'un chef de troupe ; présence d'un moral.
-- Cartes, déploiements, scripts et objectifs des missions au-delà des deux premières de Gerald.
+- Cartes, déploiements, scripts et objectifs des missions au-delà des deux premières de Gerald ; pour ces deux-là,
+  le relief exact, les effectifs et les répliques.
 - Liste des officiers et de leurs assistances, capacités des troupes ; SP gagnés par coup et par victime.
 - Durées, dégâts et fenêtres de timing des coups du héros (combos, contre, Smash).
 - Disposition exacte de l'interface (HUD de bataille, minicarte, écrans de caserne et de briefing).
@@ -160,3 +176,6 @@ affiche la correspondance clavier (confirmé). Les touches par défaut : **incon
 - [Contrôles clavier — Magic Game World](https://guides.magicgameworld.com/kingdom-under-fire-the-crusaders-pc-keyboard-controls-guide/)
 - [Steam — page du jeu](https://store.steampowered.com/app/1121420/Kingdom_Under_Fire_The_Crusaders/)
 - Discussions Steam sur les troupes, la caserne et l'équipement des officiers (app 1121420).
+- [Kingdom Under Fire Wiki — Walter](https://kingdomunderfire.fandom.com/wiki/Walter) (le massacre de Greyhampton)
+- [YouTube — Kingdom Under Fire The Crusaders PC HD](https://www.youtube.com/watch?v=8keReEckW_s) et
+  [liste de lecture de la campagne de Gerald](https://www.youtube.com/playlist?list=PLXTkpTjoYXxKIRK2Wk4xAalt6iJRuomQ-)

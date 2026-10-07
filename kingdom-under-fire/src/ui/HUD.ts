@@ -23,6 +23,8 @@ const HELP = [
   ['Espace (B)', 'quand l’ennemi frappe : contre-attaque · quand il vient de vous toucher : repousser · sinon : esquive'],
   ['Clic G + D / Espace + R', 'assistance d’un officier (X + A / B + Y, 200 SP) · SP gagnés en combattant'],
   ['Tuer le chef', 'une troupe dont le chef tombe se débande et quitte le champ de bataille'],
+  ['Points verts', 'lieux à rejoindre (objectifs en haut à droite, aussi sur la minicarte)'],
+  ['Entrée / clic', 'passer une réplique'],
   ['P / M', 'pause · couper le son'],
   ['F1 / F2', 'panneau développeur · test de performance'],
 ];
@@ -43,6 +45,8 @@ export class HUD {
     teamFactions: string[],
     private readonly story: BattleStory,
     assets: AssetManager,
+    /** Hash of the next mission of the campaign (offered after a victory), or null. */
+    private readonly next: string | null = null,
   ) {
     const emblem = (team: number) => {
       const url = assets.emblem(teamFactions[team]);
@@ -71,13 +75,22 @@ export class HUD {
     root.append(top, help, this.mode, this.banner);
   }
 
-  update(outcome: Outcome, mode: BattleMode, troop: string | null): void {
+  update(outcome: Outcome, mode: BattleMode, troop: string | null, outcomeText: string | null = null): void {
     if (outcome && this.banner.hidden) {
       this.banner.hidden = false;
+      const next = outcome === 'victory' && this.next ? '<button type="button" class="next">Mission suivante</button>' : '';
       this.banner.innerHTML = `<div class="title">${outcome === 'victory' ? 'Victoire' : 'Défaite'}</div><p>${
-        outcome === 'victory' ? this.story.victory : this.story.defeat
-      }</p><button type="button">Rejouer la bataille</button>`;
-      this.banner.querySelector('button')!.onclick = () => location.reload();
+        outcomeText ?? (outcome === 'victory' ? this.story.victory : this.story.defeat)
+      }</p><button type="button" class="again">Rejouer</button>${next}`;
+      this.banner.querySelector<HTMLButtonElement>('.again')!.onclick = () => location.reload();
+      const button = this.banner.querySelector<HTMLButtonElement>('.next');
+      if (button && this.next) {
+        const hash = this.next;
+        button.onclick = () => {
+          location.hash = hash;
+          location.reload();
+        };
+      }
     }
     const side = (team: number) => {
       const n = this.troops.list(team, true).length;

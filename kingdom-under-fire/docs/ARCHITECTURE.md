@@ -69,6 +69,7 @@ F1 maison suffit).
 | C4a Armées | Troupes de Hironeiden et de Vellond en données (`data/units/crusaders.ts`, PV du guide officiel ÷ 3), Gerald, Lucretia, Rupert, Ellen, Morene, Cirith, 14 nouveaux modèles procéduraux, escarmouche | ✅ |
 | C4b Compétences | SP des troupes (coups, victimes, chefs), commande `troopSkill`, compétences de The Crusaders, `FireGrid` + `FireSystem` (feu de forêt), `TrapSystem`, effets `ignite` et `trap`, flammes, arbres calcinés, pièges visibles de leur camp, IA qui les emploie | ✅ |
 | C4c Contres | Volants (`flying` : couche à part pour les lames, les charges, le feu, les pièges et les flèches ; altitude, ailes animées), mortiers à éclats sans tir anti-aérien, tir au galop vers la gauche, lances qui immobilisent, régénération en forêt et résistance à la magie des elfes | ✅ |
+| C5 Missions | Missions décrites en données (`missions/Mission.ts`, Zod : troupes, déclencheurs, actions), `MissionDirector` (système qui lit les déclencheurs et joue les actions), bâtiments (`maps/Props.ts`, `PropRenderer` : maisons, huttes, murs, tours, tentes, palissades qui occupent la grille et brûlent), ballon dirigeable, troupes `player` / `ai` dans le même camp (alliés, ralliements), dialogues, objectifs et points verts, scènes coupées ; Greyhampton et Ravenmeadow | ✅ |
 
 ### Équité de la simulation
 
@@ -121,6 +122,25 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
   effets des capacités des héros (`HeroSystem.applyEffect`).
 - **Les SP viennent des événements.** `HeroSystem` écoute `unitHit` : un coup porté par un héros (hors sort)
   et chaque victime lui rapportent des SP, ses coups automatiques en mode tactique compris.
+- **Une mission est une donnée.** `src/data/missions/gerald.ts` décrit la carte (graine, clairières, bâtiments),
+  les troupes (camp joueur, allié ou ennemi, en réserve ou non, posture de l'IA) et le script : des événements
+  « quand → faire ». Les déclencheurs sont des faits de la simulation (un lieu atteint, des troupes brisées
+  ou vues par les soldats du joueur, un délai après un autre événement) ; les actions sont des commandes
+  (renforts, posture, ralliement, feu, fin de mission) ou des messages à l'interface (répliques, scène coupée,
+  survol du ballon). `parseMission` refuse un script qui nomme une troupe ou un événement inconnus.
+- **Le metteur en scène est un système.** `MissionDirector` tourne dans la boucle à pas fixe, avant l'IA, et
+  lit ses déclencheurs toutes les 0,25 s de temps simulé : le script est déterministe et rejouable comme le
+  reste. Il ne parle à l'interface que par `MissionFeed` (dire, scène coupée, survol) ; les tests le jouent
+  sans navigateur.
+- **Contrôleur et camp sont distincts.** Une troupe a un camp (`team`) et un `controller` : `player` ou `ai`.
+  Les alliés sont des troupes du camp du joueur menées par une seconde `TroopAI` ; l'action `join` les passe au
+  joueur (les archers sauvés de Ravenmeadow). Ordres, choix des troupes, panneau et fin de bataille ne
+  regardent que les troupes `player`.
+- **Les bâtiments sont des obstacles et du combustible.** `placeProps` marque leur emprise dans la `NavGrid`
+  (les flow fields les contournent) et dans la `FireGrid` (une maison brûle comme un bois dense). Le rendu
+  colore chaque bâtiment d'après les cellules en feu sous lui, puis le laisse calciné.
+- **Une scène coupée met la bataille en pause.** La simulation s'arrête, la caméra montre le lieu, les répliques
+  défilent en temps réel (clic ou Entrée pour passer) et les effets (flammes, fumée) continuent de jouer.
 
 - **La troupe est une couche au-dessus des formations.** `TroopSystem` ne déplace aucun soldat : il traduit
   les ordres de troupe en ordres de formation (`FormationManager.orderMove`, `orderAttack`, `orderHold`) et

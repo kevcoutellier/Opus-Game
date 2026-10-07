@@ -26,6 +26,8 @@ export interface Troop {
   readonly leader: number;
   /** Led by a hero (the player's own troop, or an enemy hero's). */
   readonly hero: boolean;
+  /** Who gives its orders: the player, or an AI (the enemy, and the player's allies until they join him). */
+  controller: 'player' | 'ai';
   /** Soldiers still on the field, the leader included. */
   members: number[];
   readonly initialSize: number;
@@ -62,6 +64,8 @@ export interface TroopSpec {
   facing: number;
   formation?: FormationType;
   columns?: number;
+  /** Who gives its orders (an AI by default). */
+  controller?: 'player' | 'ai';
 }
 
 /** A captain is a seasoned soldier of the troop's type: much tougher, steadier and harder-hitting. */
@@ -168,9 +172,14 @@ export class TroopSystem implements System {
     return this.troops.get(id);
   }
 
-  /** Troops of a team (all teams when omitted), defeated ones included unless `standing`. */
-  list(team?: number, standing = false): Troop[] {
-    return [...this.troops.values()].filter((t) => (team === undefined || t.team === team) && (!standing || (t.status !== 'defeated' && t.status !== 'routing')));
+  /** Troops of a team (all teams when omitted), defeated ones included unless `standing`; `controller` filters. */
+  list(team?: number, standing = false, controller?: 'player' | 'ai'): Troop[] {
+    return [...this.troops.values()].filter(
+      (t) =>
+        (team === undefined || t.team === team) &&
+        (!standing || (t.status !== 'defeated' && t.status !== 'routing')) &&
+        (controller === undefined || t.controller === controller),
+    );
   }
 
   /** Troop of a unit, or undefined. */
@@ -226,6 +235,7 @@ export class TroopSystem implements System {
       soldierType: spec.soldierType,
       leader,
       hero: UNIT_DEFS[c.unitType[leader]].role === 'hero',
+      controller: spec.controller ?? 'ai',
       members: [leader, ...officers, ...soldiers],
       initialSize: soldiers.length + officers.length + 1,
       waypoints: [],
@@ -373,7 +383,7 @@ export class TroopSystem implements System {
 
   /** The whole army marches to (x, z), its troops side by side across the direction of march. */
   private moveAll(team: number, x: number, z: number): void {
-    const troops = this.list(team, true);
+    const troops = this.list(team, true, 'player');
     if (!troops.length) return;
     const { c } = this.world;
     let cx = 0;

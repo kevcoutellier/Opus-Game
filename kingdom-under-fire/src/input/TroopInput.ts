@@ -68,7 +68,7 @@ export class TroopInput {
         if (button === MouseButton.Left) {
           const unit = d.pickUnit(x, y, 'own');
           const troop = unit >= 0 && d.world.c.team[unit] === d.team ? d.troops.of(unit) : undefined;
-          if (troop && troop.status !== 'defeated') this.select(troop, false);
+          if (troop && troop.status !== 'defeated' && troop.controller === 'player') this.select(troop, false);
         } else if (button === MouseButton.Right) {
           this.order(x, y);
         }
@@ -79,12 +79,12 @@ export class TroopInput {
   /** The chosen troop, if it can still take orders. */
   troop(): Troop | null {
     const t = this.d.troops.get(this.selected);
-    return t && t.status !== 'defeated' && t.status !== 'routing' ? t : null;
+    return t && t.status !== 'defeated' && t.status !== 'routing' && t.controller === 'player' ? t : null;
   }
 
   /** The player's troops that can take orders, in deployment order. */
   standing(): Troop[] {
-    return this.d.troops.list(this.d.team, true);
+    return this.d.troops.list(this.d.team, true, 'player');
   }
 
   select(troop: Troop, focus: boolean): void {

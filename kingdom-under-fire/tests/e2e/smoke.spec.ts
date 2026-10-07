@@ -26,7 +26,7 @@ async function waitFrames(page: Page, count: number): Promise<void> {
 
 test('the battle scene boots behind the briefing, renders and logs no error', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('/#skirmish');
   await expect(page.getByText('Escarmouche à la frontière').first()).toBeVisible();
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   // The simulation waits for the player.
@@ -43,7 +43,7 @@ test('the battle scene boots behind the briefing, renders and logs no error', as
 
 test('the player commands troops: Q / E choose one, right click marches, Shift adds a waypoint on the minimap', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('/#skirmish');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
   await expect(page.locator('.troop-card')).toHaveCount(6);
@@ -56,8 +56,10 @@ test('the player commands troops: Q / E choose one, right click marches, Shift a
   await expect.poll(() => game(page, 'g.follow')).toBe(ids[1]);
   await page.keyboard.press('KeyQ');
   await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[0]);
-  // A click on a soldier of the archers chooses their troop.
-  await game(page, 'g.rtsCamera.focus(128, 182, 60, true)');
+  // A click on a soldier of the archers chooses their troop. The camera stops following the hero's troop and
+  // ends its turn behind it at once: screen points projected on one frame must still be under the cursor
+  // when the click lands.
+  await game(page, '(g.follow = -1, g.rtsCamera.turnTo(g.rtsCamera.goalYaw, true), g.rtsCamera.focus(128, 182, 60, true))');
   await waitFrames(page, 2);
   const archer = (await game(
     page,
@@ -92,7 +94,7 @@ test('the player commands troops: Q / E choose one, right click marches, Shift a
 
 test('the hero: his officers, action mode by Tab and by the zoom, the special attack', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('/#skirmish');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
   await expect(page.locator('.hero-bar')).toBeVisible();
@@ -125,6 +127,37 @@ test('the hero: his officers, action mode by Tab and by the zoom, the special at
   await game(page, 'g.heroCamera.zoom(40)');
   await page.mouse.wheel(0, 200);
   await expect.poll(() => game(page, 'g.heroInput.direct'), { timeout: 60_000 }).toBe(-1);
+  expect(errors).toEqual([]);
+});
+
+test('Greyhampton: the briefing, the green spots, the burning village, the dialogue and the objectives', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await expect(page.locator('.briefing h1')).toHaveText('Greyhampton');
+  await expect(page.locator('.briefing-missions a')).toHaveCount(3);
+  await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
+  await page.getByRole('button', { name: 'Commencer la bataille' }).click();
+  await expect(page.locator('.objectives li')).toHaveCount(2);
+  await expect(page.locator('.dialogue')).toContainText('Gerald');
+  expect(await game(page, 'g.world.props.length')).toBeGreaterThan(8);
+  // March the guard through both green spots (the simulation is stepped here, faster than the page).
+  await game(
+    page,
+    `(() => { const t = g.deployed.player[0]; const step = (s) => { for (let i = 0; i < s * 30; i++) g.simulation.step(1 / 30); };
+      g.world.commands.push({ kind: 'troopMove', team: 0, troop: t.id, x: 128, z: 176, queue: false }); step(40);
+      g.world.commands.push({ kind: 'troopMove', team: 0, troop: t.id, x: 128, z: 134, queue: false }); step(30); return 0; })()`,
+  );
+  await expect.poll(() => game(page, `g.director.firedAt('village') !== undefined`)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.body.classList.contains('cutscene'))).toBe(true);
+  await expect(page.locator('.dialogue')).toBeVisible();
+  // Enter skips the lines; the battle resumes when they are spoken.
+  for (let k = 0; k < 8 && (await page.evaluate(() => document.body.classList.contains('cutscene'))); k++) {
+    await page.keyboard.press('Enter');
+    await waitFrames(page, 1);
+  }
+  await expect.poll(() => page.evaluate(() => document.body.classList.contains('cutscene'))).toBe(false);
+  await expect(page.locator('.objectives')).toContainText('Repousser les elfes noirs');
+  expect(await game(page, 'g.world.fire.active.size')).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 
@@ -189,7 +222,7 @@ test('uses the official assets installed by npm run assets (portraits, artwork, 
   await page.route('**/assets/manifest.json', (route) => route.fulfill({ json: manifest }));
   await page.route('**/assets/**/*.png', (route) => route.fulfill({ body: png(8, 8, [180, 40, 30]), contentType: 'image/png' }));
   await page.route('**/assets/**/*.wav', (route) => route.fulfill({ body: wav(), contentType: 'audio/wav' }));
-  await page.goto('/');
+  await page.goto('/#skirmish');
   await expect(page.locator('.commander img[alt="Gerald"]')).toHaveAttribute('src', 'assets/portraits/gerald.png');
   await expect(page.locator('.commander img[alt="Lucretia"]')).toBeVisible();
   // Characters without an installed portrait keep their heraldic crest.

@@ -391,3 +391,44 @@ body.hero-direct-mode .troop-actions, body.hero-direct-mode .help { display: non
   .troop-panel { left: 0.8rem; transform: none; max-width: calc(100vw - 15rem); }
   .troop-list { flex-wrap: wrap; }
 }
+
+/* Missions: dialogue, objectives, cutscenes, the choice of the mission */
+.dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: 9.5rem;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  max-width: 44rem;
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+}
+.dialogue[hidden] { display: none; }
+.dialogue-portrait { width: 3.2rem; height: 3.2rem; flex: none; border: 1px solid var(--panel-edge); border-radius: 0.3rem; overflow: hidden; }
+.dialogue-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.dialogue-portrait .crest { width: 100%; height: 100%; display: grid; place-items: center; font-family: 'Cinzel', serif; color: var(--gold); background: radial-gradient(circle, #3a2f1d, #16120c); }
+.dialogue-text b { font-family: 'Cinzel', serif; color: var(--gold); font-size: 0.9rem; }
+.dialogue-text p { margin: 0.15rem 0 0; font-size: 1rem; line-height: 1.35; }
+.dialogue.narrator .dialogue-text p { font-style: italic; color: var(--ink-dim); }
+.objectives { position: absolute; top: 3.6rem; right: 0.8rem; max-width: 22rem; padding: 0.45rem 0.8rem; font-size: 0.88rem; }
+.objectives[hidden] { display: none; }
+.objectives .title { font-size: 0.9rem; margin-bottom: 0.2rem; }
+.objectives ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.objectives .mark { display: inline-block; width: 1.1rem; color: #6dff6d; }
+.objectives li.done { color: var(--ink-dim); text-decoration: line-through; }
+.objectives li.done .mark { color: #9be36a; }
+.objectives li.failed { color: #d98a80; }
+.objectives li.failed .mark { color: #e0483c; }
+body.cutscene #scene { filter: saturate(0.85); }
+body.cutscene::before, body.cutscene::after { content: ''; position: fixed; left: 0; right: 0; height: 9vh; background: #000; z-index: 5; pointer-events: none; }
+body.cutscene::before { top: 0; }
+body.cutscene::after { bottom: 0; }
+body.cutscene .troop-panel, body.cutscene .hero-bar, body.cutscene .minimap, body.cutscene .help, body.cutscene .top-bar, body.cutscene .objectives, body.cutscene .mode-badge { visibility: hidden; }
+body.cutscene .dialogue { z-index: 6; bottom: 11vh; }
+.briefing-missions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-bottom: 0.8rem; }
+.briefing-missions a { padding: 0.2rem 0.7rem; border: 1px solid var(--panel-edge); border-radius: 0.25rem; color: var(--ink); text-decoration: none; font-size: 0.88rem; }
+.briefing-missions a:hover { border-color: var(--gold); }
+.briefing-missions a.current { background: rgba(160, 120, 50, 0.95); color: #1b160f; font-weight: 700; }
+.outcome button + button { margin-left: 0.6rem; }

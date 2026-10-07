@@ -9,6 +9,9 @@ import type { Attack, DamageSystem } from './DamageSystem';
 /** Height (m above the ground) where a missile leaves the bow and where it strikes a body. */
 const LAUNCH_HEIGHT = 1.45;
 const TORSO_HEIGHT = 1.1;
+/** In woods denser than this, arrows lose part of their bite. */
+const FOREST_COVER = 0.35;
+const FOREST_ARROWS = 0.6;
 /** A missile landing this close to a body's edge hits it. */
 const HIT_TOLERANCE = 0.3;
 
@@ -240,7 +243,8 @@ export class ProjectileSystem implements System {
         this.hits.push({
           attacker: entities.isAlive(attacker) ? attacker : -1,
           target: struck,
-          damage: pool.damage[i],
+          // Arrows carry less in the woods (the trees take part of them).
+          damage: pool.damage[i] * (world.terrain.forestAt(c.x[struck], c.z[struck]) > FOREST_COVER ? FOREST_ARROWS : 1),
           damageType: DAMAGE_TYPES[pool.damageType[i]],
           timestamp: world.time.elapsed,
           x: x - (dx / len) * 2,
