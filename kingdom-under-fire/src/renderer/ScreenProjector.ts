@@ -1,7 +1,13 @@
 import * as THREE from 'three';
-import type { ScreenPoint } from '../selection/SelectionManager';
+/** Screen position of a world point (CSS pixels). */
+export interface ScreenPoint {
+  x: number;
+  y: number;
+  /** In front of the camera and inside the viewport. */
+  visible: boolean;
+}
 
-/** Projects world points to CSS pixels for selection and UI anchoring. */
+/** Projects world points to CSS pixels for picking and UI anchoring. */
 export class ScreenProjector {
   private readonly v = new THREE.Vector3();
   private readonly out: ScreenPoint = { x: 0, y: 0, visible: false };

@@ -63,6 +63,8 @@ export function spawnUnit(world: World, type: number, team: number, x: number, z
   c.formation[id] = NO_ENTITY;
   c.slot[id] = NO_ENTITY;
   c.team[id] = team;
+  c.troop[id] = NO_ENTITY;
+  c.leader[id] = 0;
   c.unitType[id] = type;
   c.state[id] = UnitState.Idle;
   c.stateTime[id] = 0;

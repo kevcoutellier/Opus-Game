@@ -29,6 +29,10 @@ export interface SimEvents extends EventMap {
   heroLevelUp: { id: number; level: number };
   heroControl: { id: number; direct: boolean };
   heroDodged: { id: number };
+  /** A troop lost its leader: its soldiers flee the field. */
+  troopRouted: { troop: number; team: number };
+  /** A troop has no soldier left on the field. */
+  troopDefeated: { troop: number; team: number };
 }
 
 export interface WorldOptions {

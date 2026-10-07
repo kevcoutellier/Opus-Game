@@ -41,36 +41,43 @@ test('the battle scene boots behind the briefing, renders and logs no error', as
   expect(errors).toEqual([]);
 });
 
-test('the player selects the army with a drag, draws a front and the formation marches', async ({ page }) => {
+test('the player commands troops: Q / E choose one, right click marches, Shift adds a waypoint on the minimap', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
-  await game(page, 'g.rtsCamera.focus(134, 176, 75, true)');
+  await expect(page.locator('.troop-card')).toHaveCount(4);
+  const ids = (await game(page, 'g.deployed.player.map((t) => t.id)')) as number[];
+  // The hero's troop is chosen first; E chooses the next one and the camera follows it.
+  await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[0]);
+  await page.keyboard.press('KeyE');
+  await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[1]);
+  await expect(page.locator('.troop-card.selected')).toContainText('Lanciers');
+  await expect.poll(() => game(page, 'g.follow')).toBe(ids[1]);
+  await page.keyboard.press('KeyQ');
+  await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[0]);
+  // A click on a soldier of the archers chooses their troop.
+  await game(page, 'g.rtsCamera.focus(128, 182, 60, true)');
   await waitFrames(page, 2);
-  // Screen bounding box of the player's army.
-  const box = (await game(
+  const archer = (await game(
     page,
-    `(() => { const xs = [], ys = []; for (const id of g.armies.player.units) { const p = g.projector.project(g.world.c.x[id], 1, g.world.c.z[id]); xs.push(p.x); ys.push(p.y); } return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; })()`,
+    `(() => { const t = g.deployed.player[2]; const id = t.members[t.members.length - 1]; const p = g.projector.project(g.world.c.x[id], g.terrain.heightAt(g.world.c.x[id], g.world.c.z[id]) + 1.1, g.world.c.z[id]); return [p.x, p.y]; })()`,
   )) as number[];
-  await page.mouse.move(box[0] - 25, box[1] - 25);
-  await page.mouse.down();
-  await page.mouse.move(box[2] + 25, box[3] + 25, { steps: 6 });
-  await page.mouse.up();
-  await expect.poll(() => game(page, 'g.selection.size')).toBe(await game(page, 'g.armies.player.units.length'));
+  await page.mouse.click(archer[0], archer[1]);
+  await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[2]);
 
-  // Right-drag a front ahead of the army.
-  const view = page.viewportSize()!;
-  await page.mouse.move(view.width * 0.4, view.height * 0.3);
-  await page.mouse.down({ button: 'right' });
-  await page.mouse.move(view.width * 0.6, view.height * 0.3, { steps: 6 });
-  await page.mouse.up({ button: 'right' });
-  // The whole army forms one formation.
-  await expect
-    .poll(() => game(page, `new Set(g.armies.player.units.map((id) => g.world.c.formation[id])).size === 1 && g.world.c.formation[g.armies.player.units[0]] >= 0`))
-    .toBe(true);
-  const startZ = (await game(page, 'g.world.c.z[0]')) as number;
-  await expect.poll(() => game(page, 'g.world.c.z[0]'), { timeout: 60_000 }).toBeLessThan(startZ - 3);
+  // Right click ahead: the archers march.
+  const startZ = (await game(page, 'g.world.c.z[g.deployed.player[2].leader]')) as number;
+  const ahead = (await game(page, `(() => { const p = g.projector.project(128, g.terrain.heightAt(128, 150), 150); return [p.x, p.y]; })()`)) as number[];
+  await page.mouse.click(ahead[0], ahead[1], { button: 'right' });
+  await expect.poll(() => game(page, `g.deployed.player[2].waypoints.length`)).toBe(1);
+  // Shift + right click on the minimap: a second waypoint.
+  const map = (await page.locator('.minimap canvas').boundingBox())!;
+  await page.keyboard.down('Shift');
+  await page.mouse.click(map.x + map.width * 0.3, map.y + map.height * 0.55, { button: 'right' });
+  await page.keyboard.up('Shift');
+  await expect.poll(() => game(page, `g.deployed.player[2].waypoints.length`)).toBe(2);
+  await expect.poll(() => game(page, 'g.world.c.z[g.deployed.player[2].leader]'), { timeout: 60_000 }).toBeLessThan(startZ - 3);
   expect(errors).toEqual([]);
 });
 
@@ -86,15 +93,27 @@ test('the hero: an ability is aimed then cancelled, direct control is taken and 
   await expect.poll(() => game(page, 'g.heroInput.targeting?.slot ?? -1')).toBe(1);
   await page.keyboard.press('Escape');
   await expect.poll(() => game(page, 'g.heroInput.targeting')).toBeNull();
-  // Tab: third-person control of Curian, then back to the army.
+  // Tab: action mode with Curian (his troop becomes the chosen one), then back to tactic mode.
   const hero = (await game(page, 'g.heroes.list(0)[0].id')) as number;
+  await page.keyboard.press('KeyE');
   await page.keyboard.press('Tab');
   await expect.poll(() => game(page, 'g.heroInput.direct')).toBe(hero);
   await expect.poll(() => game(page, `g.world.c.order[${hero}]`), { timeout: 60_000 }).toBe(5);
   await expect(page.locator('.crosshair')).toBeVisible();
+  await expect(page.locator('.mode-badge')).toContainText('Mode action');
+  await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(await game(page, 'g.deployed.player[0].id'));
   await page.keyboard.press('Tab');
   await expect.poll(() => game(page, 'g.heroInput.direct')).toBe(-1);
   await expect.poll(() => game(page, `g.world.c.order[${hero}]`), { timeout: 60_000 }).not.toBe(5);
+  await expect(page.locator('.mode-badge')).toContainText('Mode tactique');
+  // Zooming all the way in on the hero's troop enters action mode, zooming out of it leaves it.
+  await game(page, 'g.rtsCamera.zoom(-40)');
+  await page.mouse.move(640, 300);
+  await page.mouse.wheel(0, -200);
+  await expect.poll(() => game(page, 'g.heroInput.direct'), { timeout: 60_000 }).toBe(hero);
+  await game(page, 'g.heroCamera.zoom(40)');
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => game(page, 'g.heroInput.direct'), { timeout: 60_000 }).toBe(-1);
   expect(errors).toEqual([]);
 });
 

@@ -166,6 +166,12 @@ export class Components {
   // Faction
   readonly team: Uint8Array;
 
+  // Troop (TroopSystem)
+  /** Troop the soldier belongs to, -1 when none. */
+  readonly troop: Int32Array;
+  /** 1 for the leader of a troop (a hero or a captain): his fall decides the troop's fate. */
+  readonly leader: Uint8Array;
+
   // Unit
   readonly unitType: Uint16Array;
   readonly state: Uint8Array;
@@ -236,6 +242,8 @@ export class Components {
     this.slotRot = f32();
     this.flow = new Int32Array(capacity).fill(NO_ENTITY);
     this.team = new Uint8Array(capacity);
+    this.troop = new Int32Array(capacity).fill(NO_ENTITY);
+    this.leader = new Uint8Array(capacity);
     this.unitType = new Uint16Array(capacity);
     this.state = new Uint8Array(capacity);
     this.stateTime = f32();

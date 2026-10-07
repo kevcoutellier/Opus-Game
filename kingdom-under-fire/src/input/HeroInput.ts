@@ -2,7 +2,6 @@ import type * as THREE from 'three';
 import type { HeroCamera } from '../camera/HeroCamera';
 import type { World } from '../core/World';
 import type { HeroState, HeroSystem } from '../heroes/HeroSystem';
-import type { SelectionManager } from '../selection/SelectionManager';
 import type { KeyboardInput } from './KeyboardInput';
 import { MouseButton, type MouseInput } from './MouseInput';
 
@@ -22,7 +21,6 @@ export interface TargetPreview {
 export interface HeroInputDeps {
   world: World;
   heroes: HeroSystem;
-  selection: SelectionManager;
   mouse: MouseInput;
   keys: KeyboardInput;
   camera: HeroCamera;
@@ -48,11 +46,11 @@ function areaOf(h: HeroState, slot: number): number {
 
 /**
  * The player's hands on his hero.
- *  - RTS view: Z X C V (or the ability bar) casts; an ability aimed at the ground shows its area under the
- *    cursor, left click casts, right click or Escape cancels.
- *  - Tab: direct third-person control. WASD walks relative to the camera, the mouse turns it (pointer
- *    locked after a click), left click strikes, right click strikes hard, Space dodges, 1–4 cast at the
- *    point in the middle of the screen, Tab or Escape gives the hero back to the army.
+ *  - Tactic mode: Z X C V (or the ability bar) casts; an ability aimed at the ground shows its area under
+ *    the cursor, left click casts, right click or Escape cancels.
+ *  - Tab: action mode, direct third-person control. WASD walks relative to the camera, the mouse turns it
+ *    (pointer locked after a click), left click strikes, right click strikes hard, Space dodges, 1–4 cast
+ *    at the point in the middle of the screen, Tab or Escape goes back to tactic mode.
  */
 export class HeroInput {
   targeting: { hero: number; slot: number } | null = null;
@@ -89,15 +87,12 @@ export class HeroInput {
     return this.targeting !== null || this.swallow || this.direct >= 0;
   }
 
-  /** The hero the controls act on: a selected hero of the player, else his first living hero. */
+  /** The hero the controls act on: the one under direct control, else the player's (living) hero. */
   hero(): HeroState | null {
-    const { heroes, selection, team } = this.d;
+    const { heroes, team } = this.d;
     if (this.direct >= 0) return heroes.get(this.direct) ?? null;
-    for (const id of selection.ids) {
-      const h = heroes.get(id);
-      if (h?.alive && h.team === team) return h;
-    }
-    return heroes.list(team)[0] ?? null;
+    const list = heroes.list(team);
+    return list.find((h) => h.alive) ?? list[0] ?? null;
   }
 
   /** Ability `slot` of the current hero: cast at once (self) or start aiming it (point). */
@@ -205,8 +200,6 @@ export class HeroInput {
       return;
     }
     if (mouse.locked) camera.mouseLook(mouse.dx, mouse.dy);
-    if (keys.isDown('KeyQ')) camera.yaw += 0.03;
-    if (keys.isDown('KeyE')) camera.yaw -= 0.03;
     if (mouse.wheel) camera.zoom(mouse.wheel);
     let forward = 0;
     let right = 0;

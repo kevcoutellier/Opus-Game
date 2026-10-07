@@ -28,34 +28,66 @@ export class FormationManager implements System {
     q.on('formationMove', (cmd) => {
       const f = this.gather(cmd.team, cmd.units, cmd.formation);
       if (!f) return;
-      if (cmd.formation) f.type = cmd.formation;
       if (cmd.width !== null) f.columns = columnsForWidth(cmd.width, f.spacing, f.size);
-      f.targetUnit = -1;
-      this.moveTo(f, cmd.x, cmd.z, cmd.facing, cmd.attackMove ? Order.AttackMove : Order.Move);
+      this.orderMove(f, cmd.x, cmd.z, cmd.facing, cmd.attackMove, cmd.formation);
     });
     q.on('attack', (cmd) => {
-      if (!this.isActiveUnit(cmd.target) || world.c.team[cmd.target] === cmd.team) return;
+      if (world.c.team[cmd.target] === cmd.team) return;
       const f = this.gather(cmd.team, cmd.units, null);
-      if (!f) return;
-      for (const id of f.members) world.c.target[id] = cmd.target;
-      f.targetUnit = cmd.target;
-      this.moveTo(f, world.c.x[cmd.target], world.c.z[cmd.target], null, Order.Attack);
+      if (f) this.orderAttack(f, cmd.target);
     });
     q.on('hold', (cmd) => {
       const f = this.gather(cmd.team, cmd.units, null);
-      if (!f) return;
-      f.moving = false;
-      f.destX = f.anchorX;
-      f.destZ = f.anchorZ;
-      this.setOrder(f, Order.Hold);
+      if (f) this.orderHold(f);
     });
     q.on('setFormation', (cmd) => {
       const f = this.gather(cmd.team, cmd.units, cmd.formation);
-      if (!f) return;
-      f.type = cmd.formation;
-      f.columns = null;
-      f.forceSolve = true;
+      if (f) this.setType(f, cmd.formation);
     });
+  }
+
+  /** The formation made of exactly these units (reused), or a new one they leave their old ones for. */
+  assemble(team: number, units: readonly number[], type: FormationType | null = null): Formation | null {
+    return this.gather(team, units, type);
+  }
+
+  /** Marches to (x, z); `attackMove` engages the enemies met on the way. */
+  orderMove(f: Formation, x: number, z: number, facing: number | null, attackMove: boolean, type: FormationType | null = null): void {
+    if (type) f.type = type;
+    f.targetUnit = -1;
+    this.moveTo(f, x, z, facing, attackMove ? Order.AttackMove : Order.Move);
+  }
+
+  /** Hunts an enemy unit (and fights what it meets around it). */
+  orderAttack(f: Formation, target: number): void {
+    if (!this.isActiveUnit(target)) return;
+    for (const id of f.members) this.world.c.target[id] = target;
+    f.targetUnit = target;
+    this.moveTo(f, this.world.c.x[target], this.world.c.z[target], null, Order.Attack);
+  }
+
+  /** Stands where it is and fights only what comes within reach. */
+  orderHold(f: Formation): void {
+    f.moving = false;
+    f.destX = f.anchorX;
+    f.destZ = f.anchorZ;
+    this.setOrder(f, Order.Hold);
+  }
+
+  setType(f: Formation, type: FormationType): void {
+    f.type = type;
+    f.columns = null;
+    f.forceSolve = true;
+  }
+
+  /**
+   * Keeps the formation on the heels of a moving point (the hero it escorts): new destination and facing,
+   * the same slots, the current order. Re-routes only when the point moved a few metres.
+   */
+  follow(f: Formation, x: number, z: number, facing: number): void {
+    f.facing = facing;
+    if (Math.hypot(x - f.destX, z - f.destZ) < 1.5) return;
+    this.moveTo(f, x, z, facing, f.order === Order.Move ? Order.Move : Order.AttackMove, false);
   }
 
   get(id: number): Formation | undefined {

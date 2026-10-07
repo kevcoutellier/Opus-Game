@@ -10,7 +10,10 @@ const MAX_BARS = 2048;
 /** Seconds a health bar stays visible after a hit. */
 const BAR_SECONDS = 4;
 const BAR_OWN = new THREE.Color(0x7fc85a);
-const BAR_ENEMY = new THREE.Color(0xe0483c);
+const BAR_ENEMY = new THREE.Color(0xe6dcb8);
+/** The leader of a troop is the one soldier whose bar is red (The Crusaders): find him, kill him. */
+const BAR_LEADER = new THREE.Color(0xe0241c);
+const BAR_OWN_LEADER = new THREE.Color(0x5b8fe0);
 const MARKER_SECONDS = 0.9;
 const MOVE = new THREE.Color(0x9be36a);
 const OWN = new THREE.Color(0x9be36a);
@@ -47,6 +50,7 @@ export class OverlayRenderer {
   private readonly bars: THREE.InstancedMesh;
   private readonly barFill: THREE.InstancedBufferAttribute;
   private readonly barColor: THREE.InstancedBufferAttribute;
+  private readonly barWidth: THREE.InstancedBufferAttribute;
   private readonly selectedSet = new Set<number>();
   private readonly tint = new THREE.Color();
   private readonly pos = { x: 0, z: 0 };
@@ -99,22 +103,26 @@ export class OverlayRenderer {
     const barGeometry = new THREE.PlaneGeometry(0.95, 0.12);
     this.barFill = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS), 1);
     this.barColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS * 3), 3);
+    this.barWidth = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BARS).fill(1), 1);
     this.barFill.setUsage(THREE.DynamicDrawUsage);
     this.barColor.setUsage(THREE.DynamicDrawUsage);
+    this.barWidth.setUsage(THREE.DynamicDrawUsage);
     barGeometry.setAttribute('iFill', this.barFill);
     barGeometry.setAttribute('iColor', this.barColor);
+    barGeometry.setAttribute('iWidth', this.barWidth);
     const barMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
       vertexShader: /* glsl */ `
         attribute float iFill;
         attribute vec3 iColor;
+        attribute float iWidth;
         varying float vFill;
         varying vec3 vColor;
         varying vec2 vUv;
         void main() {
           vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-          mv.xy += position.xy;
+          mv.xy += position.xy * vec2(iWidth, 1.0 + (iWidth - 1.0) * 0.5);
           gl_Position = projectionMatrix * mv;
           vFill = iFill;
           vColor = iColor;
@@ -139,25 +147,32 @@ export class OverlayRenderer {
     this.group.add(this.bars);
   }
 
-  /** Bars over selected units and over units hit in the last seconds. */
+  /**
+   * Bars over the units hit in the last seconds and over the leader of the chosen troop. A leader's bar is
+   * wider, red for the enemy's (blue for the player's own); the soldiers' bars are pale (green for his own).
+   */
   private updateBars(world: World, alpha: number, selected: readonly number[], ownTeam: number): void {
     const { entities, c } = world;
     this.selectedSet.clear();
     for (const id of selected) this.selectedSet.add(id);
     const fill = this.barFill.array as Float32Array;
     const color = this.barColor.array as Float32Array;
+    const width = this.barWidth.array as Float32Array;
     let n = 0;
     for (let i = 0; i < entities.count && n < MAX_BARS; i++) {
       const id = entities.dense[i];
       if ((entities.mask[id] & Comp.Unit) === 0 || c.state[id] === UnitState.Dying) continue;
-      if (c.lastHit[id] > BAR_SECONDS && !this.selectedSet.has(id)) continue;
+      const leader = c.leader[id] === 1;
+      if (c.lastHit[id] > BAR_SECONDS && !(leader && this.selectedSet.has(id))) continue;
       renderPosition(world, id, alpha, this.pos);
       const top = 2.25 * UNIT_DEFS[c.unitType[id]].scale;
       this.matrix.makeTranslation(this.pos.x, this.heightAt(this.pos.x, this.pos.z) + top, this.pos.z);
       this.bars.setMatrixAt(n, this.matrix);
       const ratio = Math.max(0, c.hp[id] / c.maxHp[id]);
       fill[n] = ratio;
-      const base = c.team[id] === ownTeam ? BAR_OWN : BAR_ENEMY;
+      const own = c.team[id] === ownTeam;
+      const base = leader ? (own ? BAR_OWN_LEADER : BAR_LEADER) : own ? BAR_OWN : BAR_ENEMY;
+      width[n] = leader ? 1.5 : 1;
       const dim = 0.55 + ratio * 0.45;
       color[n * 3] = base.r * dim;
       color[n * 3 + 1] = base.g * dim;
@@ -168,9 +183,10 @@ export class OverlayRenderer {
     this.bars.instanceMatrix.needsUpdate = true;
     this.barFill.needsUpdate = true;
     this.barColor.needsUpdate = true;
+    this.barWidth.needsUpdate = true;
   }
 
-  /** Ghost slots of the formation being drawn with a right-drag (null hides them). */
+  /** Discs on the ground ([x0, z0, x1, z1, ...]): the waypoints of the chosen troop (null hides them). */
   preview(points: ArrayLike<number> | null): void {
     const n = points ? Math.min(MAX_PREVIEW, points.length / 2) : 0;
     for (let i = 0; i < n; i++) {

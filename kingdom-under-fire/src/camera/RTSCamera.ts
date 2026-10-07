@@ -10,7 +10,7 @@ export interface CameraBounds {
 }
 
 const EDGE_PIXELS = 10;
-const MIN_DISTANCE = 12;
+export const MIN_DISTANCE = 12;
 const MAX_DISTANCE = 190;
 
 const damp = (current: number, goal: number, lambda: number, dt: number) =>
@@ -70,6 +70,23 @@ export class RTSCamera {
     this.goalYaw += radians;
   }
 
+  /** Turns the view to `yaw` the short way round (the camera then sits at (sin yaw, cos yaw) from the target). */
+  turnTo(yaw: number, instant = false): void {
+    const turn = Math.PI * 2;
+    this.goalYaw += ((((yaw - this.goalYaw) % turn) + turn * 1.5) % turn) - Math.PI;
+    if (instant) this.yaw = this.goalYaw;
+  }
+
+  /** Zoom the camera is heading for (m from the target). */
+  get zoomGoal(): number {
+    return this.goalDistance;
+  }
+
+  /** True when zoomed in as far as it goes (zooming further enters action mode). */
+  get closest(): boolean {
+    return this.goalDistance <= MIN_DISTANCE + 0.01;
+  }
+
   tiltBy(radians: number): void {
     this.goalTilt = THREE.MathUtils.clamp(this.goalTilt + radians, -0.5, 0.5);
   }
@@ -80,8 +97,11 @@ export class RTSCamera {
     this.goalDistance = 95;
   }
 
-  /** Reads the inputs (keyboard pan/rotate, edge scroll, wheel, middle drag) and moves the camera. */
-  update(dt: number, keys: KeyboardInput, mouse: MouseInput, viewport: { width: number; height: number }, allowEdge = true): void {
+  /**
+   * Reads the inputs (keyboard pan, edge scroll, wheel, middle drag to rotate and tilt) and moves the
+   * camera. Returns true when the player panned it.
+   */
+  update(dt: number, keys: KeyboardInput, mouse: MouseInput, viewport: { width: number; height: number }, allowEdge = true): boolean {
     const speed = (0.45 + this.goalDistance / 70) * 32 * dt * (keys.shift ? 2.2 : 1);
     let right = 0;
     let forward = 0;
@@ -99,8 +119,6 @@ export class RTSCamera {
       const len = Math.hypot(right, forward);
       this.pan((right / len) * speed, (forward / len) * speed);
     }
-    if (keys.isDown('KeyQ')) this.rotate(1.6 * dt);
-    if (keys.isDown('KeyE')) this.rotate(-1.6 * dt);
     if (keys.isDown('PageUp')) this.tiltBy(0.9 * dt);
     if (keys.isDown('PageDown')) this.tiltBy(-0.9 * dt);
     if (keys.isDown('Equal', 'NumpadAdd')) this.zoom(-6 * dt);
@@ -118,6 +136,7 @@ export class RTSCamera {
     this.yaw = damp(this.yaw, this.goalYaw, 10, dt);
     this.tilt = damp(this.tilt, this.goalTilt, 10, dt);
     this.apply();
+    return right !== 0 || forward !== 0;
   }
 
   /** Pitch above the horizon (radians). */

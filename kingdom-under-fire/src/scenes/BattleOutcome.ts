@@ -1,17 +1,32 @@
 import type { World } from '../core/World';
 import { Comp, MoraleState, UnitState } from '../entities/Components';
+import type { TroopSystem } from '../troops/TroopSystem';
 
 export type Outcome = 'victory' | 'defeat' | null;
 
 /** Seconds an army must stay broken (dead or routing) before the battle is decided. */
 const BROKEN_SECONDS = 4;
 
-/** Decides the battle: an army is beaten when none of its soldiers still fights. */
+/** Rules of a battle fought by troops (The Crusaders). */
+export interface TroopRules {
+  troops: TroopSystem;
+  /** The player's hero: the mission is lost when he falls (-1: no such rule). */
+  hero: number;
+}
+
+/**
+ * Decides the battle. With troops: the player loses when his hero falls or when none of his troops still
+ * stands, and wins when every enemy troop is broken or destroyed. Without: an army is beaten when none of
+ * its soldiers still fights.
+ */
 export class BattleOutcome {
   private brokenSince = [Infinity, Infinity];
   result: Outcome = null;
 
-  constructor(private readonly playerTeam: number) {}
+  constructor(
+    private readonly playerTeam: number,
+    private readonly rules: TroopRules | null = null,
+  ) {}
 
   /** Soldiers of a team still able to fight (alive, not routing). */
   static fighting(world: World, team: number): number {
@@ -25,11 +40,22 @@ export class BattleOutcome {
     return n;
   }
 
+  /** True while a team can still fight under the rules of the battle. */
+  private standing(world: World, team: number): boolean {
+    if (!this.rules) return BattleOutcome.fighting(world, team) > 0;
+    const { troops, hero } = this.rules;
+    if (team === this.playerTeam && hero >= 0) {
+      const { entities, c } = world;
+      if (!entities.has(hero, Comp.Unit) || c.state[hero] === UnitState.Dying) return false;
+    }
+    return troops.list(team, true).length > 0;
+  }
+
   update(world: World): Outcome {
     if (this.result) return this.result;
     const now = world.time.elapsed;
     for (const team of [0, 1]) {
-      if (BattleOutcome.fighting(world, team) > 0) this.brokenSince[team] = Infinity;
+      if (this.standing(world, team)) this.brokenSince[team] = Infinity;
       else if (this.brokenSince[team] === Infinity) this.brokenSince[team] = now;
     }
     const playerBroken = now - this.brokenSince[this.playerTeam] >= BROKEN_SECONDS;

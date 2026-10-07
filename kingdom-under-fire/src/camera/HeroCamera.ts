@@ -69,6 +69,11 @@ export class HeroCamera {
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.0025, -0.05, 1.1);
   }
 
+  /** True when zoomed out as far as it goes (zooming further goes back to tactic mode). */
+  get farthest(): boolean {
+    return this.distance >= MAX_DISTANCE - 0.01;
+  }
+
   zoom(steps: number): void {
     this.distance = THREE.MathUtils.clamp(this.distance * Math.pow(1.12, steps), MIN_DISTANCE, MAX_DISTANCE);
   }

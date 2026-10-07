@@ -1,0 +1,316 @@
+import type { System } from '../core/Simulation';
+import type { World } from '../core/World';
+import { UNIT_DEFS, unitIndex } from '../data/units';
+import { Comp, MoraleState, NO_ENTITY, Order, UnitState } from '../entities/Components';
+import type { Formation } from '../formations/Formation';
+import type { FormationManager } from '../formations/FormationManager';
+import type { FormationType } from '../formations/FormationType';
+import { spawnBlock, spawnUnit } from '../units/UnitFactory';
+
+export type TroopStatus = 'idle' | 'moving' | 'fighting' | 'routing' | 'defeated';
+
+/**
+ * A troop (regiment), the unit the player commands in Kingdom Under Fire: The Crusaders. Its soldiers move
+ * and fight together around their leader, a hero or a captain.
+ */
+export interface Troop {
+  readonly id: number;
+  readonly team: number;
+  readonly name: string;
+  /** Unit definition of its soldiers. */
+  readonly soldierType: string;
+  readonly leader: number;
+  /** Led by a hero (the player's own troop, or an enemy hero's). */
+  readonly hero: boolean;
+  /** Soldiers still on the field, the leader included. */
+  members: number[];
+  readonly initialSize: number;
+  /** Points still to reach, in order; the first is the current destination. */
+  readonly waypoints: { x: number; z: number }[];
+  status: TroopStatus;
+  /** Seconds since the troop began to flee (routing). */
+  routTime: number;
+}
+
+export interface TroopSpec {
+  team: number;
+  name: string;
+  /** Unit definition of the soldiers. */
+  soldierType: string;
+  /** Soldiers besides the leader. */
+  count: number;
+  /** An existing unit (a hero) that leads the troop; otherwise a captain of the soldiers' type is raised. */
+  leader?: number;
+  x: number;
+  z: number;
+  /** Direction the troop faces (radians). */
+  facing: number;
+  formation?: FormationType;
+  columns?: number;
+}
+
+/** A captain is a seasoned soldier of the troop's type: much tougher, steadier and harder-hitting. */
+const CAPTAIN = { health: 5, attack: 1.4, defense: 6 };
+/** Routed soldiers leave the field once no enemy has been near them for this long. */
+const LEAVE_SECONDS = 6;
+const LEAVE_SAFE_RADIUS = 16;
+/** Troops sent together stand this far apart (m). */
+const TROOP_GAP = 16;
+/** A waypoint counts as reached within this distance of the troop's anchor. */
+const WAYPOINT_RADIUS = 4;
+/** How far behind the hero his troop marches when he is steered by the player. */
+const ESCORT_DISTANCE = 3.5;
+
+/**
+ * Troops: creation (soldiers around a leader, one formation), orders (march with waypoints, attack an enemy
+ * troop, hold, formation, the whole army at once), the troop escorting its hero when the player steers him,
+ * and the fall of a leader. That last rule is a reconstruction (see docs/CRUSADERS.md): a troop whose
+ * leader dies breaks; its soldiers flee and leave the field.
+ */
+export class TroopSystem implements System {
+  readonly name = 'troops';
+  private readonly troops = new Map<number, Troop>();
+  private nextId = 1;
+  private readonly neighbours = new Int32Array(64);
+
+  constructor(
+    private readonly world: World,
+    private readonly formations: FormationManager,
+  ) {
+    const q = world.commands;
+    q.on('troopMove', (cmd) => {
+      const t = this.commandable(cmd.team, cmd.troop);
+      if (!t) return;
+      if (!cmd.queue) t.waypoints.length = 0;
+      t.waypoints.push({ x: cmd.x, z: cmd.z });
+      if (!cmd.queue || t.waypoints.length === 1) this.march(t, cmd.x, cmd.z, null);
+    });
+    q.on('troopAttack', (cmd) => {
+      const t = this.commandable(cmd.team, cmd.troop);
+      const target = this.troops.get(cmd.target);
+      if (!t || !target || target.team === t.team || target.status === 'defeated') return;
+      const f = this.formationOf(t);
+      const victim = this.alive(target.leader) ? target.leader : target.members.find((m) => this.alive(m));
+      if (!f || victim === undefined) return;
+      t.waypoints.length = 0;
+      this.formations.orderAttack(f, victim);
+    });
+    q.on('troopHold', (cmd) => {
+      const t = this.commandable(cmd.team, cmd.troop);
+      const f = t && this.formationOf(t);
+      if (!t || !f) return;
+      t.waypoints.length = 0;
+      this.formations.orderHold(f);
+    });
+    q.on('troopFormation', (cmd) => {
+      const t = this.commandable(cmd.team, cmd.troop);
+      const f = t && this.formationOf(t);
+      if (f) this.formations.setType(f, cmd.formation);
+    });
+    q.on('troopsMoveAll', (cmd) => this.moveAll(cmd.team, cmd.x, cmd.z));
+    world.events.on('unitDied', ({ id }) => {
+      const t = this.troops.get(world.c.troop[id]);
+      if (t && t.leader === id && t.status !== 'routing' && t.status !== 'defeated') this.rout(t);
+    });
+    // The player takes or gives back his hero: the troop escorts him, then takes him back in its ranks.
+    world.events.on('heroControl', ({ id, direct }) => {
+      const t = this.troops.get(world.c.troop[id]);
+      if (!t || direct) return;
+      const f = formations.assemble(t.team, this.fighting(t));
+      if (f) formations.orderMove(f, world.c.x[id], world.c.z[id], world.c.rot[id], true);
+    });
+  }
+
+  get(id: number): Troop | undefined {
+    return this.troops.get(id);
+  }
+
+  /** Troops of a team (all teams when omitted), defeated ones included unless `standing`. */
+  list(team?: number, standing = false): Troop[] {
+    return [...this.troops.values()].filter((t) => (team === undefined || t.team === team) && (!standing || (t.status !== 'defeated' && t.status !== 'routing')));
+  }
+
+  /** Troop of a unit, or undefined. */
+  of(unit: number): Troop | undefined {
+    return this.troops.get(this.world.c.troop[unit]);
+  }
+
+  /** Raises a troop: its soldiers in a block, the leader in front, all in one formation. */
+  create(spec: TroopSpec): Troop {
+    const { world } = this;
+    const { c } = world;
+    const type = unitIndex(spec.soldierType);
+    const columns = spec.columns ?? Math.min(spec.count, Math.max(4, Math.ceil(Math.sqrt(spec.count * 2))));
+    const rows = Math.ceil(spec.count / columns);
+    const soldiers = spawnBlock(world, type, spec.team, spec.count, columns, spec.x, spec.z, spec.facing);
+    // The leader stands in front of the centre of his men.
+    const ahead = (rows * 1.6) / 2 + 1.8;
+    const lx = spec.x + Math.sin(spec.facing) * ahead;
+    const lz = spec.z + Math.cos(spec.facing) * ahead;
+    let leader = spec.leader ?? NO_ENTITY;
+    if (leader === NO_ENTITY) {
+      leader = spawnUnit(world, type, spec.team, lx, lz, spec.facing);
+      c.maxHp[leader] *= CAPTAIN.health;
+      c.hp[leader] = c.maxHp[leader];
+      c.attack[leader] *= CAPTAIN.attack;
+      c.defense[leader] += CAPTAIN.defense;
+      c.discipline[leader] = 1;
+      c.morale[leader] = 100;
+    } else {
+      c.x[leader] = c.prevX[leader] = lx;
+      c.z[leader] = c.prevZ[leader] = lz;
+      c.rot[leader] = c.prevRot[leader] = spec.facing;
+    }
+    const troop: Troop = {
+      id: this.nextId++,
+      team: spec.team,
+      name: spec.name,
+      soldierType: spec.soldierType,
+      leader,
+      hero: UNIT_DEFS[c.unitType[leader]].role === 'hero',
+      members: [leader, ...soldiers],
+      initialSize: soldiers.length + 1,
+      waypoints: [],
+      status: 'idle',
+      routTime: 0,
+    };
+    for (const id of troop.members) c.troop[id] = troop.id;
+    c.leader[leader] = 1;
+    this.troops.set(troop.id, troop);
+    // At rest the formation defends (it answers enemies coming at it), facing the given way.
+    const f = this.formations.assemble(spec.team, troop.members, spec.formation ?? 'LINE');
+    if (f) {
+      f.facing = spec.facing;
+      f.forceSolve = true;
+    }
+    return troop;
+  }
+
+  update(world: World, dt: number): void {
+    const { c } = world;
+    for (const t of this.troops.values()) {
+      if (t.status === 'defeated') continue;
+      t.members = t.members.filter((id) => this.alive(id));
+      if (!t.members.length) {
+        t.status = 'defeated';
+        world.events.emit('troopDefeated', { troop: t.id, team: t.team });
+        continue;
+      }
+      if (t.status === 'routing') {
+        this.flee(world, t, dt);
+        continue;
+      }
+      const f = this.formationOf(t);
+      const leader = t.leader;
+      if (t.hero && this.alive(leader) && c.order[leader] === Order.Direct && f) {
+        // Escorting the hero steered by the player: a little behind him, facing where he faces.
+        const rot = c.rot[leader];
+        this.formations.follow(f, c.x[leader] - Math.sin(rot) * ESCORT_DISTANCE, c.z[leader] - Math.cos(rot) * ESCORT_DISTANCE, rot);
+      } else if (f && t.waypoints.length && !f.moving && Math.hypot(f.anchorX - t.waypoints[0].x, f.anchorZ - t.waypoints[0].z) < WAYPOINT_RADIUS) {
+        t.waypoints.shift();
+        const next = t.waypoints[0];
+        if (next) this.march(t, next.x, next.z, null);
+      }
+      let fighting = false;
+      for (const id of t.members) {
+        const s = c.state[id];
+        if (s === UnitState.Engaging || s === UnitState.Attacking) fighting = true;
+      }
+      t.status = fighting ? 'fighting' : f?.moving ? 'moving' : 'idle';
+    }
+  }
+
+  private alive(id: number): boolean {
+    const { entities, c } = this.world;
+    return id >= 0 && entities.has(id, Comp.Unit) && c.state[id] !== UnitState.Dying;
+  }
+
+  /** Members that march and fight with the formation (a hero steered by the player does his own). */
+  private fighting(t: Troop): number[] {
+    return t.members.filter((id) => this.world.c.order[id] !== Order.Direct);
+  }
+
+  /** The troop's formation; gathered again when members strayed from it (a hero handed back). */
+  private formationOf(t: Troop): Formation | null {
+    const { c } = this.world;
+    const members = this.fighting(t);
+    if (!members.length) return null;
+    const id = c.formation[members[0]];
+    const f = this.formations.get(id);
+    if (f && members.every((m) => c.formation[m] === id)) return f;
+    return this.formations.assemble(t.team, members);
+  }
+
+  private commandable(team: number, id: number): Troop | null {
+    const t = this.troops.get(id);
+    return t && t.team === team && t.status !== 'routing' && t.status !== 'defeated' ? t : null;
+  }
+
+  private march(t: Troop, x: number, z: number, facing: number | null): void {
+    const f = this.formationOf(t);
+    if (f) this.formations.orderMove(f, x, z, facing, true);
+  }
+
+  /** The whole army marches to (x, z), its troops side by side across the direction of march. */
+  private moveAll(team: number, x: number, z: number): void {
+    const troops = this.list(team, true);
+    if (!troops.length) return;
+    const { c } = this.world;
+    let cx = 0;
+    let cz = 0;
+    for (const t of troops) {
+      cx += c.x[t.leader];
+      cz += c.z[t.leader];
+    }
+    cx /= troops.length;
+    cz /= troops.length;
+    const len = Math.hypot(x - cx, z - cz);
+    const dx = len > 1 ? (x - cx) / len : 0;
+    const dz = len > 1 ? (z - cz) / len : 1;
+    // Across the march: the troop furthest to the left keeps the left.
+    const lx = dz;
+    const lz = -dx;
+    troops.sort((a, b) => (c.x[a.leader] - cx) * lx + (c.z[a.leader] - cz) * lz - ((c.x[b.leader] - cx) * lx + (c.z[b.leader] - cz) * lz));
+    const facing = Math.atan2(dx, dz);
+    troops.forEach((t, i) => {
+      const offset = (i - (troops.length - 1) / 2) * TROOP_GAP;
+      const px = x + lx * offset;
+      const pz = z + lz * offset;
+      t.waypoints.length = 0;
+      t.waypoints.push({ x: px, z: pz });
+      this.march(t, px, pz, facing);
+    });
+  }
+
+  /** The leader fell: every soldier of the troop breaks and runs. */
+  private rout(t: Troop): void {
+    const { c, events } = this.world;
+    t.status = 'routing';
+    t.routTime = 0;
+    t.waypoints.length = 0;
+    for (const id of t.members) {
+      c.morale[id] = 0;
+      c.discipline[id] = 0;
+      c.target[id] = NO_ENTITY;
+    }
+    events.emit('troopRouted', { troop: t.id, team: t.team });
+  }
+
+  /** Fleeing soldiers never rally; once out of the enemy's reach for a while, they leave the field. */
+  private flee(world: World, t: Troop, dt: number): void {
+    const { c, spatial, entities } = world;
+    t.routTime += dt;
+    const check = (world.time.tick + t.id) % 15 === 0;
+    for (const id of t.members) {
+      c.morale[id] = 0;
+      if (!check || t.routTime < LEAVE_SECONDS || c.moraleState[id] !== MoraleState.Routing) continue;
+      const n = spatial.query(c.x[id], c.z[id], LEAVE_SAFE_RADIUS, c.x, c.z, this.neighbours);
+      let threatened = false;
+      for (let k = 0; k < n && !threatened; k++) {
+        const e = this.neighbours[k];
+        threatened = c.team[e] !== t.team && c.state[e] !== UnitState.Dying;
+      }
+      if (!threatened) entities.destroyLater(id);
+    }
+  }
+}

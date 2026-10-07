@@ -17,7 +17,7 @@ const escape = (text: string) => text.replace(/[&<>"]/g, (ch) => `&#${ch.charCod
 
 /**
  * The player's hero, bottom left: portrait, level, health, mana and experience, the four abilities with
- * their cooldowns (click or Z X C V; 1–4 under direct control) and the direct-control toggle (Tab).
+ * their cooldowns (click or Z X C V; 1–4 in action mode) and the action-mode toggle (Tab).
  * The DOM is only touched when a displayed value changes.
  */
 export class HeroBar {
@@ -44,7 +44,7 @@ export class HeroBar {
     this.directHint.className = 'direct-hint panel';
     this.directHint.hidden = true;
     this.directHint.innerHTML =
-      '<b>Contrôle direct</b> WASD : marcher · souris : regarder (cliquez pour la capturer) · clic : frapper · clic droit : coup puissant · Espace : esquive · 1–4 : capacités · Tab : rendre la main';
+      '<b>Mode action</b> WASD : marcher · souris : regarder (cliquez pour la capturer) · clic : frapper · clic droit : coup puissant · Espace : esquive · 1–4 : capacités · Tab ou dézoomer : mode tactique · Q / E : autre troupe';
     root.append(this.el, this.crosshair, this.directHint);
   }
 
@@ -67,7 +67,7 @@ export class HeroBar {
           </button>`,
         )
         .join('')}</div>
-      <button type="button" class="hero-direct">Contrôle direct <span class="key">Tab</span></button>`;
+      <button type="button" class="hero-direct">Mode action <span class="key">Tab</span></button>`;
     this.el.querySelectorAll<HTMLButtonElement>('.ability').forEach((button) => {
       button.onclick = () => this.input.trigger(Number(button.dataset.slot));
     });

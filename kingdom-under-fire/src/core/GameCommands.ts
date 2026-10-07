@@ -27,4 +27,12 @@ export type GameCommand =
   /** Direct control: a blow in the aim direction, heavy or quick. */
   | { kind: 'heroStrike'; team: number; hero: number; heavy: boolean }
   /** Direct control: a dodge roll in the direction (x, z). */
-  | { kind: 'heroDodge'; team: number; hero: number; x: number; z: number };
+  | { kind: 'heroDodge'; team: number; hero: number; x: number; z: number }
+  /** A troop marches to (x, z); `queue` adds the point as the next waypoint instead of replacing the route. */
+  | { kind: 'troopMove'; team: number; troop: number; x: number; z: number; queue: boolean }
+  /** A troop attacks an enemy troop. */
+  | { kind: 'troopAttack'; team: number; troop: number; target: number }
+  | { kind: 'troopHold'; team: number; troop: number }
+  | { kind: 'troopFormation'; team: number; troop: number; formation: FormationType }
+  /** Every troop of the team marches to (x, z), side by side. */
+  | { kind: 'troopsMoveAll'; team: number; x: number; z: number };

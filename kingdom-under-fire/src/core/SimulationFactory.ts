@@ -5,6 +5,7 @@ import { ProjectileSystem } from '../combat/Projectiles';
 import type { PerformanceMonitor } from '../debug/PerformanceMonitor';
 import { FormationManager } from '../formations/FormationManager';
 import { HeroSystem } from '../heroes/HeroSystem';
+import { TroopSystem } from '../troops/TroopSystem';
 import { SpatialSystem } from '../navigation/SpatialSystem';
 import { LifecycleSystem } from '../units/LifecycleSystem';
 import { MovementSystem } from '../units/MovementSystem';
@@ -16,23 +17,27 @@ export interface BattleSimulation {
   formations: FormationManager;
   combat: CombatSystem;
   heroes: HeroSystem;
+  troops: TroopSystem;
 }
 
 /**
- * The battle pipeline, in order: neighbour grid → formations (anchors, slots) → heroes (abilities,
- * statuses, direct control) → combat (targets, blows, shots) → missiles in flight → cavalry charges →
- * morale (states, flight points) → movement (steering) → lifecycle (corpses). `extra` systems (AI) run
- * first, so their commands are applied at the next tick like a player's.
+ * The battle pipeline, in order: neighbour grid → troops (orders, waypoints, escort, broken troops) →
+ * formations (anchors, slots) → heroes (abilities, statuses, direct control) → combat (targets, blows,
+ * shots) → missiles in flight → cavalry charges → morale (states, flight points) → movement (steering)
+ * → lifecycle (corpses). `extra` systems (AI) run first, so their commands are applied at the next tick
+ * like a player's.
  */
 export function createBattleSimulation(world: World, extra: System[] = [], perf?: PerformanceMonitor): BattleSimulation {
   const formations = new FormationManager(world);
   const combat = new CombatSystem(formations);
   const heroes = new HeroSystem(world, combat.damage, combat, formations);
+  const troops = new TroopSystem(world, formations);
   const simulation = new Simulation(
     world,
     [
       ...extra,
       new SpatialSystem(),
+      troops,
       formations,
       heroes,
       combat,
@@ -44,5 +49,5 @@ export function createBattleSimulation(world: World, extra: System[] = [], perf?
     ],
     perf,
   );
-  return { simulation, formations, combat, heroes };
+  return { simulation, formations, combat, heroes, troops };
 }

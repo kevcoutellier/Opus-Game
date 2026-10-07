@@ -1,6 +1,7 @@
 import type { AIOptions } from '../ai/AIController';
 import type { World } from '../core/World';
 import { unitIndex } from '../data/units';
+import type { Troop, TroopSystem } from '../troops/TroopSystem';
 import { spawnBlock, spawnUnit } from '../units/UnitFactory';
 
 export const PLAYER_TEAM = 0;
@@ -30,31 +31,62 @@ export function setupPrototypeBattle(world: World, mapSize: number): { player: A
   return { player: { team: PLAYER_TEAM, units: player }, enemy: { team: ENEMY_TEAM, units: enemy }, ai };
 }
 
+export interface TroopBattle {
+  player: Army;
+  enemy: Army;
+  /** Troops of each side, the hero's first. */
+  playerTroops: Troop[];
+  enemyTroops: Troop[];
+  /** The player's hero (his fall loses the battle). */
+  hero: number;
+  /** Where the enemy marches when it has not found the player's army yet. */
+  objective: { x: number; z: number };
+}
+
 /**
- * Battle of the second prototype, both armies at full strength around their heroes: for the Alliance,
- * Curian with footmen and templars in front, spearmen, archers behind and knights on the right wing; for
- * the Legion, Likuku with orc warriors and ogres, orc spearmen, dark elf archers and riders on the left.
+ * Field battle fought by troops, as in The Crusaders: each side deploys four troops, the hero leading his
+ * own. Hironeiden: Curian's guard (footmen), spearmen, archers behind and knights on the right wing. The
+ * Legion: Likuku's guard (orc warriors), orc warriors, dark elf archers and riders on the left wing.
+ * (Placeholder armies until the rosters of Hironeiden and Vellond are rebuilt, see docs/CRUSADERS.md.)
  */
-export function setupFieldBattle(world: World, mapSize: number): { player: Army; enemy: Army; ai: AIOptions } {
+export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: number): TroopBattle {
   const cx = mapSize / 2;
-  type Roster = { front: string; heavy: string; spear: string; archer: string; horse: string; hero: string };
-  const deploy = (team: number, dir: number, roster: Roster, heavyCount: number): Army => {
-    const z = (d: number) => mapSize / 2 + dir * d;
-    const rot = dir > 0 ? Math.PI : 0;
-    // The army's right wing: +x when it faces south (dir > 0, towards -z), -x when it faces north.
-    const wing = dir;
-    const units = [
-      ...spawnBlock(world, unitIndex(roster.front), team, 14, 14, cx - 4 * wing, z(48), rot),
-      ...spawnBlock(world, unitIndex(roster.heavy), team, heavyCount, heavyCount, cx + 12 * wing, z(48), rot, heavyCount > 3 ? 1.6 : 2.4),
-      ...spawnBlock(world, unitIndex(roster.spear), team, 10, 10, cx, z(51.5), rot),
-      ...spawnBlock(world, unitIndex(roster.archer), team, 10, 10, cx, z(56), rot),
-      ...spawnBlock(world, unitIndex(roster.horse), team, 6, 3, cx + 26 * wing, z(50), rot, 2.4),
-      spawnUnit(world, unitIndex(roster.hero), team, cx, z(53.5), rot),
-    ];
-    return { team, units };
+  type Spec = { name: string; type: string; count: number; dx: number; dz: number; hero?: string };
+  const deploy = (team: number, dir: number, specs: Spec[]): Troop[] => {
+    const facing = dir > 0 ? Math.PI : 0;
+    // dx is towards the troop's right: +x when it faces south (dir > 0), -x when it faces north.
+    return specs.map((s) =>
+      troops.create({
+        team,
+        name: s.name,
+        soldierType: s.type,
+        count: s.count,
+        leader: s.hero ? spawnUnit(world, unitIndex(s.hero), team, cx, mapSize / 2, facing) : undefined,
+        x: cx + s.dx * dir,
+        z: mapSize / 2 + dir * s.dz,
+        facing,
+      }),
+    );
   };
-  const player = deploy(PLAYER_TEAM, 1, { front: 'human_footman', heavy: 'human_templar', spear: 'human_spearman', archer: 'human_archer', horse: 'human_knight', hero: 'hero_curian' }, 6);
-  const enemy = deploy(ENEMY_TEAM, -1, { front: 'orc_warrior', heavy: 'ogre', spear: 'orc_spearman', archer: 'dark_elf_archer', horse: 'dark_elf_rider', hero: 'hero_likuku' }, 3);
-  const ai: AIOptions = { team: ENEMY_TEAM, objectiveX: cx, objectiveZ: mapSize / 2 + 50, advanceDelay: 20, formation: 'LINE' };
-  return { player, enemy, ai };
+  const playerTroops = deploy(PLAYER_TEAM, 1, [
+    { name: 'Garde de Curian', type: 'human_footman', count: 14, dx: 0, dz: 48, hero: 'hero_curian' },
+    { name: 'Lanciers', type: 'human_spearman', count: 16, dx: -22, dz: 48 },
+    { name: 'Archers', type: 'human_archer', count: 16, dx: 0, dz: 60 },
+    { name: 'Chevaliers', type: 'human_knight', count: 8, dx: 26, dz: 50 },
+  ]);
+  const enemyTroops = deploy(ENEMY_TEAM, -1, [
+    { name: 'Garde de Likuku', type: 'orc_warrior', count: 14, dx: 0, dz: 48, hero: 'hero_likuku' },
+    { name: 'Guerriers orcs', type: 'orc_warrior', count: 16, dx: -22, dz: 48 },
+    { name: 'Archers elfes noirs', type: 'dark_elf_archer', count: 16, dx: 0, dz: 60 },
+    { name: 'Cavaliers elfes noirs', type: 'dark_elf_rider', count: 8, dx: 26, dz: 50 },
+  ]);
+  const army = (team: number, list: Troop[]): Army => ({ team, units: list.flatMap((t) => t.members) });
+  return {
+    player: army(PLAYER_TEAM, playerTroops),
+    enemy: army(ENEMY_TEAM, enemyTroops),
+    playerTroops,
+    enemyTroops,
+    hero: playerTroops[0].leader,
+    objective: { x: cx, z: mapSize / 2 + 48 },
+  };
 }

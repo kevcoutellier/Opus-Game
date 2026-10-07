@@ -1,7 +1,9 @@
-# Architecture — Kingdom Under Fire : La Guerre des Héros
+# Architecture — Kingdom Under Fire : The Crusaders (clone web)
 
-Remake web de Kingdom Under Fire: A War of Heroes, TypeScript strict + Three.js + Vite. Ce document décrit
-l'architecture réellement en place et le journal des phases.
+Clone web de Kingdom Under Fire: The Crusaders, TypeScript strict + Three.js + Vite. Ce document décrit
+l'architecture réellement en place et le journal des phases. Les deux premiers prototypes visaient A War of
+Heroes ; leur moteur (simulation, formations, combat, héros) sert de socle au clone, leur sélection d'unités
+et leur construction de base ont été retirées.
 
 ## Principes
 
@@ -60,7 +62,9 @@ F1 maison suffit).
 | P2.6 Contrôle direct | commandes `heroControl` / `heroSteer` / `heroStrike` / `heroDodge`, ordre `Direct` (ni slot ni combat automatique), coups libres en arc, esquive invulnérable, `HeroCamera` (troisième personne, transitions), `HeroInput` (pointer lock, 1–4 au viseur) | ✅ |
 | P2.7 Ressources | `ResourceManager` (or, bois, vivres, pierre, mana ; `canAfford` / `spend` / `refund`, revenus), barre de ressources | ✅ |
 | P2.8 Bâtiments | 7 bâtiments par faction en données Zod, `BuildingSystem` (règles de placement, construction, revenus, files de production, ralliement, destruction), emprise bloquant la `NavGrid` et invalidant les flow fields, cibles pour la mêlée, les flèches et les sorts (`Footprint`), modèles procéduraux humains et orcs, menu « Bâtir », panneau de production | ✅ |
-| P2.9 Scénario et IA | `StrategicAI` (ordre de construction, recrutement interarmes, vagues), IA en deux groupes (vague et garnison), bataille avec bases (clairières aplanies, victoire à la chute du QG), choix de la bataille au briefing ; caméra qui s'élève au-dessus des crêtes | ✅ |
+| P2.9 Scénario et IA | `StrategicAI` (ordre de construction, recrutement interarmes, vagues), IA en deux groupes (vague et garnison), bataille avec bases (clairières aplanies, victoire à la chute du QG), choix de la bataille au briefing ; caméra qui s'élève au-dessus des crêtes | ✅ puis retiré |
+| C1 Référence | `docs/CRUSADERS.md` : ce que l'on sait de The Crusaders, avec un niveau de confiance par point | ✅ |
+| C2 Cœur de la bataille | Retrait de la base et de l'économie (P2.7–P2.9) et de la sélection d'unités (P4) ; `TroopSystem` (troupes autour d'un chef, ordres `troopMove` / `troopAttack` / `troopHold` / `troopFormation` / `troopsMoveAll`, points de passage, déroute à la mort du chef, escorte du héros dirigé), `TroopAI`, `BattleOutcome` par troupes (chute du héros), modes action et tactique par le zoom, `TroopInput`, `TroopPanel`, `Minimap`, barre rouge du chef | ✅ |
 
 ### Équité de la simulation
 
@@ -79,22 +83,36 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
   coup se résout à l'atterrissage contre le corps le plus proche du point d'impact : la précision et la
   densité de la cible décident ensemble du taux de touche (≈ 85 % contre un bloc serré, moins contre des
   tirailleurs).
-- **Bâtiments hors de la grille spatiale.** Ils sont quelques dizaines au plus : un registre `world.buildings`
-  parcouru linéairement suffit pour le ciblage, sans filtrer les bâtiments dans chaque requête de voisinage des
-  unités. Leur emprise est un rectangle (demi-dimensions `halfW` / `halfD`) : la mêlée et le mouvement visent le
-  point le plus proche de l'emprise (`entities/Footprint.ts`), donc une caserne se frappe de tous les côtés.
-- **Invalidation des chemins.** La `NavGrid` porte un numéro de version, incrémenté quand un bâtiment bloque ou
+- **Invalidation des chemins.** La `NavGrid` porte un numéro de version, incrémenté quand un obstacle bloque ou
   libère des cellules ; `Pathfinding` vide son cache quand la version change. Les flow fields sont recalculés
   à la demande, un par destination.
 - **Le héros est une unité.** Curian et Likuku sont des entités ordinaires avec quelques composants en plus
   (aura, mana dans `HeroSystem`). En contrôle direct, leur ordre devient `Direct` : la formation, le combat
   automatique et la charge les ignorent, et le joueur les dirige par des commandes. Un replay rejoue aussi le
   contrôle direct.
-- **IA en couches.** `StrategicAI` (économie, production, vagues) → `AIController` (deux groupes, vague et
-  garnison, chacun avec son plan) → `TacticalAI` / `HeroAI` → `CombatSystem` (cibles de chaque soldat). L'IA
-  ne lit que ce que voient ses soldats et ses bâtiments (`AIKnowledge`), plus la carte (où est la base
-  ennemie). Une première version gardait toute l'armée en une formation : les recrues sorties de la caserne
-  l'étiraient sur 100 m et la cohésion la freinait. D'où les deux groupes.
+
+### Choix du clone (The Crusaders)
+
+- **La troupe est une couche au-dessus des formations.** `TroopSystem` ne déplace aucun soldat : il traduit
+  les ordres de troupe en ordres de formation (`FormationManager.orderMove`, `orderAttack`, `orderHold`) et
+  garde ce que la formation ignore : le chef, les points de passage, l'état (en position, en marche, au combat,
+  en déroute, anéantie). Chaque soldat porte l'id de sa troupe (`c.troop`) et le chef un drapeau (`c.leader`),
+  pour que le rendu, la minicarte et l'IA les retrouvent sans parcourir les troupes.
+- **La mort du chef est une règle reconstruite.** Aucune source ne dit ce qu'elle fait exactement dans
+  l'original. Ici, la troupe se débande : moral et discipline à zéro, plus de ralliement, et les fuyards
+  quittent le champ de bataille dès qu'aucun ennemi n'est à moins de 16 m depuis 6 s. La règle est isolée
+  dans `TroopSystem.rout` / `flee` pour être corrigée quand une source le permettra.
+- **Le héros reste une unité de sa troupe.** Quand le joueur le dirige (ordre `Direct`), il sort de la
+  formation et la troupe suit un point 3,5 m derrière lui ; quand il rend la main, la troupe se reforme
+  autour de lui (`heroControl` émis par `HeroSystem`).
+- **Une seule caméra, deux poses.** `RTSCamera` (tactique) et `HeroCamera` (action) pilotent la même
+  `PerspectiveCamera` ; le passage de l'une à l'autre est un fondu de 0,7 s de la position et de
+  l'orientation. Zoomer au-delà de la distance minimale sur la troupe du héros, ou dézoomer au-delà de la
+  distance maximale de la vue du héros, déclenche le passage.
+- **IA par troupes.** `TroopAI` donne à chaque troupe son ordre (attaquer la troupe de l'ennemi connu le plus
+  proche, sinon tenir ou marcher sur un objectif après un délai) avec les commandes du joueur. Elle ne lit
+  que ce que voient ses soldats (`AIKnowledge`) ; la minicarte du joueur utilise la même connaissance, si bien
+  qu'il ne voit que les ennemis que voient ses soldats.
 
 ## Mesures et goulets
 
@@ -114,8 +132,8 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
 
 ## Architecture cible (non encore implémentée)
 
-- Couche d'IA opérationnelle entre `StrategicAI` et `TacticalAI` : plusieurs groupes, attaques de flanc,
-  contre-unités (lanciers contre cavalerie, cavalerie contre archers), retraite et renforts.
+- IA de mission au-dessus de `TroopAI` : scripts des missions, attaques de flanc, contre-unités (lanciers
+  contre cavalerie, cavalerie contre archers), retraite et renforts.
 - Workers (`pathfinding.worker.ts`, `ai.worker.ts`, `formation.worker.ts`) avec objets transférables, dès
   qu'une mesure le justifie. La simulation n'accède à aucune API du DOM, elle peut donc déjà y être déplacée.
 - Multijoueur : lockstep sur la file de commandes existante. Il faudra remplacer `Math.sin/cos/atan2` dans

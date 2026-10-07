@@ -1,41 +1,40 @@
 import type { AssetManager } from '../assets/AssetManager';
-import type { World } from '../core/World';
 import type { BattleStory } from '../data/story/battles';
 import type { Outcome } from '../scenes/BattleOutcome';
-import type { SelectionManager } from '../selection/SelectionManager';
+import type { TroopSystem } from '../troops/TroopSystem';
 import type { UnitManager } from '../units/UnitManager';
-import { SelectionBox } from './SelectionBox';
-import { SelectionPanel } from './SelectionPanel';
+
+export type BattleMode = 'action' | 'tactic';
 
 const HELP = [
-  ['Clic / glisser', 'sélectionner (Maj : ajouter, Ctrl : retirer, double-clic : même type)'],
-  ['Clic droit', 'déplacer · sur un ennemi : attaquer'],
-  ['Clic droit glissé', 'tracer le front de la formation (largeur et orientation)'],
-  ['Ctrl + clic droit / T', 'marche offensive'],
-  ['F', 'changer de formation · H : tenir la position'],
-  ['Ctrl + 1–9 / 1–9', 'créer / rappeler un groupe (double appui : caméra)'],
-  ['WASD (ZQSD) / bords', 'déplacer la caméra · Q/E (A/E) : rotation · molette : zoom'],
-  ['PgUp / PgDn', 'inclinaison · L : caméra libre · Origine : recentrer'],
+  ['Tab', 'mode action (le héros) ⇄ mode tactique · ou zoomer à fond sur la troupe du héros / dézoomer'],
+  ['Q / E (A / E)', 'troupe précédente / suivante : la caméra se place derrière elle'],
+  ['Clic sur un soldat', 'choisir sa troupe'],
+  ['Clic droit', 'la troupe marche là · sur un ennemi : elle attaque sa troupe'],
+  ['Maj + clic droit', 'ajouter un point de passage · Ctrl + clic droit : toute l’armée'],
+  ['Minicarte', 'clic : regarder · clic droit : ordre de marche (Maj : point de passage, Ctrl : toute l’armée)'],
+  ['F / H', 'formation suivante · tenir la position'],
+  ['WASD (ZQSD) / bords', 'déplacer la caméra · clic molette glissé : rotation · molette : zoom · Origine : revenir à la troupe'],
   ['Z X C V (W X C V)', 'capacités du héros (clic : viser, clic droit : annuler)'],
-  ['Tab', 'contrôle direct du héros : WASD, souris, clics : frapper, Espace : esquive, 1–4 : capacités'],
+  ['Mode action', 'WASD, souris, clic : frapper, clic droit : coup puissant, Espace : esquive, 1–4 : capacités'],
+  ['Tuer le chef', 'une troupe dont le chef tombe se débande et quitte le champ de bataille'],
   ['P / M', 'pause · couper le son'],
   ['F1 / F2', 'panneau développeur · test de performance'],
 ];
 
-/** DOM overlay of the battle: army counts, selection panel, help, selection rectangle. */
+/** DOM overlay of the battle: troops and soldiers left on each side, current mode, help, outcome. */
 export class HUD {
-  readonly box: SelectionBox;
-  readonly panel: SelectionPanel;
   private readonly counts: HTMLDivElement;
+  private readonly mode: HTMLDivElement;
+  private lastMode = '';
   private readonly banner: HTMLDivElement;
   private lastCounts = '';
   private readonly emblems: string[];
 
   constructor(
     root: HTMLElement,
-    world: World,
-    selection: SelectionManager,
     private readonly units: UnitManager,
+    private readonly troops: TroopSystem,
     teamFactions: string[],
     private readonly story: BattleStory,
     assets: AssetManager,
@@ -45,7 +44,6 @@ export class HUD {
       return url ? `<img class="emblem" src="${url}" alt="" />` : '⚑';
     };
     this.emblems = [emblem(0), emblem(1)];
-    this.box = new SelectionBox(root);
 
     const top = document.createElement('div');
     top.className = 'top-bar';
@@ -60,14 +58,15 @@ export class HUD {
     help.className = 'help panel interactive';
     help.innerHTML = `<summary>Commandes</summary><dl>${HELP.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
 
-    this.panel = new SelectionPanel(root, world, selection, teamFactions);
+    this.mode = document.createElement('div');
+    this.mode.className = 'mode-badge panel';
     this.banner = document.createElement('div');
     this.banner.className = 'outcome panel interactive';
     this.banner.hidden = true;
-    root.append(top, help, this.banner);
+    root.append(top, help, this.mode, this.banner);
   }
 
-  update(outcome: Outcome = null): void {
+  update(outcome: Outcome, mode: BattleMode, troop: string | null): void {
     if (outcome && this.banner.hidden) {
       this.banner.hidden = false;
       this.banner.innerHTML = `<div class="title">${outcome === 'victory' ? 'Victoire' : 'Défaite'}</div><p>${
@@ -75,13 +74,19 @@ export class HUD {
       }</p><button type="button">Rejouer la bataille</button>`;
       this.banner.querySelector('button')!.onclick = () => location.reload();
     }
-    const own = this.units.countActive(0);
-    const enemy = this.units.countActive(1);
-    const text = `<span class="ally">${this.emblems[0]} ${own}</span><span class="sep">contre</span><span class="enemy">${enemy} ${this.emblems[1]}</span>`;
+    const side = (team: number) => {
+      const n = this.troops.list(team, true).length;
+      return `${n} troupe${n > 1 ? 's' : ''} · ${this.units.countActive(team)}`;
+    };
+    const text = `<span class="ally">${this.emblems[0]} ${side(0)}</span><span class="sep">contre</span><span class="enemy">${side(1)} ${this.emblems[1]}</span>`;
     if (text !== this.lastCounts) {
       this.counts.innerHTML = text;
       this.lastCounts = text;
     }
-    this.panel.update();
+    const label = mode === 'action' ? '<b>Mode action</b>' : `<b>Mode tactique</b>${troop ? ` · ${troop}` : ''}`;
+    if (label !== this.lastMode) {
+      this.mode.innerHTML = label;
+      this.lastMode = label;
+    }
   }
 }
