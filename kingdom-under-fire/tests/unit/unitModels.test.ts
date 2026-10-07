@@ -6,8 +6,8 @@ import { parseUnitModel, UNIT_MODEL_FILES, unitGeometryFromGltf } from '../../sr
 import { BONE, createUnitGeometry } from '../../src/renderer/UnitMeshes';
 import type { UnitModel } from '../../src/units/UnitStats';
 
-/** Triangles per model: soldiers are drawn by the hundred, twice a frame (colour and shadows). */
-const BUDGET: Partial<Record<UnitModel, number>> = { hero_gerald: 3000, human_footman: 1000 };
+/** Triangles per model (as in tools/blender/models/build.py): soldiers are drawn by the hundred, twice a frame; a hero once. */
+const BUDGET: Partial<Record<UnitModel, number>> = { hero_gerald: 6000, human_footman: 1000 };
 
 /** The .glb files, inlined by Vite as data URLs (the tests run without a server). */
 const FILES: Record<string, string> = { 'models/hero_gerald.glb': geraldUrl, 'models/human_footman.glb': footmanUrl };

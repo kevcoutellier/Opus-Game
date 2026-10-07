@@ -34,6 +34,16 @@ Greyhampton ; le briefing liste les missions et l'escarmouche, et « Mission sui
   ✓ remplis, ✗ ratés), points verts sur le terrain et la minicarte, alliés en turquoise, scènes coupées en
   bandes noires. Le jeu passe seul en mode action quand la troupe du héros, choisie, engage le combat.
 
+### Modèles 3D (Blender)
+
+Gerald et le fantassin d'Hironeiden sont modélisés dans Blender, par script (`npm run models`, voir
+[`tools/blender/`](tools/blender/)), puis exportés en glTF dans `public/models/`. Le jeu les charge au
+démarrage à la place des modèles procéduraux, sur le même squelette, avec la même animation et la couleur de
+faction. Leur style suit une planche de concept fournie par l'auteur du projet (une illustration, pas le
+design du jeu original) : plates argentées bordées d'or, tabard et cape bleus, lion d'or rampant sur le
+plastron, l'écu et la cape. Gerald compte 4 940 triangles, le fantassin 988. Les autres unités restent
+procédurales pour l'instant.
+
 ### Étape 3 : les troupes et leurs contres
 
 L'étape 3 remplace les armées provisoires par celles de *The Crusaders*, d'après le guide officiel du jeu
@@ -157,9 +167,10 @@ npm run dev        # http://localhost:5173
 
 | Commande | Rôle |
 | --- | --- |
-| `npm test` | 119 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, missions (données, Greyhampton et Ravenmeadow jouées de bout en bout), histoire, assets, script d'assets contre un faux wiki |
+| `npm test` | 122 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, missions (données, Greyhampton et Ravenmeadow jouées de bout en bout), modèles Blender (squelette, taille, budget), histoire, assets, script d'assets contre un faux wiki |
 | `npm run test:e2e` | 5 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte, Flèche de feu visée ; officiers, mode action par Tab et par le zoom, attaque spéciale ; Greyhampton (briefing, points verts, scène coupée du village en flammes, répliques, objectifs) ; assets installés utilisés |
 | `npm run assets` | installe les portraits et illustrations officiels, votre musique et vos sons |
+| `npm run models` | reconstruit les modèles Blender (`public/models/*.glb`) ; `-- --preview <dossier>` rend aussi des aperçus |
 | `npm run bench` | coût CPU d'un tick de simulation de 100 à 1000 unités, armées interarmes |
 | `npm run typecheck` | TypeScript strict (jeu, tests, configurations) |
 | `npm run build` | vérification des types puis build statique dans `dist/` (chemins relatifs) |
@@ -272,7 +283,8 @@ src/
   ai/          AIKnowledge (vision), TroopAI (IA par troupes), HeroAI (choix des sorts), TacticalAI et
                AIController (IA d'une armée en bloc, tests et banc d'essai)
   maps/        Terrain (heightmap, forêts, rochers, clairières), Props (bâtiments : emprise, combustible), Noise
-  renderer/    Renderer, SceneManager, Lighting, TerrainRenderer, UnitMeshes, UnitRenderer (instancing +
+  renderer/    Renderer, SceneManager, Lighting, TerrainRenderer, UnitMeshes, UnitModelLoader (modèles Blender),
+               UnitRenderer (instancing +
                animation GPU), ProjectileRenderer, OverlayRenderer (anneaux, barres de vie dont celle du chef,
                points de passage, visée, points verts), EffectsRenderer, PropRenderer (bâtiments, ballon), picking
   camera/      RTSCamera (mode tactique), HeroCamera (mode action)
@@ -281,6 +293,7 @@ src/
   debug/       PerformanceMonitor, DebugManager (F1), GpuTimer
   scenes/      BattleScene (bataille par troupes), BattleOutcome, PerformanceTestScene (F2), ShowcaseScene
 scripts/fetch-assets.mjs  npm run assets
+tools/blender/            MCP Blender (Blender sans écran) ; models/ : modèles des unités (npm run models)
 ```
 
 Principes, dépendances justifiées et journal détaillé des phases : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

@@ -70,6 +70,7 @@ F1 maison suffit).
 | C4b Compétences | SP des troupes (coups, victimes, chefs), commande `troopSkill`, compétences de The Crusaders, `FireGrid` + `FireSystem` (feu de forêt), `TrapSystem`, effets `ignite` et `trap`, flammes, arbres calcinés, pièges visibles de leur camp, IA qui les emploie | ✅ |
 | C4c Contres | Volants (`flying` : couche à part pour les lames, les charges, le feu, les pièges et les flèches ; altitude, ailes animées), mortiers à éclats sans tir anti-aérien, tir au galop vers la gauche, lances qui immobilisent, régénération en forêt et résistance à la magie des elfes | ✅ |
 | C5 Missions | Missions décrites en données (`missions/Mission.ts`, Zod : troupes, déclencheurs, actions), `MissionDirector` (système qui lit les déclencheurs et joue les actions), bâtiments (`maps/Props.ts`, `PropRenderer` : maisons, huttes, murs, tours, tentes, palissades qui occupent la grille et brûlent), ballon dirigeable, troupes `player` / `ai` dans le même camp (alliés, ralliements), dialogues, objectifs et points verts, scènes coupées ; Greyhampton et Ravenmeadow | ✅ |
+| C7 Modèles Blender | Gerald et le fantassin d'Hironeiden modélisés par script dans Blender sans écran (`tools/blender/models`), exportés en glTF (`public/models`), convertis au chargement en géométrie du moteur (`UnitModelLoader`) et substitués aux modèles procéduraux (`UnitRenderer.useGeometry`) ; budgets de triangles, aperçus Cycles, tests sur les fichiers réels | ✅ |
 
 ### Équité de la simulation
 
@@ -141,6 +142,12 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
   colore chaque bâtiment d'après les cellules en feu sous lui, puis le laisse calciné.
 - **Une scène coupée met la bataille en pause.** La simulation s'arrête, la caméra montre le lieu, les répliques
   défilent en temps réel (clic ou Entrée pour passer) et les effets (flammes, fumée) continuent de jouer.
+- **Les modèles Blender gardent le squelette du moteur.** Ils sont gréés sur les six os du shader (corps, jambes,
+  bras, arme), têtes d'os placées sur ses pivots, un os par sommet. Au chargement, le joint qui porte chaque
+  sommet devient `aBone`, la couleur du matériau sa couleur, le matériau `Team` la couleur de faction : la
+  géométrie obtenue est celle d'un modèle procédural, et l'instanciation et l'animation sur le GPU ne changent
+  pas (un draw call par modèle). Un vrai squelette animé (vingtaine d'os, clips) demandera de baker les
+  animations dans des textures pour garder l'instanciation.
 
 - **La troupe est une couche au-dessus des formations.** `TroopSystem` ne déplace aucun soldat : il traduit
   les ordres de troupe en ordres de formation (`FormationManager.orderMove`, `orderAttack`, `orderHold`) et

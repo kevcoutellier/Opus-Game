@@ -24,7 +24,9 @@ from kuf import BONES, export_glb, linear, to_blender, triangle_count  # noqa: E
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 # Budget per soldier: hundreds of them are drawn twice a frame (colour and shadow passes).
-BUDGET = {"hero_gerald": 3000, "human_footman": 1000}
+# Faction colour of Hironeiden in the previews (src/data/factions/index.ts, human_alliance).
+TEAM_BLUE = 0x2f5fa8
+BUDGET = {"hero_gerald": 6000, "human_footman": 1000}
 
 
 def reset() -> None:
@@ -81,16 +83,20 @@ def stage() -> None:
     scene.collection.objects.link(sun)
 
 
-def preview(path: str, objects, attack: bool) -> None:
+def preview(path: str, objects, attack: bool, eye=(2.6, 1.7, 3.6)) -> None:
+    """Renders the models; `Team` takes the blue of Hironeiden, as the game paints it."""
     scene = bpy.context.scene
     for _, rig in objects:
         pose(rig, attack)
+    for mat in bpy.data.materials:
+        if mat.name.startswith("Team"):
+            mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = linear(TEAM_BLUE)
     stage()
     cam = bpy.data.objects.get("Camera") or bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
     if cam.name not in scene.collection.objects:
         scene.collection.objects.link(cam)
     target = to_blender((0, 1.0, 0))
-    cam.location = to_blender((2.6, 1.7, 3.6) if len(objects) == 1 else (3.0, 1.8, 5.2))
+    cam.location = to_blender(eye if len(objects) == 1 else (3.0, 1.8, 5.2))
     direction = target - cam.location
     cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     cam.data.lens = 50
@@ -125,8 +131,9 @@ def main() -> None:
         print(f"{name}: {tris} triangles, {len(obj.data.materials)} materials -> {os.path.relpath(path, ROOT)}", flush=True)
         if args.preview:
             os.makedirs(args.preview, exist_ok=True)
-            for attack in (False, True):
-                preview(os.path.join(args.preview, f"{name}{'_attack' if attack else ''}.png"), [(obj, rig)], attack)
+            preview(os.path.join(args.preview, f"{name}.png"), [(obj, rig)], False)
+            preview(os.path.join(args.preview, f"{name}_back.png"), [(obj, rig)], False, eye=(-2.4, 1.8, -3.6))
+            preview(os.path.join(args.preview, f"{name}_attack.png"), [(obj, rig)], True)
 
     if args.preview and len(args.models) > 1:
         # Side by side, as on the battlefield.

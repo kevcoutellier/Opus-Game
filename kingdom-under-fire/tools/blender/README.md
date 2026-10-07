@@ -33,3 +33,22 @@ download.blender.org est bloqué par la politique réseau du conteneur : Blender
   **Cycles** sur le CPU (`scene.render.engine = 'CYCLES'`, `scene.cycles.device = 'CPU'`), puis lire l'image.
 - Les recherches et imports de Poly Haven, Sketchfab ou Poly Pizza et la génération 3D dépendent de services
   externes et de clés : ils ne servent pas ici (nos modèles sont faits main, aucun asset tiers n'est versionné).
+
+## Modèles des unités (`models/`)
+
+```bash
+npm run models                                   # tous les modèles -> public/models/<modèle>.glb
+npm run models -- hero_gerald --preview /tmp/vu  # un modèle, avec des aperçus (face, dos, attaque)
+```
+
+- `kuf.py` : pièces (boîtes, sphères, cônes, tubes à sections elliptiques, plaques, voiles courbes) décrites
+  en coordonnées du moteur (m, y en haut, l'unité regarde +z, main de l'arme en +x), squelette du moteur
+  (`Body`, `LeftLeg`, `RightLeg`, `WeaponArm`, `ShieldArm`, `Weapon`, têtes d'os sur les pivots du shader),
+  un os par sommet, export glTF.
+- `humans.py` : Gerald et le fantassin d'Hironeiden. Le matériau `Team` prend la couleur de faction en jeu.
+- `build.py` : construit, vérifie le budget de triangles (Gerald 6 000, fantassin 1 000 : les soldats sont
+  dessinés par centaines, deux fois par image), exporte, rend les aperçus (Cycles, CPU) en posant le squelette
+  comme le shader.
+- Le jeu les charge par `src/renderer/UnitModelLoader.ts` ; `tests/unit/unitModels.test.ts` vérifie les
+  fichiers exportés (os, taille, budget, couleur de faction).
+
