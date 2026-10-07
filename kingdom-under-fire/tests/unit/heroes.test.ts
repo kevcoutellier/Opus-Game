@@ -25,15 +25,17 @@ function battle(seed = 3) {
 const hp = (world: World, ids: number[]) => ids.reduce((sum, id) => sum + Math.max(0, world.c.hp[id]), 0);
 
 describe('hero data', () => {
-  it('gives every hero four known abilities and uses every ability', () => {
+  it('gives every hero at most four known abilities (none for Gerald, who only fights), and uses every ability', () => {
     const used = new Set<string>();
     for (const def of UNIT_DEFS.filter((d) => d.role === 'hero')) {
-      expect(def.hero?.abilities).toHaveLength(4);
+      expect(def.hero!.abilities.length).toBeLessThanOrEqual(4);
       for (const id of def.hero!.abilities) {
         expect(ABILITIES.some((a) => a.id === id)).toBe(true);
         used.add(id);
       }
     }
+    expect(UNIT_DEFS.find((d) => d.id === 'hero_gerald')!.hero!.abilities).toHaveLength(0);
+    for (const def of UNIT_DEFS) for (const id of def.skills) if (ABILITIES.some((a) => a.id === id)) used.add(id);
     expect(used.size).toBe(ABILITIES.length);
   });
 

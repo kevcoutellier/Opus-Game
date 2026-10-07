@@ -620,8 +620,8 @@ export class HeroSystem implements System {
         });
         break;
       case 'heal': {
-        // The wounded of the caster's own troop (of his side when he has none).
-        const troop = c.troop[id];
+        // The wounded of the caster's own troop (of his side when he has none, or for an allies' heal).
+        const troop = e.scope === 'troop' ? c.troop[id] : NO_ENTITY;
         this.forEach(world, c.x[id], c.z[id], e.radius, (u) => {
           if (c.team[u] !== team || (troop !== NO_ENTITY && c.troop[u] !== troop)) return;
           c.hp[u] = Math.min(c.maxHp[u], c.hp[u] + c.maxHp[u] * e.amount);

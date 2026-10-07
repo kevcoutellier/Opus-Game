@@ -26,7 +26,7 @@ import { BattleOutcome } from '../scenes/BattleOutcome';
 import { ENEMY_TEAM, PLAYER_TEAM, setupTroopBattle, type Army } from '../scenes/BattleScene';
 import { PerformanceTestScene } from '../scenes/PerformanceTestScene';
 import { setupShowcase } from '../scenes/ShowcaseScene';
-import { PROTOTYPE_BATTLE } from '../data/story/battles';
+import { SKIRMISH_BATTLE } from '../data/story/battles';
 import { BriefingScreen } from '../ui/BriefingScreen';
 import { HeroBar } from '../ui/HeroBar';
 import { HUD } from '../ui/HUD';
@@ -148,7 +148,7 @@ export class Game {
     this.input = new InputManager(canvas);
 
     const world = this.world;
-    this.hud = new HUD(ui, this.units, this.troops, TEAM_FACTIONS, PROTOTYPE_BATTLE, assets);
+    this.hud = new HUD(ui, this.units, this.troops, TEAM_FACTIONS, SKIRMISH_BATTLE, assets);
     this.audio = new AudioManager(assets);
     this.audio.attach(world, () => this.rtsCamera.target);
     const pickGround = (x: number, y: number) => this.picker.pick(x, y, this.projector.width, this.projector.height);
@@ -232,13 +232,13 @@ export class Game {
       this.ai.enabled = false;
       this.follow = -1;
       this.showcase = setupShowcase(this.world, MAP_SIZE / 2, MAP_SIZE / 2);
-      this.rtsCamera.focus(MAP_SIZE / 2, MAP_SIZE / 2 - 7, 34, true);
+      this.rtsCamera.focus(MAP_SIZE / 2, MAP_SIZE / 2 - 7, 60, true);
       return;
     }
     // The battle waits for the player to read the briefing (the scene keeps rendering behind it).
     this.loop.paused = true;
     new BriefingScreen(this.ui, {
-      story: PROTOTYPE_BATTLE,
+      story: SKIRMISH_BATTLE,
       portrait: (id) => this.assets.portrait(id),
       artwork: this.assets.artwork(),
       credits: this.assets.credits(),

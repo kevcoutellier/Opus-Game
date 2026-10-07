@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FACTIONS } from '../../src/data/factions';
-import { PROTOTYPE_BATTLE } from '../../src/data/story/battles';
+import { SKIRMISH_BATTLE } from '../../src/data/story/battles';
 import { CHARACTERS, character, LORE } from '../../src/data/story/lore';
 import { UNIT_DEFS } from '../../src/data/units';
 
@@ -16,8 +16,8 @@ describe('story data', () => {
   });
 
   it('frames the prototype battle with commanders of the right sides', () => {
-    for (const id of PROTOTYPE_BATTLE.allies) expect(character(id).faction).toBe(PROTOTYPE_BATTLE.playerFaction);
-    for (const id of PROTOTYPE_BATTLE.enemies) expect(character(id).faction).toBe(PROTOTYPE_BATTLE.enemyFaction);
+    for (const id of SKIRMISH_BATTLE.allies) expect(character(id).faction).toBe(SKIRMISH_BATTLE.playerFaction);
+    for (const id of SKIRMISH_BATTLE.enemies) expect(character(id).faction).toBe(SKIRMISH_BATTLE.enemyFaction);
     expect(() => character('nobody')).toThrow();
   });
 });

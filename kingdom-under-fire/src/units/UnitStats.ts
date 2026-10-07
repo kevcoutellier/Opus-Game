@@ -23,6 +23,20 @@ export const UNIT_MODELS = [
   'dark_elf_rider',
   'ogre',
   'hero_likuku',
+  // The Crusaders
+  'human_heavy_infantry',
+  'human_knight_foot',
+  'human_longbowman',
+  'human_cavalry',
+  'human_sapper',
+  'human_mortar',
+  'hero_gerald',
+  'officer_rupert',
+  'officer_ellen',
+  'dark_elf_infantry',
+  'dark_elf_horse_archer',
+  'hero_lucretia',
+  'officer_morene',
 ] as const;
 export type UnitModel = (typeof UNIT_MODELS)[number];
 
@@ -64,8 +78,8 @@ export const HeroSchema = z.object({
   character: z.string(),
   /** Most SP the hero can hold (they are earned by fighting). */
   sp: z.number().positive(),
-  /** Ability ids, in the order of the keys 1–4. */
-  abilities: z.array(z.string()).min(1).max(4),
+  /** Ability ids, in the order of the keys 1–4 (The Crusaders: a hero's spells come from his troop's skills). */
+  abilities: z.array(z.string()).max(4),
   /** Officers of the hero's troop (at most two), whose assist attacks he can call. */
   officers: z.array(z.string()).max(2).default([]),
   /** Allies within `radius` (m) gain `morale` points per second and hold better. */
@@ -129,6 +143,10 @@ export const UnitDefSchema = z.object({
   ranged: RangedSchema.optional(),
   charge: ChargeSchema.optional(),
   hero: HeroSchema.optional(),
+  /** Skills of a troop of these soldiers (ability ids), paid with the troop's SP. */
+  skills: z.array(z.string()).max(4).default([]),
+  /** Kingdom the unit belongs to in The Crusaders (none for the older rosters). */
+  realm: z.enum(['hironeiden', 'vellond']).optional(),
   cost: CostSchema,
   trainTime: z.number().positive(),
 });

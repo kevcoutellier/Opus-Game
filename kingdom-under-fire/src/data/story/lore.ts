@@ -130,6 +130,63 @@ const RAW_CHARACTERS = [
     title: 'Le nom que portera Rick Blood',
     bio: 'Des années plus tard, Rick Blood deviendra Regnier, champion d’Encablossa, lors de la guerre des Croisés.',
   },
+  // The Crusaders: the war of Hironeiden against Vellond.
+  {
+    id: 'gerald',
+    name: 'Gerald',
+    faction: 'human_alliance',
+    title: 'Capitaine de la Force de défense de l’Est',
+    bio: 'Entré soldat dans l’armée de Hironeiden il y a six ans, promu capitaine de toute la Force de défense de l’Est pour sa vaillance face à l’invasion de Hexter. Il se bat à l’épée à une main.',
+  },
+  {
+    id: 'hugh',
+    name: 'Hugh',
+    faction: 'human_alliance',
+    title: 'Général de Hironeiden',
+    bio: 'Il a élevé Gerald et Rupert, deux orphelins, comme ses fils. C’est lui qui envoie Gerald en patrouille vers Greyhampton.',
+  },
+  {
+    id: 'rupert',
+    name: 'Rupert',
+    faction: 'human_alliance',
+    title: 'Officier de Gerald',
+    bio: 'Frère d’armes de Gerald depuis leur entrée dans l’armée. Sa carrure lui permet de manier un marteau de cinquante livres.',
+  },
+  {
+    id: 'ellen',
+    name: 'Ellen',
+    faction: 'human_alliance',
+    title: 'Officier de Gerald',
+    bio: 'Officier de la troupe de Gerald, archère.',
+  },
+  {
+    id: 'lucretia',
+    name: 'Lucretia',
+    faction: 'dark_legion',
+    title: 'Capitaine des gardes-frontières de Vellond',
+    bio: 'Elfe noire d’une arrogance tonitruante et d’un tempérament violent, elle combat avec deux cimeterres. Ses elfes, frêles mais rapides, se soignent en forêt et doivent vaincre vite.',
+  },
+  {
+    id: 'morene',
+    name: 'Morene Strident',
+    faction: 'dark_legion',
+    title: 'Surveillante, officier de Lucretia',
+    bio: 'Demi-vampire envoyée par le seigneur Valdemar comme commissaire politique dans la troupe de Lucretia, qui la méprise.',
+  },
+  {
+    id: 'cirith',
+    name: 'Cirith',
+    faction: 'dark_legion',
+    title: 'Officier de Lucretia',
+    bio: 'Elfe noire belle et vaniteuse, fière de son sang jusqu’à l’étourderie.',
+  },
+  {
+    id: 'rithrin',
+    name: 'Rithrin',
+    faction: 'dark_legion',
+    title: 'Commandant des archers de Ravenmeadow',
+    bio: 'Elfe noir qui tenait les archers de Ravenmeadow avant que la place ne tombe aux mains de Hironeiden. Vaincu par Gerald, il sera recueilli par les troupes de Lucretia.',
+  },
 ] as const;
 
 export const CHARACTERS: readonly Character[] = RAW_CHARACTERS.map((c) => CharacterSchema.parse(c));

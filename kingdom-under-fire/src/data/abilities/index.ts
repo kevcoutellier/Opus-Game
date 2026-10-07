@@ -108,6 +108,31 @@ const RAW_ABILITIES = [
     castTime: 0.8,
     effects: [{ kind: 'missile', projectile: 'rock', damage: 60, damageType: 'BLUNT', radius: 2.5, speed: 20 }],
   },
+  // ---- The Crusaders: skills of the dark elves of Vellond (and of Lucretia, who leads them).
+  {
+    id: 'tree_of_healing',
+    name: 'Arbre de soin',
+    description: 'Les elfes noirs font surgir un arbre blanc qui soigne tous les alliés alentour.',
+    icon: '❦',
+    color: 0xe9f5e0,
+    targeting: 'self',
+    spCost: 150,
+    cooldown: 20,
+    castTime: 0.6,
+    effects: [{ kind: 'heal', radius: 9, amount: 0.3, scope: 'allies' }],
+  },
+  {
+    id: 'elemental_boost',
+    name: 'Boost élémentaire',
+    description: 'Un mélange de tous les éléments imprègne les armes de la troupe : +50 % de dégâts pendant 15 s.',
+    icon: '✧',
+    color: 0x9fe0ff,
+    targeting: 'self',
+    spCost: 120,
+    cooldown: 25,
+    castTime: 0.4,
+    effects: [{ kind: 'buff', radius: 10, duration: 15, damage: 1.5 }],
+  },
 ] as const;
 
 export const ABILITIES: readonly AbilityDef[] = parseAbilities(RAW_ABILITIES);

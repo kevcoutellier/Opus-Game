@@ -51,11 +51,15 @@ export const EffectSchema = z.discriminatedUnion('kind', [
     allies: z.number().nonnegative(),
     enemies: z.number().nonnegative(),
   }),
-  /** Wounded soldiers of the caster's troop within `radius` regain `amount` of their health (0–1). */
+  /**
+   * Wounded soldiers within `radius` of the caster regain `amount` of their health (0–1): those of his
+   * troop only (Curatio), or every ally (Tree of Healing).
+   */
   z.object({
     kind: z.literal('heal'),
     radius: z.number().positive(),
     amount: z.number().positive().max(1),
+    scope: z.enum(['troop', 'allies']).default('troop'),
   }),
 ]);
 export type Effect = z.infer<typeof EffectSchema>;

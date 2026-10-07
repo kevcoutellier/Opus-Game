@@ -1,4 +1,5 @@
 import { parseUnitDefs, type UnitDef } from '../../units/UnitStats';
+import { RAW_CRUSADERS_UNITS } from './crusaders';
 
 // Unit definitions are data, validated with Zod at load time (see units/UnitStats.ts).
 // Roster of Kingdom Under Fire: A War of Heroes. The Human Alliance fields the footmen, spearmen, archers,
@@ -341,7 +342,8 @@ const RAW_UNITS = [
   },
 ] as const;
 
-export const UNIT_DEFS: readonly UnitDef[] = parseUnitDefs(RAW_UNITS);
+/** Every unit: the troops of the prototypes (A War of Heroes), then those of The Crusaders. */
+export const UNIT_DEFS: readonly UnitDef[] = parseUnitDefs([...RAW_UNITS, ...RAW_CRUSADERS_UNITS]);
 export const UNIT_INDEX: ReadonlyMap<string, number> = new Map(UNIT_DEFS.map((def, i) => [def.id, i]));
 
 export function unitIndex(id: string): number {

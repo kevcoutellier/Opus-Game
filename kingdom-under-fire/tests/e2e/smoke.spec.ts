@@ -27,7 +27,7 @@ async function waitFrames(page: Page, count: number): Promise<void> {
 test('the battle scene boots behind the briefing, renders and logs no error', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await expect(page.getByText('Les plaines de Hironeiden').first()).toBeVisible();
+  await expect(page.getByText('Escarmouche à la frontière').first()).toBeVisible();
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   // The simulation waits for the player.
   expect(await game(page, 'g.world.time.tick')).toBe(0);
@@ -46,7 +46,7 @@ test('the player commands troops: Q / E choose one, right click marches, Shift a
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
-  await expect(page.locator('.troop-card')).toHaveCount(4);
+  await expect(page.locator('.troop-card')).toHaveCount(5);
   const ids = (await game(page, 'g.deployed.player.map((t) => t.id)')) as number[];
   // The hero's troop is chosen first; E chooses the next one and the camera follows it.
   await expect.poll(() => game(page, 'g.troopInput.selected')).toBe(ids[0]);
@@ -81,22 +81,18 @@ test('the player commands troops: Q / E choose one, right click marches, Shift a
   expect(errors).toEqual([]);
 });
 
-test('the hero: an ability is aimed then cancelled, direct control is taken and given back', async ({ page }) => {
+test('the hero: his officers, action mode by Tab and by the zoom, the special attack', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.keyboard.press('Enter');
   await expect(page.locator('.hero-bar')).toBeVisible();
-  await expect(page.locator('.hero-bar .hero-name')).toContainText('Curian');
+  await expect(page.locator('.hero-bar .hero-name')).toContainText('Gerald');
   // His troop's two officers and their assists.
   await expect(page.locator('.hero-bar .officer')).toHaveCount(2);
-  await expect(page.locator('.hero-bar .officer').nth(1)).toContainText('Curatio');
-  // X aims Gel, Escape cancels.
-  await page.keyboard.press('KeyX');
-  await expect.poll(() => game(page, 'g.heroInput.targeting?.slot ?? -1')).toBe(1);
-  await page.keyboard.press('Escape');
-  await expect.poll(() => game(page, 'g.heroInput.targeting')).toBeNull();
-  // Tab: action mode with Curian (his troop becomes the chosen one), then back to tactic mode.
+  await expect(page.locator('.hero-bar .officer').nth(0)).toContainText('Rupert');
+  await expect(page.locator('.hero-bar .officer').nth(1)).toContainText('Ellen');
+  // Tab: action mode with Gerald (his troop becomes the chosen one), then back to tactic mode.
   const hero = (await game(page, 'g.heroes.list(0)[0].id')) as number;
   await page.keyboard.press('KeyE');
   await page.keyboard.press('Tab');
@@ -177,18 +173,18 @@ test('uses the official assets installed by npm run assets (portraits, artwork, 
   const errors = collectErrors(page);
   const manifest = {
     version: 1,
-    files: { 'portraits/gernot': 'portraits/gernot.png', 'portraits/likuku': 'portraits/likuku.png', 'artwork/library_hero': 'artwork/library_hero.png', 'emblems/dark_legion': 'emblems/dark_legion.png' },
+    files: { 'portraits/gerald': 'portraits/gerald.png', 'portraits/lucretia': 'portraits/lucretia.png', 'artwork/library_hero': 'artwork/library_hero.png', 'emblems/dark_legion': 'emblems/dark_legion.png' },
     sounds: { clash: ['audio/clash/hit.wav'] },
-    credits: { 'portraits/gernot': 'Kingdom Under Fire Wiki — Gernot', 'artwork/library_hero': 'Steam — KUF' },
+    credits: { 'portraits/gerald': 'Kingdom Under Fire Wiki — Gerald', 'artwork/library_hero': 'Steam — KUF' },
   };
   await page.route('**/assets/manifest.json', (route) => route.fulfill({ json: manifest }));
   await page.route('**/assets/**/*.png', (route) => route.fulfill({ body: png(8, 8, [180, 40, 30]), contentType: 'image/png' }));
   await page.route('**/assets/**/*.wav', (route) => route.fulfill({ body: wav(), contentType: 'audio/wav' }));
   await page.goto('/');
-  await expect(page.locator('.commander img[alt="Gernot"]')).toHaveAttribute('src', 'assets/portraits/gernot.png');
-  await expect(page.locator('.commander img[alt="Likuku"]')).toBeVisible();
+  await expect(page.locator('.commander img[alt="Gerald"]')).toHaveAttribute('src', 'assets/portraits/gerald.png');
+  await expect(page.locator('.commander img[alt="Lucretia"]')).toBeVisible();
   // Characters without an installed portrait keep their heraldic crest.
-  await expect(page.locator('.commander .crest')).toHaveCount(2);
+  await expect(page.locator('.commander .crest')).toHaveCount(4);
   await expect(page.locator('.briefing-credits')).toContainText('Kingdom Under Fire Wiki');
   await expect(page.locator('.army-counts img.emblem')).toHaveCount(1);
   expect(await game(page, 'g.audio.available')).toBe(true);

@@ -74,7 +74,18 @@ const mounted = (parts: Part[]): Part[] => parts.map((p) => ({ ...p, mount: true
 // ------------------------------------------------------------------ humanoid
 
 type Head = 'human' | 'orc' | 'elf' | 'ogre';
-type Helmet = 'greathelm' | 'kettle' | 'hood' | 'hornedcap' | 'templar' | 'bighorns' | 'headband' | 'none';
+type Helmet =
+  | 'greathelm'
+  | 'kettle'
+  | 'hood'
+  | 'hornedcap'
+  | 'templar'
+  | 'bighorns'
+  | 'headband'
+  | 'hair'
+  | 'longhair'
+  | 'elfhelm'
+  | 'none';
 type Torso = 'tabard' | 'bare' | 'plate' | 'leather' | 'elf';
 
 interface Body {
@@ -88,6 +99,8 @@ interface Body {
   /** Arm thickness (orcs and ogres are bulkier). */
   arm?: number;
   seated?: boolean;
+  /** Colour of the hair (helmets `hair` and `longhair`). */
+  hairColour?: number;
 }
 
 function legs(cloth: number, boots: number, width: number): Part[] {
@@ -192,6 +205,23 @@ function helmet(kind: Helmet): Part[] {
   }
 }
 
+/** Hair of the heroes and officers who fight bareheaded (short, or long down the back). */
+function hair(kind: 'short' | 'long', colour: number, elf = false): Part[] {
+  const top = elf ? 1.71 : 1.68;
+  const parts: Part[] = [
+    { geometry: new THREE.SphereGeometry(elf ? 0.13 : 0.14, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, top, -0.01), color: colour, bone: BONE.Body },
+  ];
+  if (kind === 'long') parts.push({ geometry: box(0.24, 0.5, 0.06, 0, 1.47, -0.12), color: colour, bone: BONE.Body });
+  else parts.push({ geometry: box(0.26, 0.12, 0.08, 0, 1.62, -0.1), color: colour, bone: BONE.Body });
+  return parts;
+}
+
+/** Crested helm of the dark elves of Vellond. */
+const elfHelm = (): Part[] => [
+  { geometry: new THREE.ConeGeometry(0.15, 0.32, 6).translate(0, 1.82, -0.01), color: 0x2b2733, bone: BONE.Body },
+  { geometry: box(0.02, 0.22, 0.26, 0, 1.92, -0.05), color: TEAM, bone: BONE.Body, team: true },
+];
+
 function torso(kind: Torso, skin: number, armour: number): Part[] {
   const shoulders = (w: number, color: number): Part[] => [
     { geometry: box(0.5 + w, 0.12, 0.3, 0, 1.47, 0), color, bone: BONE.Body },
@@ -261,11 +291,20 @@ function humanoid(b: Body): Part[] {
   const boots = b.boots ?? LEATHER;
   const bulky = b.torso === 'bare';
   const sleeves = { bare: b.skin, elf: 0x2a2530, leather: LEATHER, plate: PLATE, tabard: b.armour ?? METAL }[b.torso];
+  const elf = b.head === 'elf';
+  const top =
+    b.helmet === 'hair'
+      ? hair('short', b.hairColour ?? 0x4a3020, elf)
+      : b.helmet === 'longhair'
+        ? hair('long', b.hairColour ?? 0x4a3020, elf)
+        : b.helmet === 'elfhelm'
+          ? elfHelm()
+          : helmet(b.helmet);
   return [
     ...(b.seated ? seatedLegs(cloth, boots) : legs(cloth, boots, bulky ? 0.17 : 0.15)),
     ...torso(b.torso, b.skin, b.armour ?? METAL),
     ...head(b.head, b.skin),
-    ...helmet(b.helmet),
+    ...top,
     ...arms(sleeves, b.skin, b.arm ?? (bulky ? 0.14 : 0.11)),
   ];
 }
@@ -297,6 +336,43 @@ const club = (size = 1): Part[] => [
   { geometry: inHand(new THREE.ConeGeometry(0.035, 0.1, 4).rotateZ(Math.PI / 2).translate(0.1 * size, 0.85 * size, 0)), color: IRON, bone: BONE.Weapon },
   { geometry: inHand(new THREE.ConeGeometry(0.035, 0.1, 4).rotateZ(-Math.PI / 2).translate(-0.1 * size, 0.75 * size, 0)), color: IRON, bone: BONE.Weapon },
 ];
+
+/** Two-handed sword of the knights on foot: long blade, long grip, heavy guard. */
+const greatsword = (): Part[] => [
+  { geometry: inHand(new THREE.BoxGeometry(0.075, 1.15, 0.025).translate(0, 0.72, 0)), color: STEEL, bone: BONE.Weapon },
+  { geometry: inHand(new THREE.BoxGeometry(0.34, 0.05, 0.06).translate(0, 0.13, 0)), color: DARK_METAL, bone: BONE.Weapon },
+  { geometry: inHand(new THREE.CylinderGeometry(0.025, 0.025, 0.26, 5).translate(0, -0.02, 0)), color: LEATHER, bone: BONE.Weapon },
+];
+
+/** Rupert's war hammer (fifty pounds of iron on a long haft). */
+const warhammer = (): Part[] => [
+  { geometry: inHand(new THREE.CylinderGeometry(0.03, 0.035, 1.25, 6).translate(0, 0.5, 0)), color: WOOD, bone: BONE.Weapon },
+  { geometry: inHand(new THREE.BoxGeometry(0.2, 0.24, 0.42).translate(0, 1.1, 0)), color: IRON, bone: BONE.Weapon },
+];
+
+/** Pick and satchel of the sappers. */
+const sapperTools = (): Part[] => [
+  { geometry: inHand(new THREE.CylinderGeometry(0.025, 0.03, 0.8, 5).translate(0, 0.38, 0)), color: WOOD, bone: BONE.Weapon },
+  { geometry: inHand(new THREE.BoxGeometry(0.05, 0.06, 0.42).translate(0, 0.76, 0.06)), color: IRON, bone: BONE.Weapon },
+  { geometry: box(0.3, 0.3, 0.16, 0.05, 1.18, -0.21), color: 0x6a5232, bone: BONE.Body },
+  { geometry: box(0.08, 0.08, 0.08, -0.16, 1.02, 0.15), color: 0x2a2420, bone: BONE.Body },
+];
+
+/** Mortar tube carried on the shoulder, aimed with the weapon arm. */
+const mortarTube = (): Part[] => [
+  { geometry: inHand(new THREE.CylinderGeometry(0.1, 0.12, 0.95, 8).translate(0, 0.32, 0)), color: 0x3c3a36, bone: BONE.Weapon },
+  { geometry: inHand(new THREE.CylinderGeometry(0.125, 0.125, 0.08, 8).translate(0, 0.78, 0)), color: GOLD, bone: BONE.Weapon },
+  { geometry: box(0.28, 0.26, 0.18, 0, 1.15, -0.22), color: 0x5a4a32, bone: BONE.Body },
+];
+
+/** A second curved blade in the off hand (Lucretia fights with two scimitars). */
+const offhandBlade = (): Part[] => {
+  const inOffHand = (g: THREE.BufferGeometry) => g.rotateX(1.05).translate(-0.29, 0.93, 0.05);
+  return [
+    { geometry: inOffHand(new THREE.BoxGeometry(0.05, 0.45, 0.02).translate(0, 0.28, 0)), color: 0xc9c3d6, bone: BONE.ShieldArm },
+    { geometry: inOffHand(new THREE.BoxGeometry(0.05, 0.35, 0.02).rotateX(0.35).translate(0, 0.62, 0.06)), color: 0xc9c3d6, bone: BONE.ShieldArm },
+  ];
+};
 
 const mace = (): Part[] => [
   { geometry: inHand(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 5).translate(0, 0.35, 0)), color: 0x3b2c1e, bone: BONE.Weapon },
@@ -450,6 +526,66 @@ function createParts(model: UnitModel): Part[] {
         ...club(1.25),
         ...banner(),
       ];
+    // ---- The Crusaders: Hironeiden
+    case 'human_heavy_infantry':
+      return [
+        ...humanoid({ skin: SKIN, head: 'human', helmet: 'greathelm', torso: 'plate', cloth: 0x7d8189, boots: 0x5d6068 }),
+        ...sword(0.82),
+        ...heater(0.6, 0.86),
+      ];
+    case 'human_knight_foot':
+      return [
+        ...humanoid({ skin: SKIN, head: 'human', helmet: 'templar', torso: 'plate', cloth: 0x8e9299, boots: 0x6a6e76 }),
+        ...greatsword(),
+        ...cape(),
+      ];
+    case 'human_longbowman':
+      return [...humanoid({ skin: SKIN, head: 'human', helmet: 'kettle', torso: 'leather' }), ...bow(0x4a3322)];
+    case 'human_cavalry':
+      return [
+        ...horse(0x8a6a4a, 0x3a2a1a),
+        ...mounted([...humanoid({ skin: SKIN, head: 'human', helmet: 'kettle', torso: 'tabard', seated: true }), ...sword(0.85), ...heater(0.42, 0.52)]),
+      ];
+    case 'human_sapper':
+      return [...humanoid({ skin: SKIN, head: 'human', helmet: 'kettle', torso: 'leather', armour: LEATHER }), ...sapperTools()];
+    case 'human_mortar':
+      return [...humanoid({ skin: SKIN, head: 'human', helmet: 'kettle', torso: 'tabard', armour: LEATHER }), ...mortarTube()];
+    case 'hero_gerald':
+      return [
+        ...humanoid({ skin: SKIN, head: 'human', helmet: 'hair', torso: 'plate', hairColour: 0x5a3a20 }),
+        ...cape(),
+        ...sword(0.95, 0xeaf2ff),
+        ...heater(0.5, 0.66),
+      ];
+    case 'officer_rupert':
+      return [...humanoid({ skin: SKIN, head: 'human', helmet: 'hair', torso: 'tabard', armour: DARK_METAL, arm: 0.14, hairColour: 0x2a1a10 }), ...warhammer()];
+    case 'officer_ellen':
+      return [...humanoid({ skin: SKIN, head: 'human', helmet: 'longhair', torso: 'leather', hairColour: 0xb07a3a }), ...bow(0x6b4a2b)];
+    // ---- The Crusaders: Vellond
+    case 'dark_elf_infantry':
+      return [
+        ...humanoid({ skin: ELF_SKIN, head: 'elf', helmet: 'elfhelm', torso: 'elf', cloth: 0x1d1a22, boots: 0x15131a }),
+        ...curvedBlade(),
+        ...roundShield(0.26, 0x2b2733),
+      ];
+    case 'dark_elf_horse_archer':
+      return [
+        ...horse(0x1e1b1f, 0x0f0d10),
+        ...mounted([...humanoid({ skin: ELF_SKIN, head: 'elf', helmet: 'none', torso: 'elf', cloth: 0x1d1a22, boots: 0x15131a, seated: true }), ...bow(0x2a2226)]),
+      ];
+    case 'hero_lucretia':
+      return [
+        ...humanoid({ skin: ELF_SKIN, head: 'elf', helmet: 'longhair', torso: 'elf', cloth: 0x1d1a22, boots: 0x15131a, hairColour: 0xe8e6ee }),
+        ...cape(),
+        ...curvedBlade(),
+        ...offhandBlade(),
+      ];
+    case 'officer_morene':
+      return [
+        ...humanoid({ skin: 0xd8d2dc, head: 'human', helmet: 'longhair', torso: 'elf', cloth: 0x1a1018, boots: 0x120a10, hairColour: 0x1a1018 }),
+        ...cape(),
+        ...sword(0.85, 0xb8b0c8),
+      ];
   }
 }
 
@@ -471,11 +607,24 @@ export const ATTACK_STYLE: Record<UnitModel, number> = {
   dark_elf_rider: 0,
   ogre: 0,
   hero_likuku: 0,
+  human_heavy_infantry: 0,
+  human_knight_foot: 0,
+  human_longbowman: 0,
+  human_cavalry: 0,
+  human_sapper: 0,
+  human_mortar: 1,
+  hero_gerald: 0,
+  officer_rupert: 0,
+  officer_ellen: 0,
+  dark_elf_infantry: 0,
+  dark_elf_horse_archer: 0,
+  hero_lucretia: 0,
+  officer_morene: 1,
 };
 export const BOW_STYLE = 2;
 
 /** Models with a horse (the rider sits on the saddle, the horse gallops). */
-export const MOUNTED_MODELS: ReadonlySet<UnitModel> = new Set(['human_knight', 'dark_elf_rider']);
+export const MOUNTED_MODELS: ReadonlySet<UnitModel> = new Set(['human_knight', 'dark_elf_rider', 'human_cavalry', 'dark_elf_horse_archer']);
 
 /** Walk-cycle radians per metre travelled (a horse's stride is much longer than a man's). */
 export const STRIDE: Record<UnitModel, number> = {
@@ -491,4 +640,17 @@ export const STRIDE: Record<UnitModel, number> = {
   dark_elf_rider: 1.25,
   ogre: 2.1,
   hero_likuku: 1.9,
+  human_heavy_infantry: 3.1,
+  human_knight_foot: 3.2,
+  human_longbowman: 3.3,
+  human_cavalry: 1.25,
+  human_sapper: 3.3,
+  human_mortar: 3.2,
+  hero_gerald: 3.3,
+  officer_rupert: 3.0,
+  officer_ellen: 3.4,
+  dark_elf_infantry: 3.4,
+  dark_elf_horse_archer: 1.25,
+  hero_lucretia: 3.4,
+  officer_morene: 3.3,
 };

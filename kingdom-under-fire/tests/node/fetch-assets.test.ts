@@ -29,7 +29,7 @@ function mockServer(): Promise<{ server: Server; base: string }> {
       res.end(PNG);
     } else if (url.pathname === '/api/appdetails') {
       const data = { header_image: `${base}/steam/header.jpg`, background_raw: `${base}/steam/bg.jpg`, screenshots: [{ path_full: `${base}/steam/s1.jpg` }] };
-      res.end(JSON.stringify({ 2183600: { success: true, data } }));
+      res.end(JSON.stringify({ 1121420: { success: true, data } }));
     } else if (url.pathname.startsWith('/steam/') || url.pathname === '/cdn/library_hero.jpg') {
       res.end(JPEG);
     } else {

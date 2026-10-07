@@ -6,6 +6,7 @@ import { Random } from '../../src/core/Random';
 import { Simulation } from '../../src/core/Simulation';
 import { World } from '../../src/core/World';
 import { FACTIONS } from '../../src/data/factions';
+import { RAW_CRUSADERS_UNITS } from '../../src/data/units/crusaders';
 import { UNIT_DEFS } from '../../src/data/units';
 import { Comp } from '../../src/entities/Components';
 import { EntityManager } from '../../src/entities/EntityManager';
@@ -136,7 +137,8 @@ describe('Simulation', () => {
 
 describe('data', () => {
   it('validates the unit and faction definitions', () => {
-    expect(UNIT_DEFS).toHaveLength(12);
+    // The 12 troops of the prototypes (A War of Heroes), then those of The Crusaders.
+    expect(UNIT_DEFS).toHaveLength(12 + RAW_CRUSADERS_UNITS.length);
     expect(FACTIONS.map((f) => f.id)).toEqual(['human_alliance', 'dark_legion']);
     // Six unit types per faction, each with one hero, archers and cavalry.
     for (const f of FACTIONS) {

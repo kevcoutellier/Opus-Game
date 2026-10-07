@@ -15,20 +15,28 @@
       "richter": "Richter Rosenheim",
       "lily": "Lily",
       "amaruak": "Amaruak the Lich",
-      "regnier": "Regnier"
+      "regnier": "Regnier",
+      "gerald": "Gerald",
+      "hugh": "Hugh",
+      "rupert": "Rupert",
+      "ellen": "Ellen",
+      "lucretia": "Lucretia",
+      "morene": "Morene Strident",
+      "cirith": "Cirith",
+      "rithrin": "Rithrin"
     },
     "emblems": {
       "human_alliance": "Human Alliance",
       "dark_legion": "Dark Legion"
     },
     "artwork": {
-      "cover": "Kingdom Under Fire: A War of Heroes"
+      "cover": "Kingdom Under Fire: The Crusaders"
     }
   },
   "steam": {
-    "name": "Steam — Kingdom Under Fire: A War of Heroes (GOLD Edition)",
-    "appId": 2183600,
-    "cdn": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2183600",
+    "name": "Steam — Kingdom Under Fire: The Crusaders",
+    "appId": 1121420,
+    "cdn": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1121420",
     "extra": ["library_hero.jpg", "library_600x900.jpg"]
   },
   "soundCategories": {

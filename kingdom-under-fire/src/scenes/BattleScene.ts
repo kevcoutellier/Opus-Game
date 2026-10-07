@@ -44,10 +44,9 @@ export interface TroopBattle {
 }
 
 /**
- * Field battle fought by troops, as in The Crusaders: each side deploys four troops, the hero leading his
- * own. Hironeiden: Curian's guard (footmen), spearmen, archers behind and knights on the right wing. The
- * Legion: Likuku's guard (orc warriors), orc warriors, dark elf archers and riders on the left wing.
- * (Placeholder armies until the rosters of Hironeiden and Vellond are rebuilt, see docs/CRUSADERS.md.)
+ * Field battle fought by troops, as in The Crusaders: each side deploys five troops, the hero leading his
+ * own. Skirmish of The Crusaders, outside the campaign: Gerald's guard, spearmen, archers, cavalry and sappers
+ * of Hironeiden against Lucretia's guard, dark elf infantry, archers, cavalry archers and cavalry of Vellond.
  */
 export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: number): TroopBattle {
   const cx = mapSize / 2;
@@ -69,16 +68,18 @@ export function setupTroopBattle(world: World, troops: TroopSystem, mapSize: num
     );
   };
   const playerTroops = deploy(PLAYER_TEAM, 1, [
-    { name: 'Garde de Curian', type: 'human_footman', count: 14, dx: 0, dz: 48, hero: 'hero_curian' },
-    { name: 'Lanciers', type: 'human_spearman', count: 16, dx: -22, dz: 48 },
-    { name: 'Archers', type: 'human_archer', count: 16, dx: 0, dz: 60 },
-    { name: 'Chevaliers', type: 'human_knight', count: 8, dx: 26, dz: 50 },
+    { name: 'Garde de Gerald', type: 'hir_infantry', count: 14, dx: 0, dz: 48, hero: 'hero_gerald' },
+    { name: 'Lanciers', type: 'hir_spearman', count: 16, dx: -24, dz: 48 },
+    { name: 'Archers', type: 'hir_archer', count: 16, dx: 0, dz: 61 },
+    { name: 'Cavalerie', type: 'hir_cavalry', count: 9, dx: 28, dz: 50 },
+    { name: 'Sapeurs', type: 'hir_sapper', count: 12, dx: -24, dz: 61 },
   ]);
   const enemyTroops = deploy(ENEMY_TEAM, -1, [
-    { name: 'Garde de Likuku', type: 'orc_warrior', count: 14, dx: 0, dz: 48, hero: 'hero_likuku' },
-    { name: 'Guerriers orcs', type: 'orc_warrior', count: 16, dx: -22, dz: 48 },
-    { name: 'Archers elfes noirs', type: 'dark_elf_archer', count: 16, dx: 0, dz: 60 },
-    { name: 'Cavaliers elfes noirs', type: 'dark_elf_rider', count: 8, dx: 26, dz: 50 },
+    { name: 'Garde de Lucretia', type: 'vel_infantry', count: 14, dx: 0, dz: 48, hero: 'hero_lucretia' },
+    { name: 'Infanterie elfe noire', type: 'vel_infantry', count: 16, dx: -24, dz: 48 },
+    { name: 'Archers elfes noirs', type: 'vel_archer', count: 16, dx: 0, dz: 61 },
+    { name: 'Archers montés', type: 'vel_cavalry_archer', count: 9, dx: 28, dz: 52 },
+    { name: 'Cavalerie elfe noire', type: 'vel_cavalry', count: 9, dx: -28, dz: 56 },
   ]);
   const army = (team: number, list: Troop[]): Army => ({ team, units: list.flatMap((t) => t.members) });
   return {

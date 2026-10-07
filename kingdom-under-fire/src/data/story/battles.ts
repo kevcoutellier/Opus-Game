@@ -17,25 +17,28 @@ const BattleSchema = z.object({
 });
 export type BattleStory = z.infer<typeof BattleSchema>;
 
-/** The prototype battle, placed in the Second War of Heroes. */
-export const PROTOTYPE_BATTLE: BattleStory = BattleSchema.parse({
-  id: 'plaines_hironeiden',
-  title: 'Les plaines de Hironeiden',
-  era: 'Seconde Guerre des Héros',
+/**
+ * Skirmish of The Crusaders, outside the campaign (the missions of Gerald come next): Hironeiden against
+ * Vellond, Gerald against Lucretia, to try their troops against each other.
+ */
+export const SKIRMISH_BATTLE: BattleStory = BattleSchema.parse({
+  id: 'escarmouche_frontiere',
+  title: 'Escarmouche à la frontière',
+  era: 'Guerre des Croisés — hors campagne',
   briefing: [
-    'Les orcs de Likuku ont franchi la frontière. Leurs raids ont réduit en cendres les villages du sud, et Haven, le village de Curian, n’est plus que ruines.',
-    'Likuku marche en personne sur Hironeiden à la tête de sa horde : sa garde et une troupe de guerriers orcs, des archers et des cavaliers elfes noirs. Le roi Gernot confie à Curian quatre troupes : sa garde de fantassins, des lanciers, des archers et des chevaliers. Arrêtez la horde avant les murailles.',
-    'Chaque troupe suit son chef. Abattez-le et ses hommes se débanderont pour ne plus revenir. Gardez vos lances face aux cavaliers, chargez les archers. Curian combat au milieu de sa garde (Tab, ou zoomez sur elle) : ses sorts peuvent renverser la bataille, mais s’il tombe, tout est perdu.',
+    'Hironeiden et Vellond se disputent la frontière. Sur une plaine bordée de forêts, la troupe de Gerald, capitaine de la Force de défense de l’Est, croise les gardes-frontières de Lucretia.',
+    'Gerald mène sa garde avec ses officiers Rupert et Ellen, des lanciers, des archers, de la cavalerie et des sapeurs. Lucretia commande sa garde d’elfes noirs avec Morene et Cirith, de l’infanterie, des archers, des archers montés et de la cavalerie.',
+    'Les elfes sont frêles mais rapides, et se soignent. Gardez vos lances face aux cavaliers, abattez les chefs de troupe, et laissez Gerald combattre au milieu de sa garde (Tab, ou zoomez sur elle). S’il tombe, tout est perdu.',
   ],
-  objective: 'Briser les quatre troupes de Likuku. Curian ne doit pas tomber.',
+  objective: 'Briser les cinq troupes de Lucretia. Gerald ne doit pas tomber.',
   playerFaction: 'human_alliance',
   enemyFaction: 'dark_legion',
-  allies: ['gernot', 'curian'],
-  enemies: ['likuku', 'lauriana'],
-  victory: 'La horde de Likuku est brisée. Hironeiden tiendra encore.',
-  defeat: 'Curian est tombé ou son armée est brisée : la horde de Likuku marche sur Hironeiden.',
+  allies: ['gerald', 'rupert', 'ellen'],
+  enemies: ['lucretia', 'morene', 'cirith'],
+  victory: 'Les gardes-frontières de Lucretia sont brisés. Hironeiden tient la frontière.',
+  defeat: 'Gerald est tombé ou sa troupe est brisée : Vellond tient la frontière.',
 });
 
-for (const id of [...PROTOTYPE_BATTLE.allies, ...PROTOTYPE_BATTLE.enemies]) {
-  if (!CHARACTERS.some((c) => c.id === id)) throw new Error(`Battle ${PROTOTYPE_BATTLE.id} names unknown character ${id}`);
+for (const id of [...SKIRMISH_BATTLE.allies, ...SKIRMISH_BATTLE.enemies]) {
+  if (!CHARACTERS.some((c) => c.id === id)) throw new Error(`Battle ${SKIRMISH_BATTLE.id} names unknown character ${id}`);
 }
