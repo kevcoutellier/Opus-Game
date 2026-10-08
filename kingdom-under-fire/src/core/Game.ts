@@ -31,13 +31,15 @@ import { SKIRMISH_BATTLE, type BattleStory } from '../data/story/battles';
 import { MISSIONS, mission as missionById } from '../data/missions';
 import type { Mission } from '../missions/Mission';
 import type { MissionDirector, MissionFeed } from '../missions/MissionDirector';
-import { startMission } from '../missions/startMission';
+import { startMission, withArmy } from '../missions/startMission';
+import { type CampaignState, deployedTroops, missionOf, victory } from '../campaign/Campaign';
+import type { SaveStore } from '../campaign/SaveStore';
 import { PropRenderer } from '../renderer/PropRenderer';
 import { DialogueBox } from '../ui/DialogueBox';
 import { ObjectivePanel } from '../ui/ObjectivePanel';
 import { BriefingScreen } from '../ui/BriefingScreen';
 import { HeroBar } from '../ui/HeroBar';
-import { HUD } from '../ui/HUD';
+import { AGAIN, goTo, HUD, type OutcomeActions } from '../ui/HUD';
 import { Minimap } from '../ui/Minimap';
 import { TroopPanel } from '../ui/TroopPanel';
 import { UnitManager } from '../units/UnitManager';
@@ -131,13 +133,22 @@ export class Game {
   /** Units of the `#showcase` scene (for inspection from the console). */
   showcase: number[] = [];
 
+  /** The campaign whose army fights this battle (`#campaign-battle`), or null. */
+  private readonly campaign: { state: CampaignState; store: SaveStore } | null;
+  /** Troop key of each campaign troop on the field. */
+  private armyKeys = new Map<string, string>();
+  /** The campaign saved after the victory (the way back to the barracks waits for it). */
+  private campaignSaved: Promise<void> | null = null;
+
   constructor(
     canvas: HTMLCanvasElement,
     readonly ui: HTMLElement,
     readonly assets: AssetManager,
+    campaign: { state: CampaignState; store: SaveStore } | null = null,
   ) {
     this.renderer = new Renderer(canvas);
-    this.scenario = readScenario(location.hash);
+    this.campaign = campaign?.state.deployment ? campaign : null;
+    this.scenario = this.campaign ? { kind: 'mission', mission: missionOf(this.campaign.state.deployment!.mission) } : readScenario(location.hash);
     const feed: MissionFeed = {
       say: (speaker, text) => this.dialogue.say(speaker, text),
       cutscene: (x, z) => this.startCutscene(x, z),
@@ -145,7 +156,15 @@ export class Game {
     };
     let battle: BattleSimulation;
     if (this.scenario.kind === 'mission') {
-      const m = startMission(this.scenario.mission, feed, { hz: SIM_HZ, perf: this.perf });
+      let mission = this.scenario.mission;
+      if (this.campaign) {
+        // The campaign's own troops, with their levels and equipment, take the places of the mission's.
+        const army = deployedTroops(this.campaign.state).map(({ troop, count, boost }) => ({ id: troop.id, name: troop.name, type: troop.type, hero: !!troop.hero, count, boost }));
+        const deployed = withArmy(mission, army);
+        mission = deployed.mission;
+        this.armyKeys = deployed.keys;
+      }
+      const m = startMission(mission, feed, { hz: SIM_HZ, perf: this.perf });
       this.terrain = m.terrain;
       this.world = m.world;
       battle = m.battle;
@@ -220,7 +239,7 @@ export class Game {
     this.input = new InputManager(canvas);
 
     const world = this.world;
-    this.hud = new HUD(ui, this.units, this.troops, TEAM_FACTIONS, this.story, assets, this.nextMission());
+    this.hud = new HUD(ui, this.units, this.troops, TEAM_FACTIONS, this.story, assets, this.outcomeActions());
     this.dialogue = new DialogueBox(ui, (id) => this.assets.portrait(id));
     this.objectives = this.director ? new ObjectivePanel(ui, this.director) : null;
     this.audio = new AudioManager(assets);
@@ -315,10 +334,13 @@ export class Game {
     this.loop.paused = true;
     new BriefingScreen(this.ui, {
       story: this.story,
-      missions: [
-        ...MISSIONS.map((m) => ({ hash: `#mission=${m.id}`, label: `${m.order}. ${m.title}`, current: this.scenario.kind === 'mission' && this.scenario.mission.id === m.id })),
-        { hash: '#skirmish', label: 'Escarmouche', current: this.scenario.kind === 'skirmish' },
-      ],
+      missions: this.campaign
+        ? [{ hash: '#barracks', label: '← Caserne', current: false }]
+        : [
+            ...MISSIONS.map((m) => ({ hash: `#mission=${m.id}`, label: `${m.order}. ${m.title}`, current: this.scenario.kind === 'mission' && this.scenario.mission.id === m.id })),
+            { hash: '#skirmish', label: 'Escarmouche', current: this.scenario.kind === 'skirmish' },
+            { hash: '#campaign', label: 'Menu', current: false },
+          ],
       portrait: (id) => this.assets.portrait(id),
       artwork: this.assets.artwork(),
       credits: this.assets.credits(),
@@ -341,6 +363,30 @@ export class Game {
       this.heroInput.toggleDirect();
     }
     this.heroEngaged = engaged;
+  }
+
+  /** What the player can do once the battle is over. */
+  private outcomeActions(): OutcomeActions {
+    if (this.campaign) {
+      const barracks = {
+        label: 'Retour à la caserne',
+        run: async () => {
+          await this.campaignSaved;
+          goTo('#barracks');
+        },
+      };
+      return { victory: [barracks], defeat: [{ label: 'Réessayer', run: () => location.reload() }, { label: 'Caserne', run: () => goTo('#barracks') }] };
+    }
+    const next = this.nextMission();
+    return { victory: [AGAIN, ...(next ? [{ label: 'Mission suivante', run: () => goTo(next) }] : [])], defeat: [AGAIN] };
+  }
+
+  /** A campaign battle won: gold, experience and recruits are saved at once. */
+  private recordVictory(): void {
+    const { state, store } = this.campaign!;
+    const kills: Record<string, number> = {};
+    for (const [id, key] of this.armyKeys) kills[id] = this.director?.kills.get(key) ?? 0;
+    this.campaignSaved = store.save(victory(state, kills, Math.floor(Math.random() * 2 ** 31)));
   }
 
   /** The mission after this one in its campaign, if any. */
@@ -503,6 +549,7 @@ export class Game {
     this.overlay.objectives(this.markers(), this.time);
     this.objectives?.update();
     const outcome = this.perfTest.current !== null ? null : (this.director?.outcome ?? this.outcome.update(this.world));
+    if (outcome === 'victory' && this.campaign && !this.campaignSaved) this.recordVictory();
     this.hud.update(outcome, direct >= 0 ? 'action' : 'tactic', chosen?.name ?? null, this.director?.outcomeText ?? null);
     this.heroBar.update();
     this.troopPanel.update();

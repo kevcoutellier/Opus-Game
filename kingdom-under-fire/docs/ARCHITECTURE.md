@@ -70,6 +70,7 @@ F1 maison suffit).
 | C4b Compétences | SP des troupes (coups, victimes, chefs), commande `troopSkill`, compétences de The Crusaders, `FireGrid` + `FireSystem` (feu de forêt), `TrapSystem`, effets `ignite` et `trap`, flammes, arbres calcinés, pièges visibles de leur camp, IA qui les emploie | ✅ |
 | C4c Contres | Volants (`flying` : couche à part pour les lames, les charges, le feu, les pièges et les flèches ; altitude, ailes animées), mortiers à éclats sans tir anti-aérien, tir au galop vers la gauche, lances qui immobilisent, régénération en forêt et résistance à la magie des elfes | ✅ |
 | C5 Missions | Missions décrites en données (`missions/Mission.ts`, Zod : troupes, déclencheurs, actions), `MissionDirector` (système qui lit les déclencheurs et joue les actions), bâtiments (`maps/Props.ts`, `PropRenderer` : maisons, huttes, murs, tours, tentes, palissades qui occupent la grille et brûlent), ballon dirigeable, troupes `player` / `ai` dans le même camp (alliés, ralliements), dialogues, objectifs et points verts, scènes coupées ; Greyhampton et Ravenmeadow | ✅ |
+| C6 Campagne | Armée permanente (`campaign/Campaign.ts` : niveaux, compétences, promotions du guide, armurerie aléatoire, taverne, récompenses, schéma Zod de la sauvegarde), `SaveStore` (IndexedDB, mémoire en repli), menu, caserne et préparation (`CampaignApp`), armée déployée dans la mission (`withArmy`, bonus des vétérans, victimes comptées par troupe), victoire enregistrée, rapport de bataille | ✅ |
 | C7 Modèles Blender | Gerald et le fantassin d'Hironeiden modélisés par script dans Blender sans écran (`tools/blender/models`), exportés en glTF (`public/models`), convertis au chargement en géométrie du moteur (`UnitModelLoader`) et substitués aux modèles procéduraux (`UnitRenderer.useGeometry`) ; budgets de triangles, aperçus Cycles, tests sur les fichiers réels | ✅ |
 
 ### Équité de la simulation
@@ -142,6 +143,18 @@ avec ordre de création et côté de la carte inversés. Un test de non-régress
   colore chaque bâtiment d'après les cellules en feu sous lui, puis le laisse calciné.
 - **Une scène coupée met la bataille en pause.** La simulation s'arrête, la caméra montre le lieu, les répliques
   défilent en temps réel (clic ou Entrée pour passer) et les effets (flammes, fumée) continuent de jouer.
+- **La campagne vit hors de la scène 3D.** Le menu et la caserne sont des pages DOM (`CampaignApp`) ; la
+  bataille est une page `Game` à part. On passe de l'une à l'autre en changeant le hash et en rechargeant :
+  chaque bataille part d'un monde neuf, sans état laissé par la précédente. La sauvegarde (IndexedDB) fait le
+  lien : la caserne y écrit les troupes choisies, la bataille y écrit la victoire avant d'offrir le retour.
+- **Les règles de campagne sont des fonctions pures.** `Campaign.ts` prend un état et rend le suivant
+  (entraîner, promouvoir, acheter, équiper, engager, déployer, victoire) ; l'interface ne fait qu'afficher et
+  appeler. Le stock de l'armurerie et la taverne se déduisent d'une graine : un nouveau tirage = une nouvelle
+  graine. La sauvegarde est validée par Zod au chargement.
+- **L'armée remplace les troupes de la mission.** `withArmy` place la troupe du héros à la place de celle de
+  la mission et les autres sur les places du joueur, puis les emplacements supplémentaires ; le script ne
+  voit aucune différence. Les bonus des vétérans (PV, attaque, défense, SP) sont appliqués au déploiement par
+  le `MissionDirector`, qui compte aussi les ennemis tués par chaque troupe du joueur.
 - **Les modèles Blender gardent le squelette du moteur.** Ils sont gréés sur les six os du shader (corps, jambes,
   bras, arme), têtes d'os placées sur ses pivots, un os par sommet. Au chargement, le joint qui porte chaque
   sommet devient `aBone`, la couleur du matériau sa couleur, le matériau `Team` la couleur de faction : la

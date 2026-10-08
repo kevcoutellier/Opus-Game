@@ -38,6 +38,8 @@ export interface Troop {
   routTime: number;
   /** Special points of the troop, earned by fighting (a hero's troop uses its hero's). */
   sp: number;
+  /** Multiplier of the SP it earns (the equipment of a campaign's veterans). */
+  spRate: number;
   readonly maxSp: number;
   /** Skills of its soldiers (none for a hero's troop: they are the hero's abilities). */
   readonly skills: readonly AbilityDef[];
@@ -146,7 +148,7 @@ export class TroopSystem implements System {
       const a = attack.attacker;
       const t = a >= 0 ? this.troops.get(world.c.troop[a]) : undefined;
       if (!t) return;
-      const gain = SP_PER_HIT + (killed ? (world.c.leader[attack.target] ? SP_PER_LEADER : SP_PER_KILL) : 0);
+      const gain = (SP_PER_HIT + (killed ? (world.c.leader[attack.target] ? SP_PER_LEADER : SP_PER_KILL) : 0)) * t.spRate;
       if (!t.hero) {
         t.sp = Math.min(t.maxSp, t.sp + gain);
         return;
@@ -242,6 +244,7 @@ export class TroopSystem implements System {
       status: 'idle',
       routTime: 0,
       sp: TROOP_SP_START,
+      spRate: 1,
       maxSp: TROOP_SP,
       skills: heroDef ? [] : UNIT_DEFS[type].skills.map(ability),
       cooldowns: heroDef ? [] : UNIT_DEFS[type].skills.map(() => 0),

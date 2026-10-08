@@ -29,6 +29,19 @@ const HELP = [
   ['F1 / F2', 'panneau développeur · test de performance'],
 ];
 
+export interface OutcomeAction {
+  label: string;
+  run(): void | Promise<void>;
+}
+export type OutcomeActions = Record<'victory' | 'defeat', OutcomeAction[]>;
+
+/** Opens another page of the game (a mission, the barracks): each one is a fresh start of the page. */
+export function goTo(hash: string): void {
+  location.hash = hash;
+  location.reload();
+}
+export const AGAIN: OutcomeAction = { label: 'Rejouer', run: () => location.reload() };
+
 /** DOM overlay of the battle: troops and soldiers left on each side, current mode, help, outcome. */
 export class HUD {
   private readonly counts: HTMLDivElement;
@@ -45,8 +58,8 @@ export class HUD {
     teamFactions: string[],
     private readonly story: BattleStory,
     assets: AssetManager,
-    /** Hash of the next mission of the campaign (offered after a victory), or null. */
-    private readonly next: string | null = null,
+    /** Buttons of the end of the battle, after a victory or a defeat. */
+    private readonly actions: OutcomeActions = { victory: [AGAIN], defeat: [AGAIN] },
   ) {
     const emblem = (team: number) => {
       const url = assets.emblem(teamFactions[team]);
@@ -78,19 +91,13 @@ export class HUD {
   update(outcome: Outcome, mode: BattleMode, troop: string | null, outcomeText: string | null = null): void {
     if (outcome && this.banner.hidden) {
       this.banner.hidden = false;
-      const next = outcome === 'victory' && this.next ? '<button type="button" class="next">Mission suivante</button>' : '';
+      const actions = this.actions[outcome];
       this.banner.innerHTML = `<div class="title">${outcome === 'victory' ? 'Victoire' : 'Défaite'}</div><p>${
         outcomeText ?? (outcome === 'victory' ? this.story.victory : this.story.defeat)
-      }</p><button type="button" class="again">Rejouer</button>${next}`;
-      this.banner.querySelector<HTMLButtonElement>('.again')!.onclick = () => location.reload();
-      const button = this.banner.querySelector<HTMLButtonElement>('.next');
-      if (button && this.next) {
-        const hash = this.next;
-        button.onclick = () => {
-          location.hash = hash;
-          location.reload();
-        };
-      }
+      }</p>${actions.map((a) => `<button type="button">${a.label}</button>`).join('')}`;
+      this.banner.querySelectorAll<HTMLButtonElement>('button').forEach((button, i) => {
+        button.onclick = () => void actions[i].run();
+      });
     }
     const side = (team: number) => {
       const n = this.troops.list(team, true).length;

@@ -132,9 +132,10 @@ test('the hero: his officers, action mode by Tab and by the zoom, the special at
 
 test('Greyhampton: the briefing, the green spots, the burning village, the dialogue and the objectives', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('/#mission=greyhampton');
   await expect(page.locator('.briefing h1')).toHaveText('Greyhampton');
-  await expect(page.locator('.briefing-missions a')).toHaveCount(3);
+  // Both missions, the skirmish and the way back to the menu.
+  await expect(page.locator('.briefing-missions a')).toHaveCount(4);
   await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
   await page.getByRole('button', { name: 'Commencer la bataille' }).click();
   await expect(page.locator('.objectives li')).toHaveCount(2);
@@ -210,6 +211,43 @@ function wav(): Buffer {
   h.writeUInt32LE(data.length, 40);
   return Buffer.concat([h, data]);
 }
+
+test('the campaign: a new army, the armoury, a battle fought with it, the victory paid and saved', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  // The title menu: no save yet.
+  await page.getByRole('button', { name: 'Commencer la campagne' }).click();
+  await expect(page.locator('.barracks .gold')).toContainText('300');
+  await expect(page.locator('.roster li')).toHaveCount(3);
+  // Buy a piece of equipment a level-1 troop can wear (there is one of each kind), and put it on the guard.
+  await page.getByRole('button', { name: 'Armurerie' }).click();
+  const offer = page.locator('.items li').filter({ hasText: 'niv. 1' }).first();
+  const price = Number(/(\d+) or/.exec((await offer.locator('button').textContent())!)![1]);
+  await offer.locator('button').click();
+  await expect(page.locator('.barracks .gold')).toContainText(String(300 - price));
+  await page.locator('button[data-equip]').click();
+  await page.getByRole('button', { name: 'Troupes' }).click();
+  await expect(page.locator('.troop-detail .slot b')).toHaveCount(1);
+  // Prepare Greyhampton with the three troops, and fight it.
+  await page.getByRole('button', { name: 'Préparer la bataille' }).click();
+  await expect(page.locator('.deploy input:checked')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Lancer la bataille' }).click();
+  await expect.poll(() => game(page, 'g?.frames ?? 0'), { timeout: 60_000 }).toBeGreaterThan(3);
+  await expect(page.locator('.briefing h1')).toHaveText('Greyhampton');
+  await page.getByRole('button', { name: 'Commencer la bataille' }).click();
+  await expect(page.locator('.troop-card')).toHaveCount(3);
+  await expect(page.locator('.troop-card').nth(2)).toContainText('Lanciers');
+  // The victory (the script's end, reached at once): the guard killed ten enemies.
+  await game(page, "(g.director.kills.set('guard', 10), g.director.outcome = 'victory')");
+  await page.getByRole('button', { name: 'Retour à la caserne' }).click();
+  await expect(page.locator('.report')).toContainText('Greyhampton');
+  await expect(page.locator('.report')).toContainText('10 ennemis tués');
+  await expect(page.locator('.barracks-head')).toContainText('Ravenmeadow');
+  // Kept in IndexedDB: a reload finds the army where it was.
+  await page.reload();
+  await expect(page.locator('.barracks-head')).toContainText('Ravenmeadow');
+  expect(errors).toEqual([]);
+});
 
 test('uses the official assets installed by npm run assets (portraits, artwork, sounds)', async ({ page }) => {
   const errors = collectErrors(page);

@@ -51,6 +51,9 @@ export class MissionDirector implements System {
   hero = -1;
   /** Incremented when the objectives change (the UI redraws them). */
   version = 0;
+  /** Enemies killed by each of the player's troops (by key): the campaign pays for them. */
+  readonly kills = new Map<string, number>();
+  private readonly keyOf = new Map<number, string>();
   private readonly fired = new Map<string, number>();
   private readonly knowledge: AIKnowledge;
   private next = 0;
@@ -61,6 +64,11 @@ export class MissionDirector implements System {
     private readonly d: MissionDeps,
   ) {
     this.knowledge = new AIKnowledge(world, d.playerTeam);
+    world.events.on('unitDied', ({ team, killer }) => {
+      if (team === d.playerTeam || killer < 0 || world.c.team[killer] !== d.playerTeam) return;
+      const key = this.keyOf.get(world.c.troop[killer]);
+      if (key) this.kills.set(key, (this.kills.get(key) ?? 0) + 1);
+    });
   }
 
   /** The troops of the battle (they exist once the simulation is built). */
@@ -195,6 +203,19 @@ export class MissionDirector implements System {
       controller: spec.side === 'player' ? 'player' : 'ai',
     });
     this.troopOf.set(spec.key, troop);
+    this.keyOf.set(troop.id, spec.key);
+    if (spec.boost) {
+      // Veterans of the campaign: their level, skills and equipment.
+      const { c } = world;
+      for (const id of troop.members) {
+        c.maxHp[id] *= spec.boost.health;
+        c.hp[id] = c.maxHp[id];
+        c.attack[id] *= spec.boost.attack;
+        c.rangedAttack[id] *= spec.boost.attack;
+        c.defense[id] += spec.boost.defense;
+      }
+      troop.spRate = spec.boost.sp;
+    }
     if (spec.side === 'player' && spec.hero && this.hero < 0) this.hero = troop.leader;
     if (spec.side !== 'player') {
       const ai = spec.side === 'enemy' ? this.d.enemyAI : this.d.allyAI;

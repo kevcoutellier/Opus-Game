@@ -61,6 +61,8 @@ const GREYHAMPTON = {
     ],
   },
   camera: { x: 128, z: 214 },
+  reward: { gold: 300, xp: 120 },
+  deploy: { max: 3, slots: [{ x: 144, z: 228, facing: NORTH }] },
   troops: [
     { key: 'guard', name: 'Garde de Gerald', type: 'hir_infantry', count: 15, hero: 'hero_gerald', side: 'player', x: 128, z: 222, facing: NORTH },
     { key: 'archers', name: 'Archers', type: 'hir_archer', count: 14, side: 'player', x: 128, z: 236, facing: NORTH },
@@ -196,6 +198,10 @@ const RAVENMEADOW = {
     ],
   },
   camera: { x: 128, z: 216 },
+  reward: { gold: 450, xp: 200 },
+  deploy: { max: 4, slots: [{ x: 131, z: 238, facing: NORTH }, { x: 115, z: 238, facing: NORTH }] },
+  // The archers saved by the shore stay with Gerald.
+  recruits: [{ type: 'hir_archer', name: 'Archers de la colonne' }],
   troops: [
     { key: 'guard', name: 'Garde de Gerald', type: 'hir_infantry', count: 15, hero: 'hero_gerald', side: 'player', x: 120, z: 224, facing: NORTH },
     { key: 'spears', name: 'Lanciers', type: 'hir_spearman', count: 16, side: 'player', x: 142, z: 226, facing: NORTH },

@@ -129,6 +129,17 @@ n'ont que les compétences Mêlée et Éclaireur ; la magie (Météore, Blizzard
 | Caserne | Équipement généré au hasard (sauvegarder puis recharger le régénère). Niveau d'équipement plafonné à 30. Bonus d'expérience ou de SP sur les armes. | confirmé |
 | Mercenaires | Recrutés avec des compétences données, puis promus. | confirmé |
 | Officiers | Leur équipement donne des compétences et des résistances qui s'appliquent à leur troupe. | confirmé |
+| Taverne | Les officiers des troupes spécialisées se recrutent comme mercenaires à la taverne, contre un prix fixe ; Smith serait le premier à engager dans la campagne de Gerald. | probable (critique Gameswelt, discussion Steam) |
+| Économie | L'or par mission est faible ; l'équipement sert surtout passé le niveau 20 à 30 des troupes. | avis de joueurs |
+
+**Dans le clone** : la boucle (caserne → choix des troupes → bataille → or et expérience), les niveaux, les
+compétences et leurs plafonds, les promotions et leurs exigences, l'équipement aléatoire plafonné au niveau 30
+et régénéré au chargement, les bonus d'expérience ou de SP des armes, les mercenaires et Smith viennent des
+sources. Sont reconstitués : la courbe d'expérience, 3 points de compétence par niveau, l'effet des niveaux,
+des compétences et de l'équipement en bataille, les prix, l'or et l'expérience par victime, les exigences des
+lanciers et de la cavalerie, les noms des autres mercenaires, la limite de 8 troupes à la caserne, le nombre de
+troupes engagées par mission, et le retour des troupes au complet entre deux batailles (la règle de l'original
+pour les pertes n'est pas documentée).
 
 ## 4. Contrôles (Xbox ; la version PC permet de tout réassigner)
 
@@ -177,5 +188,7 @@ affiche la correspondance clavier (confirmé). Les touches par défaut : **incon
 - [Steam — page du jeu](https://store.steampowered.com/app/1121420/Kingdom_Under_Fire_The_Crusaders/)
 - Discussions Steam sur les troupes, la caserne et l'équipement des officiers (app 1121420).
 - [Kingdom Under Fire Wiki — Walter](https://kingdomunderfire.fandom.com/wiki/Walter) (le massacre de Greyhampton)
+- [Gameswelt — test de The Crusaders](https://www.gameswelt.de/kingdom-under-fire-the-crusaders/test/kingdom-under-fire-the-crusaders-228/2) (caserne, or, officiers mercenaires de la taverne)
+- [Discussion Steam — or, expérience et équipement](https://steamcommunity.com/app/1121420/discussions/0/1746772308311477073), [Smith, premier mercenaire](https://steamcommunity.com/app/1121420/discussions/0/1745644504181388298)
 - [YouTube — Kingdom Under Fire The Crusaders PC HD](https://www.youtube.com/watch?v=8keReEckW_s) et
   [liste de lecture de la campagne de Gerald](https://www.youtube.com/playlist?list=PLXTkpTjoYXxKIRK2Wk4xAalt6iJRuomQ-)

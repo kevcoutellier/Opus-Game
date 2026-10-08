@@ -9,11 +9,35 @@ Ce que l'on sait de l'original (avec un niveau de confiance pour chaque point) e
 [`docs/CRUSADERS.md`](docs/CRUSADERS.md). Les portraits et illustrations officiels, ainsi que vos propres musiques
 et sons, s'installent avec `npm run assets` et ne sont jamais versionnés (voir [Assets officiels](#assets-officiels)).
 
-## État : étape 4 sur 5, les deux premières missions de Gerald ✅
+## État : les 5 étapes du clone sont faites ✅ (campagne de Gerald, missions 1 et 2)
+
+### Étape 5 : la campagne
+
+Le jeu s'ouvre sur le menu des campagnes. La campagne de Gerald suit la boucle de l'original : caserne,
+choix des troupes, bataille, or et expérience, caserne. Ce qui vient des sources est dans `docs/CRUSADERS.md`
+(section 3) ; les courbes, les prix et les bonus sont à nous, aucun n'est documenté.
+
+- **Armée permanente** : la garde de Gerald, des archers et des lanciers au départ. Chaque troupe a son
+  niveau (jusqu'à 99), son expérience et ses compétences (Mêlée, Tir, Équitation, Frontal, Travail d'équipe,
+  Poudre, Éclaireur, Magie ; 50 au plus, 25 pour la magie). Chaque niveau donne des points à répartir.
+- **Promotions** aux exigences du guide officiel : infanterie → infanterie lourde (Mêlée 10) ou chevaliers
+  (Mêlée 15), archers → archers longs, cavalerie → cavalerie lourde → cavaliers de l'orage, sapeurs → mortiers.
+- **Caserne** : armurerie au stock aléatoire (armes, armures, accessoires jusqu'au niveau 30, bonus
+  d'expérience ou de SP sur certaines armes), renouvelé à chaque chargement de la sauvegarde comme dans
+  l'original ; inventaire, vente ; taverne de mercenaires qui mènent chacun une troupe de leur classe (Smith
+  le premier) ; renvoi d'une troupe.
+- **Bataille** : on choisit les troupes engagées (3 à Greyhampton, 4 à Ravenmeadow, la garde de Gerald
+  toujours). Elles prennent les places de la mission avec leurs bonus : PV, attaque, défense, SP.
+- **Récompenses** : l'or de la mission plus une part par ennemi tué, l'expérience partagée entre les troupes
+  engagées plus une part par victime ; rapport de bataille à la caserne. À Ravenmeadow, les archers sauvés
+  rejoignent l'armée.
+- **Sauvegarde** dans IndexedDB, validée au chargement ; une sauvegarde invalide est ignorée.
+
+### Étape 4 : les deux premières missions de Gerald
 
 L'étape 4 ouvre la campagne de Gerald avec ses deux premières missions, rejouées d'après les guides
-(enchaînements confirmés, carte et répliques reconstituées ; voir `docs/CRUSADERS.md`). Le jeu démarre sur
-Greyhampton ; le briefing liste les missions et l'escarmouche, et « Mission suivante » enchaîne après une victoire.
+(enchaînements confirmés, carte et répliques reconstituées ; voir `docs/CRUSADERS.md`). Hors campagne, le
+menu et le briefing mènent à chaque mission et à l'escarmouche, et « Mission suivante » enchaîne après une victoire.
 
 - **Greyhampton** : la patrouille de Gerald (sa garde, Rupert, Ellen et des archers) rejoint deux points verts ;
   le ballon des nains passe au-dessus d'elle. Au second point, une scène coupée montre le village en flammes,
@@ -167,16 +191,17 @@ npm run dev        # http://localhost:5173
 
 | Commande | Rôle |
 | --- | --- |
-| `npm test` | 122 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, missions (données, Greyhampton et Ravenmeadow jouées de bout en bout), modèles Blender (squelette, taille, budget), histoire, assets, script d'assets contre un faux wiki |
-| `npm run test:e2e` | 5 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte, Flèche de feu visée ; officiers, mode action par Tab et par le zoom, attaque spéciale ; Greyhampton (briefing, points verts, scène coupée du village en flammes, répliques, objectifs) ; assets installés utilisés |
+| `npm test` | 129 tests Vitest : cœur, terrain, caméra, unités, mouvement, formations, combat, équilibre, archers, flancs, charges, héros, coups du héros, officiers et assistances, troupes (chef, points de passage, armée entière, escorte, IA, fin de bataille), compétences et SP des troupes, feu de forêt, pièges, volants, mortiers, archers montés, lanciers, elfes, missions (données, Greyhampton et Ravenmeadow jouées de bout en bout), modèles Blender (squelette, taille, budget), campagne (récompenses, niveaux, compétences, promotions, armurerie, taverne, sauvegarde, armée déployée sur le terrain), histoire, assets, script d'assets contre un faux wiki |
+| `npm run test:e2e` | 6 tests navigateur Playwright : démarrage sans erreur ; choix des troupes (Q / E, clic), marche, point de passage sur la minicarte, Flèche de feu visée ; officiers, mode action par Tab et par le zoom, attaque spéciale ; Greyhampton (briefing, points verts, scène coupée du village en flammes, répliques, objectifs) ; campagne (nouvelle armée, achat et équipement, choix des troupes, bataille, victoire payée, sauvegarde rechargée) ; assets installés utilisés |
 | `npm run assets` | installe les portraits et illustrations officiels, votre musique et vos sons |
 | `npm run models` | reconstruit les modèles Blender (`public/models/*.glb`) ; `-- --preview <dossier>` rend aussi des aperçus |
 | `npm run bench` | coût CPU d'un tick de simulation de 100 à 1000 unités, armées interarmes |
 | `npm run typecheck` | TypeScript strict (jeu, tests, configurations) |
 | `npm run build` | vérification des types puis build statique dans `dist/` (chemins relatifs) |
 
-URL : `#mission=greyhampton` ou `#mission=ravenmeadow` pour choisir la mission (Greyhampton par défaut),
-`#skirmish` pour l'escarmouche ; `#perf=N` pour déployer directement N soldats et mesurer (par exemple `#perf=50` ou `#perf=1000`) ;
+URL : sans rien, le menu des campagnes (`#campaign`) ; `#barracks` la caserne de la campagne en cours ;
+`#campaign-battle` la bataille préparée à la caserne ; hors campagne, `#mission=greyhampton` ou
+`#mission=ravenmeadow` pour une mission avec ses troupes d'origine, `#skirmish` pour l'escarmouche ; `#perf=N` pour déployer directement N soldats et mesurer (par exemple `#perf=50` ou `#perf=1000`) ;
 `#showcase` pour voir les douze modèles côte à côte.
 
 ## Contrôles
@@ -266,6 +291,8 @@ src/
   entities/    EntityManager (ids, liste dense), Components (structure de tableaux typés, troupe et chef)
   data/        unités (dont celles de The Crusaders), capacités et compétences, officiers, factions, histoire
                (lore, personnages, escarmouche), missions de Gerald, validées par Zod
+  campaign/    Campaign (armée, niveaux, compétences, promotions, armurerie, taverne, récompenses ; schéma de
+               la sauvegarde), SaveStore (IndexedDB), CampaignApp (menu, caserne, préparation de la bataille)
   missions/    Mission (schéma : troupes, déclencheurs, actions), MissionDirector (système qui joue le script),
                startMission (terrain, bâtiments, IA ennemie et alliée, déploiement)
   assets/      AssetManager (manifeste des assets officiels), sources.json (wiki, Steam, sons)
@@ -308,8 +335,11 @@ Principes, dépendances justifiées et journal détaillé des phases : [`docs/AR
    des troupes, sapeurs et pièges, mortiers, volants, forêts qui brûlent.
 4. ✅ **Missions 1 et 2 de Gerald** : Greyhampton et Ravenmeadow, objectifs, scripts, alliés, décor, répliques
    et scènes coupées.
-5. **Campagne** : choix de la campagne, briefing et choix des troupes, résultats (or, expérience), caserne
+5. ✅ **Campagne** : choix de la campagne, choix des troupes, résultats (or, expérience), caserne
    (équipement, mercenaires, promotions), sauvegarde (IndexedDB).
+
+Suite possible : les missions 3 à 11 de Gerald, la campagne de Lucretia, les unités manquantes (Bomber Wing,
+chevaliers elfes noirs, goules, scorpions), des modèles texturés pour toutes les unités.
 
 La fidélité des étapes 3 à 5 dépend des sources : les pages qui détaillent le jeu (Kingdom Under Fire Wiki,
 GameFAQs, guides Steam) étaient inaccessibles depuis l'environnement de développement.

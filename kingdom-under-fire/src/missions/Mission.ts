@@ -30,6 +30,8 @@ export const MissionTroopSchema = z.object({
   stance: StanceSchema.default({ kind: 'hold' }),
   /** Range (m) within which an AI troop attacks the enemies it sees. */
   engage: z.number().positive().optional(),
+  /** Veterans of a campaign: multipliers of health, attack and SP earned, flat defence (set by the deployment). */
+  boost: z.object({ health: z.number().positive(), attack: z.number().positive(), defense: z.number(), sp: z.number().positive().default(1) }).optional(),
 });
 export type MissionTroop = z.infer<typeof MissionTroopSchema>;
 
@@ -109,6 +111,15 @@ export const MissionSchema = z.object({
   }),
   /** Where the camera looks first. */
   camera: PointSchema,
+  /** Gold of the victory, and experience shared by the troops that fought (campaign). */
+  reward: z.object({ gold: z.number().int().min(0), xp: z.number().int().min(0) }).default({ gold: 200, xp: 100 }),
+  /**
+   * Campaign deployment: how many troops the player brings, his hero's included. They stand where the
+   * mission's own player troops stand, then on the extra `slots`.
+   */
+  deploy: z.object({ max: z.number().int().min(1), slots: z.array(PointSchema.extend({ facing: z.number().default(0) })).default([]) }).optional(),
+  /** Troops that join the player's army after a victory (campaign). */
+  recruits: z.array(z.object({ type: z.string(), name: z.string() })).default([]),
   troops: z.array(MissionTroopSchema).min(1),
   events: z.array(MissionEventSchema),
 });
@@ -132,5 +143,17 @@ export function parseMission(raw: unknown): Mission {
     for (const a of e.do) if (a.kind === 'spawn' || a.kind === 'stance' || a.kind === 'join') a.troops.forEach(check);
   }
   if (!m.troops.some((t) => t.side === 'player' && t.hero && !t.reserve)) throw new Error(`Mission ${m.id} has no hero for the player`);
+  if (m.deploy && deploySlots(m).length < m.deploy.max - 1) throw new Error(`Mission ${m.id}: fewer places than troops to deploy`);
   return m;
+}
+
+/** Where the player's troops (other than his hero's) stand: the mission's own, then the extra slots. */
+export function deploySlots(m: Mission): { x: number; z: number; facing: number }[] {
+  const own = m.troops.filter((t) => t.side === 'player' && !t.hero && !t.reserve).map((t) => ({ x: t.x, z: t.z, facing: t.facing }));
+  return [...own, ...(m.deploy?.slots ?? [])];
+}
+
+/** Troops the player brings to the mission: his hero's and the others (the mission's own when not set). */
+export function deployMax(m: Mission): number {
+  return m.deploy?.max ?? m.troops.filter((t) => t.side === 'player' && !t.reserve).length;
 }
